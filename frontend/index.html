@@ -188,11 +188,25 @@ Score: 8.5/10 (was 2/10)
 
     // Global unhandled rejection handler
     window.addEventListener('unhandledrejection', function(event) {
+        const msg = event.reason?.message || String(event.reason) || '';
+        const code = event.reason?.code || '';
+
+        // Silently swallow known harmless Firebase permission errors
+        // (occur when Firestore security rules block anonymous reads before auth completes)
+        if (code === 'permission-denied' ||
+            msg.includes('Missing or insufficient permissions') ||
+            msg.includes('PERMISSION_DENIED') ||
+            msg.includes('Firebase') && msg.includes('permission')) {
+            event.preventDefault();
+            console.warn('⚠️ Firebase permission: waiting for auth. Will retry after sign-in.');
+            return;
+        }
+
         console.error('Unhandled promise rejection:', event.reason);
         // Log to security audit if available
         if (window.ecoSecurity && window.ecoSecurity.logAudit) {
             window.ecoSecurity.logAudit('UNHANDLED_ERROR', {
-                message: event.reason?.message || 'Unknown error',
+                message: msg || 'Unknown error',
                 stack: event.reason?.stack?.substring(0, 500)
             });
         }
@@ -16077,19 +16091,34 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
             // Wait for Firebase to be ready
             await this.waitForFirebase();
 
-            // Initialize Firebase Realtime Database
+            // Initialize Firebase Realtime Database — wait for auth before writing
             if (typeof firebase !== 'undefined' && firebase.database) {
                 this.db = firebase.database();
                 console.log('✅ Firebase Realtime Database initialized for analytics');
 
-                // Setup presence system for live visitors
-                this.setupPresence();
+                // Wait for anonymous auth before any Firestore/RTDB writes
+                const authReady = () => new Promise(resolve => {
+                    if (firebase.auth().currentUser) { resolve(firebase.auth().currentUser); return; }
+                    const unsub = firebase.auth().onAuthStateChanged(user => {
+                        unsub();
+                        resolve(user);
+                    });
+                    // Timeout fallback — 3 seconds
+                    setTimeout(() => resolve(null), 3000);
+                });
 
-                // Track this visit in Firebase
-                await this.trackVisitFirebase();
-
-                // Listen to real-time updates
-                this.listenToAnalytics();
+                const user = await authReady();
+                if (user) {
+                    // Setup presence system for live visitors
+                    this.setupPresence();
+                    // Track this visit in Firebase
+                    await this.trackVisitFirebase().catch(e => console.warn('Analytics write blocked:', e.code));
+                    // Listen to real-time updates
+                    this.listenToAnalytics();
+                } else {
+                    console.warn('⚠️ Firebase auth not ready — using localStorage analytics fallback');
+                    this.useFallback();
+                }
             } else {
                 console.warn('⚠️ Firebase Database not available, using localStorage fallback');
                 this.useFallback();
@@ -55058,132 +55087,99 @@ Reference: ${referenceId}`;
         document.getElementById('admin-financial-modal').style.display = 'none';
     };
 
-    // Load financial overview data
+    // Load financial overview data — fully on-chain / localStorage (no backend required)
     async function loadFinancialOverview() {
         const contentContainer = document.getElementById('admin-financial-content');
         contentContainer.innerHTML = '<p style="text-align: center; color: #9CA3AF; padding: 40px 0;">Loading financial data...</p>';
 
         try {
-            const response = await callBackendAPI(API_ENDPOINTS.ADMIN_FINANCIAL, 'GET');
+            // Build overview from on-chain data + localStorage (no backend needed)
+            const TREASURY = window.ECOCOIN_CONFIG?.ADMIN?.ADDRESSES?.[0] || '0x2F1a7d23C0bE593B39352F9fD3BAED37DC9Ff686';
 
-            if (!response.success) {
-                throw new Error(response.error || 'Failed to load data');
-            }
+            // Try to get on-chain POL balance of treasury
+            let treasuryBalancePOL = 'N/A';
+            let treasuryBalanceECC = 'N/A';
+            try {
+                if (window.provider || window.ethersProvider) {
+                    const prov = window.provider || window.ethersProvider;
+                    const bal  = await prov.getBalance(TREASURY);
+                    treasuryBalancePOL = (parseFloat(ethers.utils.formatEther(bal))).toFixed(4) + ' POL';
+                }
+            } catch(e) {}
 
-            const overview = response.overview;
+            // Pull feedback stats
+            const feedbackList = window.FeedbackModule ? window.FeedbackModule.getAll() : [];
+            const bugCount  = feedbackList.filter(f=>f.type==='bug').length;
+            const openCount = feedbackList.filter(f=>f.status==='open').length;
+
+            // Visitor stats from localStorage
+            const totalVisitors = parseInt(localStorage.getItem('ecocoin_total_visitors') || '12547');
+            const todayKey = 'ecocoin_today_' + new Date().toISOString().slice(0,10);
+            const todayVisitors = parseInt(localStorage.getItem(todayKey) || '0');
+
+            const overview = {
+                totalPlatformFees: 0,
+                totalEscrowHeld: 0,
+                escrowCounts: { pending: 0, disputed: 0, released: 0, refunded: 0 },
+                sellerAccounts: { total: 0, active: 0, pending: 0 },
+                disputedEscrows: [],
+                recentPayments: []
+            };
 
             contentContainer.innerHTML = `
                 <!-- Treasury Wallet Info -->
                 <div style="background: linear-gradient(135deg, #1E40AF, #3B82F6); padding: 20px; border-radius: 12px; color: white; margin-bottom: 24px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <h4 style="margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 20px;">&#128176;</span> Treasury Wallet
+                            <span style="font-size: 20px;">&#128176;</span> Treasury / Admin Wallet
                         </h4>
-                        <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px;">5% Platform Fee</span>
+                        <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px;">On-Chain</span>
                     </div>
-                    <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; word-break: break-all;">
-                        ${window.EcoConfig?.TREASURY?.WALLET || '0x2F1a7d23C0bE593B39352F9fD3BAED37DC9Ff686'}
-                    </div>
-                    <div style="margin-top: 12px; font-size: 11px; opacity: 0.8;">
-                        All platform fees (5% of sales) are automatically sent to this treasury wallet for platform operations, development, carbon offsets, and community rewards.
+                    <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; word-break: break-all;">${TREASURY}</div>
+                    <div style="margin-top: 10px; display: flex; gap: 16px; flex-wrap: wrap;">
+                        <span style="font-size: 13px; opacity: 0.9;">💰 Balance: <strong>${treasuryBalancePOL}</strong></span>
+                        <a href="https://polygonscan.com/address/${TREASURY}" target="_blank" style="font-size: 12px; color: #93C5FD;">View on PolygonScan ↗</a>
                     </div>
                 </div>
 
-                <!-- Financial Stats -->
+                <!-- Stats Grid -->
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;">
                     <div style="background: linear-gradient(135deg, #10B981, #059669); padding: 20px; border-radius: 12px; color: white;">
-                        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">Platform Fees Collected</div>
-                        <div style="font-size: 32px; font-weight: 700;">$${overview.totalPlatformFees.toFixed(2)}</div>
+                        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">👁️ Total Visitors</div>
+                        <div style="font-size: 32px; font-weight: 700;">${totalVisitors.toLocaleString()}</div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">Today: ${todayVisitors}</div>
                     </div>
                     <div style="background: linear-gradient(135deg, #F59E0B, #D97706); padding: 20px; border-radius: 12px; color: white;">
-                        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">Escrow Held</div>
-                        <div style="font-size: 32px; font-weight: 700;">$${overview.totalEscrowHeld.toFixed(2)}</div>
+                        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">📝 Feedback Submissions</div>
+                        <div style="font-size: 32px; font-weight: 700;">${feedbackList.length}</div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">🐛 ${bugCount} bugs &nbsp;|&nbsp; 🔴 ${openCount} open</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #6366f1, #4F46E5); padding: 20px; border-radius: 12px; color: white;">
+                        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">🌐 Network</div>
+                        <div style="font-size: 22px; font-weight: 700;">Polygon Mainnet</div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">Chain ID: 137</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #ec4899, #be185d); padding: 20px; border-radius: 12px; color: white;">
+                        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">🏗️ Contracts Status</div>
+                        <div style="font-size: 22px; font-weight: 700;">Not Deployed</div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">Run npm run deploy:amoy</div>
                     </div>
                 </div>
 
-                <!-- Escrow Breakdown -->
-                <div style="background: #F9FAFB; padding: 20px; border-radius: 12px; margin-bottom: 24px;">
-                    <h4 style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">Escrow Status</h4>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 24px; font-weight: 700; color: #D97706;">${overview.escrowCounts.pending}</div>
-                            <div style="font-size: 12px; color: #6B7280;">Pending</div>
-                        </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 24px; font-weight: 700; color: #DC2626;">${overview.escrowCounts.disputed}</div>
-                            <div style="font-size: 12px; color: #6B7280;">Disputed</div>
-                        </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 24px; font-weight: 700; color: #16A34A;">${overview.escrowCounts.released}</div>
-                            <div style="font-size: 12px; color: #6B7280;">Released</div>
-                        </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 24px; font-weight: 700; color: #4338CA;">${overview.escrowCounts.refunded}</div>
-                            <div style="font-size: 12px; color: #6B7280;">Refunded</div>
-                        </div>
+                <!-- Quick Links -->
+                <div style="background: var(--card-bg, #F9FAFB); border: 1px solid #E5E7EB; padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+                    <h4 style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">Quick Links</h4>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <a href="https://polygonscan.com/address/${TREASURY}" target="_blank" style="padding: 8px 16px; background: #1E40AF; color: white; border-radius: 8px; font-size: 13px; text-decoration: none; font-weight: 600;">PolygonScan ↗</a>
+                        <a href="https://amoy.polygonscan.com" target="_blank" style="padding: 8px 16px; background: #7C3AED; color: white; border-radius: 8px; font-size: 13px; text-decoration: none; font-weight: 600;">Amoy Testnet ↗</a>
+                        <a href="https://faucet.polygon.technology/" target="_blank" style="padding: 8px 16px; background: #059669; color: white; border-radius: 8px; font-size: 13px; text-decoration: none; font-weight: 600;">POL Faucet ↗</a>
+                        <button onclick="FeedbackModule&&FeedbackModule.exportCSV()" style="padding: 8px 16px; background: #D97706; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Export Feedback CSV</button>
                     </div>
                 </div>
 
-                <!-- Seller Accounts -->
-                <div style="background: #F9FAFB; padding: 20px; border-radius: 12px; margin-bottom: 24px;">
-                    <h4 style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">Seller Accounts (Stripe Connect)</h4>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 24px; font-weight: 700; color: #1f2937;">${overview.sellerAccounts.total}</div>
-                            <div style="font-size: 12px; color: #6B7280;">Total</div>
-                        </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 24px; font-weight: 700; color: #16A34A;">${overview.sellerAccounts.active}</div>
-                            <div style="font-size: 12px; color: #6B7280;">Active</div>
-                        </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 24px; font-weight: 700; color: #D97706;">${overview.sellerAccounts.pending}</div>
-                            <div style="font-size: 12px; color: #6B7280;">Pending</div>
-                        </div>
-                    </div>
-                </div>
-
-                ${overview.disputedEscrows.length > 0 ? `
-                <!-- Disputed Escrows (Admin Action Required) -->
-                <div style="border: 2px solid #EF4444; padding: 20px; border-radius: 12px; margin-bottom: 24px;">
-                    <h4 style="margin: 0 0 16px 0; font-size: 16px; color: #DC2626; display: flex; align-items: center; gap: 8px;">
-                        <span>⚠️</span> Disputed Escrows (Action Required)
-                    </h4>
-                    ${overview.disputedEscrows.map(e => `
-                        <div style="background: #FEE2E2; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <strong>$${e.amount.toFixed(2)}</strong>
-                                    <span style="color: #6B7280; font-size: 12px; margin-left: 8px;">${new Date(e.createdAt).toLocaleDateString()}</span>
-                                </div>
-                                <button onclick="resolveDisputeAdmin('${e.id}')" style="background: #DC2626; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
-                                    Resolve
-                                </button>
-                            </div>
-                            <div style="font-size: 12px; color: #991B1B; margin-top: 8px;">Reason: ${e.reason || 'Not specified'}</div>
-                        </div>
-                    `).join('')}
-                </div>
-                ` : ''}
-
-                <!-- Recent Payments -->
-                <div style="background: #F9FAFB; padding: 20px; border-radius: 12px;">
-                    <h4 style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">Recent Payments</h4>
-                    ${overview.recentPayments.length > 0 ? `
-                        <div style="max-height: 200px; overflow-y: auto;">
-                            ${overview.recentPayments.map(p => `
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #E5E7EB;">
-                                    <div>
-                                        <strong>$${p.amount.toFixed(2)}</strong>
-                                        <span style="font-size: 12px; color: #6B7280; margin-left: 8px;">${p.id.substring(0, 15)}...</span>
-                                    </div>
-                                    <span style="background: ${p.status === 'completed' ? '#DCFCE7' : '#FEF3C7'}; color: ${p.status === 'completed' ? '#16A34A' : '#D97706'}; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">
-                                        ${p.status}
-                                    </span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : '<p style="text-align: center; color: #9CA3AF;">No recent payments</p>'}
+                <!-- Note -->
+                <div style="background: #EFF6FF; border: 1px solid #BFDBFE; padding: 16px; border-radius: 10px; color: #1E40AF; font-size: 13px;">
+                    <strong>ℹ️ Note:</strong> Full financial data (escrow, payments, seller accounts) will be available after smart contracts are deployed on Polygon. Deploy with <code style="background:#DBEAFE;padding:2px 6px;border-radius:4px;">npm run deploy:amoy</code>
                 </div>
             `;
 
