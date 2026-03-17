@@ -8,7 +8,7 @@
 
 ✅ ECC TOKEN CONFIGURED!
    Contract: 0x1D5404994cABc50332b713af77DB020cE571F425
-   Network: Polygon Mainnet
+   Network: Sepolia Testnet
    Deployer: 0x2F1a7d23C0bE593B39352F9fD3BAED37DC9Ff686
 
 ⚠️  OPTIONAL - ADD MORE CONTRACT ADDRESSES:
@@ -22,12 +22,12 @@ If you deployed additional contracts (Staking, Farming, etc.):
 🚀 READY TO DEPLOY!
    1. Save this file (it's already configured!)
    2. Upload to Netlify
-   3. Connect MetaMask on Polygon
+   3. Connect MetaMask on Sepolia
    4. See your REAL ECC balance!
 
 📖 For other contracts, check: R_HTML_DEPLOYMENT_INSTRUCTIONS.txt
 
-Network: Polygon Mainnet (Chain ID: 137)
+Network: Sepolia Testnet (Chain ID: 11155111)
 Status: ✅ READY TO DEPLOY NOW!
 Score: 8.5/10 (was 2/10)
 
@@ -51,7 +51,7 @@ Score: 8.5/10 (was 2/10)
     
     <!-- Enhanced Security & CSP -->
     <!-- Note: CSP frame-ancestors and X-Frame-Options should be set via HTTP headers in production -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https://cdnjs.cloudflare.com https://www.gstatic.com https://cdn.jsdelivr.net https://accounts.google.com https://unpkg.com https://js.stripe.com https://*.firebaseio.com 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://fonts.googleapis.com https://accounts.google.com 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://us-central1-ecocoin-f32d8.cloudfunctions.net https://firestore.googleapis.com https://googleapis.com https://*.firebaseio.com https://*.firebase.com https://*.infura.io https://*.alchemy.com https://accounts.google.com https://oauth2.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.walletconnect.org https://*.walletconnect.com wss://*.infura.io https://mainnet.infura.io https://polygon-mainnet.infura.io wss://*.firebaseio.com https://nominatim.openstreetmap.org https://power.larc.nasa.gov https://re.jrc.ec.europa.eu https://*.globalforestwatch.org; font-src 'self' https://fonts.gstatic.com data:; object-src 'none'; frame-src https://accounts.google.com https://js.stripe.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https://cdnjs.cloudflare.com https://www.gstatic.com https://cdn.jsdelivr.net https://accounts.google.com https://unpkg.com https://js.stripe.com https://*.firebaseio.com 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://fonts.googleapis.com https://accounts.google.com 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://us-central1-ecocoin-f32d8.cloudfunctions.net https://firestore.googleapis.com https://googleapis.com https://*.firebaseio.com https://*.firebase.com https://*.infura.io https://*.alchemy.com https://accounts.google.com https://oauth2.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.walletconnect.org https://*.walletconnect.com wss://*.infura.io https://mainnet.infura.io https://sepolia.infura.io wss://*.firebaseio.com https://nominatim.openstreetmap.org https://power.larc.nasa.gov https://re.jrc.ec.europa.eu https://*.globalforestwatch.org; font-src 'self' https://fonts.gstatic.com data:; object-src 'none'; frame-src https://accounts.google.com https://js.stripe.com;">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
@@ -411,16 +411,16 @@ Score: 8.5/10 (was 2/10)
         
         window.ECOCOIN_CONFIG = {
             // Network Configuration
-            // ⚙️  Set ACTIVE to switch between Polygon and Polygon Amoy (pre-mainnet)
+            // ⚙️  Set ACTIVE to switch between Sepolia (testing) and Polygon Amoy (pre-mainnet)
             NETWORK: {
-                ACTIVE: 'POLYGON', // ← TEMP: using Polygon until Polygon Amoy V contracts are deployed
-                POLYGON: {
-                    chainId: 137,
-                    chainIdHex: '0x89',
-                    name: 'Polygon',
-                    rpcUrl: 'https://polygon-rpc.com',
-                    blockExplorer: 'https://polygonscan.com',
-                    currency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }
+                ACTIVE: 'SEPOLIA', // ← TEMP: using Sepolia until Polygon Amoy V contracts are deployed
+                SEPOLIA: {
+                    chainId: 11155111,
+                    chainIdHex: '0xaa36a7',
+                    name: 'Sepolia',
+                    rpcUrl: 'https://rpc.sepolia.org',
+                    blockExplorer: 'https://sepolia.etherscan.io',
+                    currency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 }
                 },
                 POLYGON_AMOY: {
                     chainId: 80002,
@@ -512,7 +512,7 @@ Score: 8.5/10 (was 2/10)
                     CERTIFICATE_NFT:    '0xD58752cEf52aEDAEF72ABD985e7F1d3754Fa6d5C',
                     GOVERNOR:           '0x6abD6CB9648399F9F0BB868C81C7395Dc04a22d7',
                     REWARDS_DISTRIBUTOR:'0xAFd4C80678aac60d42E2b6bDc6a2f939bd6DEDf7',
-                    // Eco Coin V new contracts (zero on Polygon - not deployed there)
+                    // Eco Coin V new contracts (zero on Sepolia - not deployed there)
                     VESTING:            '0x0000000000000000000000000000000000000000',
                     LAUNCHPAD:          '0x0000000000000000000000000000000000000000',
                     LOTTERY:            '0x0000000000000000000000000000000000000000',
@@ -539,10 +539,8 @@ Score: 8.5/10 (was 2/10)
                     SWAP:               'PASTE_AFTER_DEPLOY'   // ECCSwap.sol
                 };
                 // Returns addresses for whichever network is active
-                // Always return the existing mainnet addresses (stored in const SEPOLIA above).
-                // POLYGON_AMOY contains 'PASTE_AFTER_DEPLOY' placeholders which ethers.js
-                // tries to resolve as ENS names, crashing on Polygon ("matic has no ENS").
-                return SEPOLIA;
+                const active = window.ECOCOIN_CONFIG?.NETWORK?.ACTIVE || 'POLYGON_AMOY';
+                return active === 'SEPOLIA' ? SEPOLIA : POLYGON_AMOY;
             })(),
             
             // Simplified ABIs
@@ -667,7 +665,7 @@ Score: 8.5/10 (was 2/10)
             // Messages
             ERRORS: {
                 NO_WALLET: '⚠️ Please connect your wallet first',
-                WRONG_NETWORK: '⚠️ Please switch to Polygon network',
+                WRONG_NETWORK: '⚠️ Please switch to Sepolia network',
                 INSUFFICIENT_BALANCE: '❌ Insufficient ECC balance',
                 TX_FAILED: '❌ Transaction failed. Please try again.'
             },
@@ -746,7 +744,7 @@ Score: 8.5/10 (was 2/10)
             }
         };
         // Keep legacy alias so any older code paths still work
-        window.switchToPolygon = window.switchToActiveNetwork;
+        window.switchToSepolia = window.switchToActiveNetwork;
         
         window.initializeContracts = async function() {
             try {
@@ -758,16 +756,7 @@ Score: 8.5/10 (was 2/10)
                 
                 const contracts = {};
                 const cfg = window.ECOCOIN_CONFIG;
-
-                // Sanitize: replace any placeholder string (e.g. 'PASTE_AFTER_DEPLOY') with
-                // zero address so the checks below skip them without crashing ethers.js ENS.
-                const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
-                Object.keys(cfg.CONTRACTS).forEach(k => {
-                    if (cfg.CONTRACTS[k] && !cfg.CONTRACTS[k].startsWith('0x')) {
-                        cfg.CONTRACTS[k] = ZERO_ADDR;
-                    }
-                });
-
+                
                 if (cfg.CONTRACTS.ECC_TOKEN !== '0x0000000000000000000000000000000000000000') {
                     contracts.eccToken = new ethers.Contract(
                         cfg.CONTRACTS.ECC_TOKEN,
@@ -3895,7 +3884,7 @@ Start your learning journey now!
         window.viewOnChain = function() {
             const wallet = window.web3UserAddress || window.currentAccount;
             if (wallet) {
-                window.open(`https://polygonscan.com/address/${wallet}`, '_blank');
+                window.open(`https://sepolia.etherscan.io/address/${wallet}`, '_blank');
             } else {
                 showToast('Connect wallet to view on-chain records', 'info');
             }
@@ -7282,9 +7271,9 @@ Start your learning journey now!
             const referralCode = ReferralSystem.getOrCreateCode();
             const referralData = ReferralSystem.getData();
 
-            // Testnet link for Polygon
-            const testnetBase = 'https://ecocoin.io';
-            const referralLink = `${testnetBase}?ref=${referralCode}&chain=137`;
+            // Testnet link for Sepolia
+            const testnetBase = 'https://sepolia.ecocoin.io';
+            const referralLink = `${testnetBase}?ref=${referralCode}&chain=11155111`;
 
             const modal = document.createElement('div');
             modal.id = 'referralModal';
@@ -7332,7 +7321,7 @@ Start your learning journey now!
                             <!-- Network Badge -->
                             <div style="background: #FEF3C7; border-radius: 8px; padding: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                                 <span style="font-size: 16px;">⚠️</span>
-                                <p style="margin: 0; font-size: 12px; color: #92400E;"><strong>Polygon Mainnet:</strong> This referral link is for testing on Polygon network (Chain ID: 137)</p>
+                                <p style="margin: 0; font-size: 12px; color: #92400E;"><strong>Sepolia Testnet:</strong> This referral link is for testing on Sepolia network (Chain ID: 11155111)</p>
                             </div>
 
                             <!-- Share Options -->
@@ -7740,639 +7729,6 @@ Start your learning journey now!
         border-radius: 8px; margin-left: auto; white-space: nowrap;
     }
     </style>
-
-    <!-- ═══════════════════════════════════════════════════════════════
-         ECOCOIN MOBILE MASTER STYLESHEET
-         Deep, comprehensive fix for ALL pages on ALL mobile sizes.
-         Covers: Auth gate, Topbar, Sidebar, Home, Dashboard, Stake,
-                 Farm, Referral, Swap, Verification, Projects, Calculator,
-                 Marketplace, Learning, Community, Analytics, Tokenomics,
-                 Vesting, Launchpad, Lottery, Bridge, Governance, Admin.
-    ═══════════════════════════════════════════════════════════════ -->
-    <style id="mobile-master">
-
-    /* ══════════════════════════════════════════════════════
-       0. SAFE-AREA & BASE (all sizes)
-    ══════════════════════════════════════════════════════ */
-    :root {
-        --safe-top:    env(safe-area-inset-top, 0px);
-        --safe-bottom: env(safe-area-inset-bottom, 0px);
-    }
-
-    /* ══════════════════════════════════════════════════════
-       1. TABLET  769–1100px
-    ══════════════════════════════════════════════════════ */
-    @media (min-width: 769px) and (max-width: 1100px) {
-        :root { --sb: 224px; }
-        .eco-main  { padding: 20px 22px !important; }
-        .tb-search { width: 180px; }
-    }
-
-    /* ══════════════════════════════════════════════════════
-       2. MOBILE  ≤ 768px   (phones + small tablets)
-    ══════════════════════════════════════════════════════ */
-    @media (max-width: 768px) {
-
-        /* ─── Base ─────────────────────────────────────── */
-        *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
-        html  { font-size: 14px; overflow-x: hidden; }
-        body  {
-            overflow-x: hidden;
-            padding-bottom: calc(70px + var(--safe-bottom)) !important;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        /* ─── Layout ───────────────────────────────────── */
-        .app-layout    { overflow-x: hidden; }
-        .main-wrapper  { margin-left: 0 !important; width: 100% !important; }
-
-        /* ─── Sidebar: slide out, proper backdrop ──────── */
-        #sb {
-            transform: translateX(-100%);
-            transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
-            width: 82% !important;
-            max-width: 288px !important;
-            box-shadow: none;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        #sb.open {
-            transform: translateX(0);
-            box-shadow: 6px 0 40px rgba(0,0,0,0.48) !important;
-        }
-        #sb-backdrop {
-            display: none;
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.52);
-            z-index: 999;
-            backdrop-filter: blur(1px);
-            -webkit-backdrop-filter: blur(1px);
-        }
-        #sb-backdrop.show { display: block; }
-
-        /* ─── Topbar ────────────────────────────────────── */
-        #topbar {
-            height: 52px !important;
-            padding: 0 14px !important;
-            padding-top: var(--safe-top);
-        }
-        .tb-menu-btn   { display: flex !important; }
-        .tb-search     { display: none !important; }
-        .tb-wallet-text{ display: none !important; }
-        .tb-wallet     {
-            padding: 0 10px !important;
-            min-width: 36px;
-            justify-content: center;
-        }
-        .tb-div        { display: none !important; }
-        .tb-crumb-root { display: none !important; }
-        .tb-crumb-sep  { display: none !important; }
-        #pageTitle     { font-size: 15px !important; font-weight: 700 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: calc(100vw - 210px) !important; }
-
-        /* ─── Main content padding ──────────────────────── */
-        .eco-main,
-        .main-content {
-            padding: 14px 12px !important;
-            max-width: 100% !important;
-        }
-
-        /* ─── Typography ────────────────────────────────── */
-        h1 { font-size: 20px !important; line-height: 1.2 !important; margin-bottom: 12px !important; }
-        h2 { font-size: 17px !important; line-height: 1.3 !important; margin-bottom: 10px !important; }
-        h3 { font-size: 15px !important; line-height: 1.3 !important; }
-        h4 { font-size: 14px !important; }
-        p  { font-size: 13px !important; line-height: 1.55 !important; }
-
-        /* ─── Cards ──────────────────────────────────────── */
-        .card {
-            padding: 14px !important;
-            border-radius: 12px !important;
-            margin-bottom: 12px !important;
-        }
-        .card-title { font-size: 13px !important; margin-bottom: 10px !important; }
-
-        /* ─── Hero section ──────────────────────────────── */
-        .hero-section {
-            padding: 24px 16px !important;
-            margin-bottom: 14px !important;
-            border-radius: 14px !important;
-        }
-        .hero-title    { font-size: 22px !important; letter-spacing: -0.5px !important; }
-        .hero-subtitle { font-size: 13px !important; }
-        .hero-stats    { gap: 20px !important; flex-wrap: wrap !important; justify-content: center !important; }
-        .hero-stat-value { font-size: 20px !important; }
-        .hero-stat-label { font-size: 10px !important; }
-
-        /* ─── ALL inline & class grids → single col ──────── */
-        [style*="display: grid"],
-        [style*="display:grid"] {
-            grid-template-columns: 1fr !important;
-            gap: 10px !important;
-        }
-        /* Stats cards (small): 2-col on mobile */
-        [style*="minmax(140px"],
-        [style*="minmax(180px"],
-        [style*="minmax(140px, 1fr)"] {
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 10px !important;
-        }
-        /* Wider cards: stay 1-col */
-        [style*="minmax(250px"],
-        [style*="minmax(300px"] {
-            grid-template-columns: 1fr !important;
-        }
-        /* Named classes */
-        .grid-2, .grid-3, .grid-4,
-        .feature-grid, .stats-grid, .dashboard-grid,
-        .nav-tabs { grid-template-columns: 1fr !important; gap: 10px !important; }
-
-        /* ─── Flex rows that don't need to wrap → stack ──── */
-        [style*="display: flex"][style*="justify-content: space-between"] {
-            flex-wrap: wrap !important;
-            gap: 8px !important;
-        }
-
-        /* ─── Buttons / touch targets ───────────────────── */
-        button, .btn, [onclick]:not(input):not(a) {
-            min-height: 44px !important;
-            font-size: 13.5px !important;
-        }
-        /* Primary action buttons */
-        [style*="padding: 16px"][style*="font-size: 16px"],
-        [style*="padding: 18px"] {
-            padding: 13px 16px !important;
-            font-size: 14px !important;
-        }
-
-        /* ─── Forms ─────────────────────────────────────── */
-        input[type="text"],
-        input[type="email"],
-        input[type="number"],
-        input[type="password"],
-        input[type="date"],
-        input[type="tel"],
-        input[type="url"],
-        select, textarea {
-            font-size: 16px !important; /* Prevent iOS zoom */
-            min-height: 46px !important;
-            padding: 10px 12px !important;
-            border-radius: 8px !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-        }
-        textarea { min-height: 80px !important; }
-        label { font-size: 13px !important; }
-
-        /* ─── Tables ────────────────────────────────────── */
-        table {
-            display: block !important;
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-            white-space: nowrap !important;
-            font-size: 12px !important;
-            width: 100% !important;
-        }
-        table thead th {
-            padding: 8px 10px !important;
-            font-size: 10px !important;
-        }
-        table tbody td {
-            padding: 8px 10px !important;
-            font-size: 12px !important;
-        }
-
-        /* ─── Modals ─────────────────────────────────────── */
-        /* All fixed-position modal dialogs */
-        [style*="position: fixed"][style*="z-index: 10000"] > div,
-        [style*="position:fixed"][style*="z-index:10000"] > div {
-            width: 95% !important;
-            max-width: 95% !important;
-            margin: 10px auto !important;
-            max-height: none !important;
-            overflow-y: auto !important;
-        }
-
-        /* ─── Toast / notifications ──────────────────────── */
-        .notification, .toast {
-            left: 10px !important; right: 10px !important;
-            bottom: 78px !important;
-            max-width: calc(100% - 20px) !important;
-            font-size: 12.5px !important;
-        }
-
-        /* ══════════════════════════════════════════════════
-           PAGE-SPECIFIC FIXES
-        ══════════════════════════════════════════════════ */
-
-        /* ── HOME PAGE ─────────────────────────────────── */
-        #home .hero-section button {
-            padding: 12px 28px !important;
-            font-size: 14px !important;
-        }
-        #home [style*="gap: 32px"] {
-            gap: 16px !important;
-            flex-wrap: wrap !important;
-            justify-content: center !important;
-        }
-        /* Live stats cards 2-col */
-        #liveVisitorCount,
-        #todayVisits,
-        #totalVisits,
-        #avgSession {
-            font-size: 22px !important;
-        }
-
-        /* ── DASHBOARD ─────────────────────────────────── */
-        #dashboard #dashboardWalletStatus {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-            gap: 10px !important;
-            padding: 14px !important;
-        }
-        #dashboard #dashboardWalletStatus button {
-            width: 100% !important;
-        }
-        #dashboard [id="dashWalletAddress"] {
-            font-size: 11px !important;
-            word-break: break-all !important;
-        }
-        /* Portfolio grid 2-col */
-        #dashboard [style*="minmax(180px"] {
-            grid-template-columns: repeat(2, 1fr) !important;
-        }
-        #dashboard [style*="font-size: 24px"] {
-            font-size: 18px !important;
-        }
-
-        /* ── STAKING ────────────────────────────────────── */
-        #stake [style*="max-width: 900px"] {
-            max-width: 100% !important;
-            padding: 0 !important;
-        }
-        #stake [style*="minmax(140px"] {
-            grid-template-columns: repeat(2, 1fr) !important;
-        }
-        /* Stake form inputs */
-        #stake #stakeAmount,
-        #stake #unstakeAmount {
-            font-size: 18px !important;
-            padding: 14px !important;
-        }
-        #stake [style*="font-size: 20px"] { font-size: 16px !important; }
-
-        /* ── FARM / LP FARMING ─────────────────────────── */
-        #farm [style*="max-width: 900px"] { max-width: 100% !important; }
-        #farm [style*="minmax(140px"]     { grid-template-columns: repeat(2,1fr) !important; }
-        /* Pool cards — inner flex rows */
-        #farming-pools > div [style*="display: flex; justify-content: space-between"] {
-            flex-direction: column !important;
-            gap: 12px !important;
-        }
-        #farming-pools [style*="display: flex; gap: 16px"] {
-            flex-direction: column !important;
-            gap: 8px !important;
-        }
-        #farming-pools input {
-            width: 100% !important;
-        }
-
-        /* ── REFERRAL ───────────────────────────────────── */
-        #referral [style*="max-width: 900px"] { max-width: 100% !important; }
-        #referral [style*="minmax(140px"]     { grid-template-columns: repeat(2,1fr) !important; }
-        #referral [style*="display: flex; align-items: center; gap: 8px"] {
-            flex-wrap: wrap !important;
-        }
-        /* Referral link box */
-        #referral [style*="font-family: monospace"] {
-            font-size: 11px !important;
-            word-break: break-all !important;
-        }
-        /* Copy button full width */
-        #referral button[onclick*="copy"] {
-            width: 100% !important;
-            margin-top: 8px !important;
-        }
-
-        /* ── SWAP ───────────────────────────────────────── */
-        #swap h1 { font-size: 20px !important; }
-        #swap [style*="max-width: 600px"],
-        #swap [style*="max-width:600px"] {
-            max-width: 100% !important;
-        }
-        #swap [style*="font-size: 28px"] {
-            font-size: 22px !important;
-        }
-        #swap #swapButton {
-            padding: 14px !important;
-            font-size: 15px !important;
-        }
-        /* Token selector buttons */
-        #swap [onclick*="openTokenSelector"] {
-            padding: 6px 10px !important;
-            font-size: 14px !important;
-        }
-        /* Swap details info rows */
-        #swap #swapDetails [style*="display: flex; justify-content: space-between"] {
-            flex-wrap: wrap !important;
-            gap: 4px !important;
-        }
-        #swap #swapDetails span { font-size: 12.5px !important; }
-
-        /* ── VERIFICATION ──────────────────────────────── */
-        #verification [style*="max-width: 1200px"] { max-width: 100% !important; }
-        /* Sub-nav tabs */
-        #verification [style*="display: flex; gap: 8px; background: #F3F4F6"] {
-            flex-direction: column !important;
-            gap: 6px !important;
-        }
-        #verification [style*="display: flex; gap: 8px; background: #F3F4F6"] button {
-            width: 100% !important;
-        }
-        /* Summary stats 2-col */
-        #verification [style*="minmax(150px"] {
-            grid-template-columns: repeat(2,1fr) !important;
-        }
-        /* Form grids */
-        #verification [style*="grid-template-columns: repeat(auto-fit, minmax(250px"] {
-            grid-template-columns: 1fr !important;
-        }
-
-        /* ── PROJECTS ──────────────────────────────────── */
-        #projects [style*="max-width"] { max-width: 100% !important; }
-        #projects [style*="display: flex; justify-content: space-between; align-items: center"] {
-            flex-wrap: wrap !important; gap: 10px !important;
-        }
-        #projects button[onclick*="showNewProject"],
-        #projects button[onclick*="registerProject"] {
-            width: 100% !important;
-        }
-
-        /* ── CALCULATOR ────────────────────────────────── */
-        #calculator [style*="max-width"] { max-width: 100% !important; }
-        /* MRV mode tabs */
-        #calculator [style*="display: flex; gap: 8px"][style*="margin-bottom: 24px"] {
-            flex-direction: column !important;
-            gap: 6px !important;
-        }
-        #calculator [style*="display: flex; gap: 8px"][style*="margin-bottom: 24px"] button {
-            width: 100% !important;
-        }
-        /* Calculator result grid */
-        #calculator [style*="grid-template-columns: repeat(auto-fit, minmax(200px"] {
-            grid-template-columns: repeat(2,1fr) !important;
-        }
-
-        /* ── MARKETPLACE ────────────────────────────────── */
-        #marketplace [style*="max-width"] { max-width: 100% !important; }
-        /* Filter bar → wrap */
-        #marketplace [style*="display: flex"][style*="gap: 12px"][style*="flex-wrap"] {
-            flex-direction: column !important;
-        }
-        #marketplace [style*="display: flex"][style*="gap: 12px"] select,
-        #marketplace [style*="display: flex"][style*="gap: 12px"] input {
-            width: 100% !important;
-        }
-        /* Listing cards grid */
-        #marketplace [style*="grid-template-columns: repeat(auto-fit, minmax(280px"] {
-            grid-template-columns: 1fr !important;
-        }
-        #marketplace [style*="grid-template-columns: repeat(auto-fit, minmax(250px"] {
-            grid-template-columns: 1fr !important;
-        }
-
-        /* ── LEARNING HUB ───────────────────────────────── */
-        #learning [style*="max-width"] { max-width: 100% !important; }
-        /* LMS tab bar */
-        #lmsTabs, [id*="lms"][style*="display: flex"] {
-            flex-wrap: wrap !important;
-            gap: 6px !important;
-        }
-        #lmsTabs button, [id*="lms"] button {
-            flex: 1 1 45% !important;
-            font-size: 12px !important;
-            padding: 8px 10px !important;
-            min-width: 0 !important;
-        }
-        /* Course cards grid */
-        #learning [style*="grid-template-columns: repeat(auto-fit, minmax(300px"] {
-            grid-template-columns: 1fr !important;
-        }
-        #learning [style*="grid-template-columns: repeat(auto-fit, minmax(280px"] {
-            grid-template-columns: 1fr !important;
-        }
-        /* Progress bars */
-        #learning [style*="width: 200px; height: 8px"],
-        #learning [style*="width: 180px; height: 8px"] {
-            width: 100% !important;
-        }
-
-        /* ── COMMUNITY ──────────────────────────────────── */
-        #community [style*="max-width"] { max-width: 100% !important; }
-        #community [style*="grid-template-columns: 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-        }
-        #community [style*="display: flex; gap: 12px; align-items: center; padding: 12px"] {
-            flex-wrap: wrap !important;
-        }
-        /* Leaderboard table */
-        #community table {
-            font-size: 11.5px !important;
-        }
-        #community table th,
-        #community table td {
-            padding: 8px 8px !important;
-        }
-
-        /* ── ANALYTICS ──────────────────────────────────── */
-        #analytics [style*="max-width: 900px"] { max-width: 100% !important; }
-        #analytics [style*="minmax(140px"] {
-            grid-template-columns: repeat(2,1fr) !important;
-        }
-        /* Chart container */
-        #analytics [style*="height: 300px"] {
-            height: 200px !important;
-        }
-        /* Transaction rows */
-        #analytics [style*="display: flex; justify-content: space-between; padding: 12px 0"] {
-            flex-wrap: wrap !important; gap: 4px !important;
-        }
-
-        /* ── TOKENOMICS ─────────────────────────────────── */
-        #tokenomics .hero-section { padding: 24px 16px !important; }
-        #tokenomics .hero-section [style*="display: flex; gap: 24px"] {
-            flex-wrap: wrap !important; gap: 10px !important;
-            justify-content: center !important;
-        }
-        #tokenomics .hero-section [style*="background: rgba(255,255,255,0.1)"] {
-            flex: 1 1 calc(50% - 10px) !important;
-            min-width: 120px !important;
-        }
-        /* Distribution rows — keep label + % on same row */
-        #tokenomics [style*="display: flex; justify-content: space-between; align-items: center"] {
-            flex-wrap: nowrap !important;
-            gap: 8px !important;
-        }
-        #tokenomics [style*="font-size: 24px; font-weight: 700"] {
-            font-size: 18px !important;
-            flex-shrink: 0 !important;
-            min-width: 44px !important;
-        }
-        #tokenomics p[style*="font-size: 14px"] { font-size: 12px !important; }
-
-        /* ── VESTING ─────────────────────────────────────── */
-        #vesting [style*="display: grid"] {
-            grid-template-columns: 1fr !important;
-        }
-        #vesting [style*="display: flex; justify-content: space-between"] {
-            flex-wrap: wrap !important; gap: 8px !important;
-        }
-
-        /* ── LAUNCHPAD ──────────────────────────────────── */
-        #launchpad [style*="display: grid"] { grid-template-columns: 1fr !important; }
-        #launchpad [style*="display: flex; gap: 16px"] {
-            flex-direction: column !important; gap: 8px !important;
-        }
-
-        /* ── LOTTERY ─────────────────────────────────────── */
-        #lottery [style*="display: grid"] { grid-template-columns: 1fr !important; }
-        #lottery [style*="font-size: 48px"],
-        #lottery [style*="font-size:48px"] { font-size: 32px !important; }
-
-        /* ── BRIDGE ──────────────────────────────────────── */
-        #bridge [style*="display: grid"] { grid-template-columns: 1fr !important; }
-        #bridge [style*="max-width"] { max-width: 100% !important; }
-        #bridge input, #bridge select { width: 100% !important; }
-        /* Chain selector row */
-        #bridge [style*="display: flex; align-items: center; gap"] {
-            flex-direction: column !important; gap: 8px !important;
-        }
-
-        /* ── GOVERNANCE ──────────────────────────────────── */
-        #governance [style*="display: grid"] { grid-template-columns: 1fr !important; }
-        #governance [style*="display: flex; gap: 8px"][style*="margin-bottom"] {
-            flex-direction: column !important;
-        }
-        #governance [style*="display: flex; gap: 8px"][style*="margin-bottom"] button {
-            width: 100% !important;
-        }
-        #governance textarea { min-height: 80px !important; }
-
-        /* ── ADMIN ───────────────────────────────────────── */
-        #admin [style*="display: grid; grid-template-columns: 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-        }
-        #admin [style*="grid-template-columns: repeat(4"] {
-            grid-template-columns: repeat(2, 1fr) !important;
-        }
-        /* Admin action buttons */
-        #admin [style*="display: flex; gap: 8px"][style*="margin-top"] {
-            flex-direction: column !important;
-        }
-        #admin [style*="display: flex; gap: 8px"][style*="margin-top"] button {
-            width: 100% !important;
-        }
-        /* Admin table */
-        #admin table { font-size: 11px !important; }
-        #admin table th,
-        #admin table td { padding: 6px 8px !important; }
-
-        /* ── AUTH GATE ───────────────────────────────────── */
-        #authGate { padding: 20px 0 40px; align-items: flex-start; overflow-y: auto; }
-        .ag-card {
-            width: 95% !important;
-            padding: 28px 20px 24px !important;
-            border-radius: 18px !important;
-            max-height: calc(100svh - 24px);
-            overflow-y: auto;
-            margin: auto;
-        }
-        .ag-logo-row  { margin-bottom: 14px !important; }
-        .ag-heading   { font-size: 18px !important; }
-        .ag-sub       { font-size: 12.5px !important; margin-bottom: 18px !important; }
-        .ag-btn       { font-size: 13.5px !important; padding: 12px 14px !important; min-height: 46px !important; }
-        .ag-security  { margin-top: 14px !important; }
-
-        /* ─── Bottom nav spacer ──────────────────────────── */
-        .mobile-bottom-nav {
-            display: flex !important;
-            position: fixed !important;
-            bottom: 0 !important; left: 0 !important; right: 0 !important;
-            height: calc(60px + var(--safe-bottom)) !important;
-            z-index: 998 !important;
-            padding-bottom: var(--safe-bottom) !important;
-        }
-
-    } /* end @media 768px */
-
-
-    /* ══════════════════════════════════════════════════════
-       3. SMALL PHONES  ≤ 430px
-    ══════════════════════════════════════════════════════ */
-    @media (max-width: 430px) {
-        .eco-main, .main-content { padding: 12px 10px !important; }
-        .card  { padding: 12px 10px !important; }
-        h1     { font-size: 19px !important; }
-        h2     { font-size: 16px !important; }
-        .hero-section { padding: 20px 12px !important; }
-        .hero-title   { font-size: 20px !important; }
-        button, .btn  { font-size: 13px !important; }
-        #pageTitle    { font-size: 14px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: calc(100vw - 190px) !important; }
-        /* Tokenomics distribution: stack on tiny screens */
-        #tokenomics [style*="display: flex; justify-content: space-between; align-items: center"] {
-            flex-wrap: wrap !important;
-        }
-        /* Auth gate */
-        .ag-card      { padding: 22px 16px 20px !important; }
-        .ag-brand     { font-size: 17px !important; }
-        .ag-logo-icon svg { width: 40px !important; height: 40px !important; }
-        .ag-btn       { font-size: 13px !important; padding: 11px 12px !important; }
-    }
-
-    /* ══════════════════════════════════════════════════════
-       4. TINY PHONES  ≤ 360px  (old Androids, iPhone SE 1st)
-    ══════════════════════════════════════════════════════ */
-    @media (max-width: 360px) {
-        .eco-main, .main-content { padding: 10px 8px !important; }
-        .card  { padding: 10px 8px !important; border-radius: 10px !important; }
-        h1     { font-size: 17px !important; }
-        h2     { font-size: 15px !important; }
-        h3     { font-size: 14px !important; }
-        .hero-section  { padding: 16px 10px !important; }
-        .hero-title    { font-size: 18px !important; }
-        table          { font-size: 11px !important; }
-        button, .btn   { font-size: 12.5px !important; }
-        /* Auth gate */
-        .ag-card    { padding: 18px 12px 16px !important; border-radius: 14px !important; }
-        .ag-heading { font-size: 16px !important; }
-        .ag-logo-icon svg { width: 36px !important; height: 36px !important; }
-        .ag-poly-badge { font-size: 9px !important; padding: 2px 6px !important; }
-        .ag-btn     { font-size: 12.5px !important; padding: 10px 10px !important; }
-    }
-
-    /* ══════════════════════════════════════════════════════
-       5. LANDSCAPE on mobile  (max-height: 500px)
-    ══════════════════════════════════════════════════════ */
-    @media (max-height: 500px) and (orientation: landscape) {
-        .hero-section { padding: 16px !important; }
-        .hero-title   { font-size: 18px !important; }
-        .eco-main, .main-content { padding: 10px !important; }
-        #authGate     { padding: 8px 0 !important; align-items: flex-start; }
-        .ag-card      {
-            padding: 16px !important;
-            max-height: none !important;
-        }
-        .ag-logo-row  { margin-bottom: 8px !important; }
-        .ag-logo-icon svg { width: 32px !important; height: 32px !important; }
-        .ag-brand     { font-size: 15px !important; }
-        .ag-divider   { margin-bottom: 10px !important; }
-        .ag-heading   { font-size: 15px !important; margin-bottom: 4px !important; }
-        .ag-sub       { font-size: 11.5px !important; margin-bottom: 10px !important; }
-        .ag-btn       { padding: 9px 12px !important; min-height: 40px !important; font-size: 13px !important; }
-        .ag-security  { display: none !important; } /* hide on landscape to save space */
-    }
-
-    </style>
-
 </head>
                 <body>
                     <div class="header">
@@ -13421,17 +12777,17 @@ Start your learning journey now!
         bottom: 0;
         left: 0;
         right: 0;
-        height: 68px;
-        height: calc(68px + env(safe-area-inset-bottom, 0px));
+        height: 70px;
+        height: calc(70px + env(safe-area-inset-bottom, 0px)); /* iOS safe area */
         background: #ffffff;
-        box-shadow: 0 -1px 0 rgba(0,0,0,0.07), 0 -4px 16px rgba(0,0,0,0.06);
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
         display: flex;
         justify-content: space-around;
-        align-items: stretch;   /* stretch so items fill full height for indicator */
+        align-items: center;
         z-index: 1000;
-        padding: 0 4px;
-        padding-bottom: env(safe-area-inset-bottom, 0px);
-        border-top: none;
+        padding: 0 8px;
+        padding-bottom: env(safe-area-inset-bottom, 0px); /* iOS safe area */
+        border-top: 1px solid rgba(0,0,0,0.05);
     }
     
     .nav-item {
@@ -13440,13 +12796,13 @@ Start your learning journey now!
         align-items: center;
         justify-content: center;
         flex: 1;
-        padding: 6px 4px 8px;
+        padding: 8px 4px;
         cursor: pointer;
-        transition: background 0.2s ease, transform 0.15s ease;
+        transition: all 0.3s ease;
+        border-radius: 12px;
         position: relative;
-        min-width: 54px;
+        min-width: 60px;
         text-decoration: none;
-        border-radius: 0;        /* no radius — full-height for top indicator */
     }
     
     .nav-item:active {
@@ -13455,40 +12811,29 @@ Start your learning journey now!
     }
     
     .nav-item-icon {
-        font-size: 22px;
-        margin-bottom: 3px;
-        transition: all 0.25s ease;
-        filter: grayscale(100%) opacity(0.65);
-        line-height: 1;
+        font-size: 24px;
+        margin-bottom: 4px;
+        transition: all 0.3s ease;
+        filter: grayscale(100%);
     }
     
     .nav-item-label {
-        font-size: 10.5px;
+        font-size: 11px;
         font-weight: 500;
-        color: #9ca3af;
-        transition: all 0.25s ease;
+        color: #666;
+        transition: all 0.3s ease;
         text-align: center;
-        white-space: nowrap;
-        line-height: 1;
     }
     
     /* Active nav item */
     .nav-item.active .nav-item-icon {
         filter: grayscale(0%);
-        transform: scale(1.15);
-        filter: drop-shadow(0 2px 6px rgba(16,185,129,0.5));
+        transform: scale(1.1);
     }
     
     .nav-item.active .nav-item-label {
-        color: #059669;
+        color: #4CAF50;
         font-weight: 700;
-        letter-spacing: -0.1px;
-    }
-    
-    /* Active item background pill */
-    .nav-item.active {
-        background: linear-gradient(180deg, rgba(16,185,129,0.1) 0%, rgba(16,185,129,0.04) 100%);
-        border-radius: 0 0 12px 12px;
     }
     
     .nav-item.active::before {
@@ -13497,11 +12842,10 @@ Start your learning journey now!
         top: 0;
         left: 50%;
         transform: translateX(-50%);
-        width: 56px;          /* wider: was 32px */
-        height: 4px;          /* taller: was 3px */
-        background: linear-gradient(90deg, #059669, #10b981, #059669);
-        border-radius: 0 0 6px 6px;
-        box-shadow: 0 2px 8px rgba(16,185,129,0.55);
+        width: 32px;
+        height: 3px;
+        background: #4CAF50;
+        border-radius: 0 0 3px 3px;
     }
     
     /* ─────────────────────────────────────────────────────────────
@@ -15691,34 +15035,11 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
     ">
         <div style="text-align: center;">
             <!-- Logo -->
-            <!-- LOGO #2 — HEXAGON SHIELD (loading screen, 100×100) -->
             <svg width="100" height="100" viewBox="0 0 100 100" style="margin-bottom: 24px; animation: pulse 2s infinite;">
-                <defs>
-                    <linearGradient id="lsBg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-                        <stop offset="0%" stop-color="#0c1a0e"/>
-                        <stop offset="100%" stop-color="#14532d"/>
-                    </linearGradient>
-                    <linearGradient id="lsHex" x1="50" y1="8" x2="50" y2="92" gradientUnits="userSpaceOnUse">
-                        <stop offset="0%" stop-color="rgba(52,211,153,0.3)"/>
-                        <stop offset="100%" stop-color="rgba(5,150,105,0.06)"/>
-                    </linearGradient>
-                </defs>
-                <!-- Background rounded square -->
-                <rect width="100" height="100" rx="24" fill="url(#lsBg)"/>
-                <!-- Outer hexagon -->
-                <polygon points="50,10 88,30 88,70 50,90 12,70 12,30"
-                    fill="url(#lsHex)"
-                    stroke="#34d399" stroke-width="2" stroke-opacity="0.8"/>
-                <!-- Inner hex ring (tighter) -->
-                <polygon points="50,22 76,37 76,63 50,78 24,63 24,37"
-                    fill="none"
-                    stroke="rgba(110,231,183,0.3)" stroke-width="1.2"/>
-                <!-- EC lettermark — large, centered -->
-                <text x="50" y="62" font-family="Inter,sans-serif" font-size="28" font-weight="800"
-                    fill="white" text-anchor="middle" opacity="0.97" letter-spacing="-2">EC</text>
-                <!-- Bottom accent bar -->
-                <line x1="32" y1="68" x2="68" y2="68"
-                    stroke="rgba(52,211,153,0.55)" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="50" cy="50" r="45" fill="rgba(255,255,255,0.1)"/>
+                <circle cx="50" cy="50" r="35" fill="rgba(255,255,255,0.2)"/>
+                <circle cx="50" cy="50" r="25" fill="white"/>
+                <text x="50" y="58" font-size="28" fill="#4CAF50" font-weight="bold" text-anchor="middle">C</text>
             </svg>
             
             <!-- Loading text -->
@@ -16703,10 +16024,10 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
             // Create WalletConnect Provider with reliable RPC
             const provider = new WalletConnectProvider.default({
                 rpc: {
-                    137: 'https://ethereum-polygon.publicnode.com',
+                    11155111: 'https://ethereum-sepolia.publicnode.com',
                     1: 'https://ethereum.publicnode.com',
                 },
-                chainId: 137,
+                chainId: 11155111,
                 qrcodeModalOptions: {
                     mobileLinks: ['metamask', 'trust', 'rainbow', 'coinbase', 'argent', 'imtoken']
                 }
@@ -17050,256 +16371,88 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <!-- AUTHENTICATION GATE (World-Class Best Practice Implementation) -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!-- ═══ PREMIUM AUTH GATE ═══ -->
-    <style>
-    /* ── Container ─────────────────────────────────── */
-    #authGate {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    <div id="authGate" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #4CAF50 100%);
         z-index: 10000;
-        /* Always scroll the container — never the card itself */
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: center;
-        background: #060e09;
-        font-family: 'Inter', -apple-system, sans-serif;
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-        /* Padding ensures logo is always visible at top */
-        padding: 24px 0 40px;
-        box-sizing: border-box;
-    }
-    #authGate::before {
-        content: ''; position: fixed; inset: 0;
-        background:
-            radial-gradient(ellipse 70% 55% at 15% 50%, rgba(5,150,105,0.18) 0%, transparent 60%),
-            radial-gradient(ellipse 50% 40% at 85% 20%, rgba(16,185,129,0.10) 0%, transparent 55%),
-            radial-gradient(ellipse 40% 35% at 75% 85%, rgba(5,150,105,0.08) 0%, transparent 50%);
-        pointer-events: none; z-index: 0;
-    }
-    #authGate::after {
-        content: ''; position: fixed; inset: 0;
-        background-image: radial-gradient(rgba(52,211,153,0.06) 1px, transparent 1px);
-        background-size: 28px 28px;
-        pointer-events: none; z-index: 0;
-    }
-
-    /* ── Card ───────────────────────────────────────── */
-    .ag-card {
-        position: relative; z-index: 1;
-        background: #ffffff;
-        border-radius: 22px;
-        box-shadow: 0 28px 70px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.05);
-        width: 92%; max-width: 440px;
-        padding: 36px 36px 30px;
-        text-align: center;
-        animation: agSlideUp 0.42s cubic-bezier(0.22,1,0.36,1) both;
-        /* No internal scroll — container scrolls instead */
-        max-height: none;
-        overflow: visible;
-        /* Self-margin for centering in flex container */
-        margin: 0 auto;
-        /* Ensure card doesn't compress */
-        flex-shrink: 0;
-    }
-    @keyframes agSlideUp {
-        from { opacity: 0; transform: translateY(22px) scale(0.97); }
-        to   { opacity: 1; transform: translateY(0)    scale(1);    }
-    }
-    /* Hide scrollbar inside card */
-    /* Card scrollbar rules removed — container handles scroll */
-
-    /* ── Left accent strip ──────────────────────────── */
-    .ag-strip {
-        position: absolute; left: 0; top: 18%; bottom: 18%;
-        width: 3px; border-radius: 0 3px 3px 0;
-        background: linear-gradient(180deg, transparent, #10b981 30%, #059669 70%, transparent);
-    }
-
-    /* ── Logo row ───────────────────────────────────── */
-    .ag-logo-row {
-        display: flex; align-items: center; justify-content: center;
-        gap: 11px; margin-bottom: 20px;
-    }
-    .ag-logo-icon { flex-shrink: 0; }
-    .ag-logo-text { text-align: left; }
-    .ag-brand { font-size: 21px; font-weight: 800; letter-spacing: -0.5px; color: #0d1f13; line-height: 1.1; }
-    .ag-tagline { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #059669; margin-top: 2px; }
-
-    /* ── Network badge ──────────────────────────────── */
-    .ag-poly-badge {
-        display: inline-flex; align-items: center; gap: 5px;
-        background: #eff6ff; border: 1px solid #bfdbfe;
-        border-radius: 6px; padding: 3px 9px;
-        font-size: 10px; font-weight: 700; color: #1d4ed8;
-        letter-spacing: 0.03em; margin-bottom: 14px;
-        white-space: nowrap;
-    }
-    .ag-poly-dot { width: 5px; height: 5px; border-radius: 50%; background: #6366f1; flex-shrink: 0; }
-
-    /* ── Divider ────────────────────────────────────── */
-    .ag-divider { height: 1px; background: #f0f4f1; margin: 0 0 20px; }
-
-    /* ── Headings ───────────────────────────────────── */
-    .ag-heading { font-size: 19px; font-weight: 800; color: #0d1f13; letter-spacing: -0.3px; margin: 0 0 7px; }
-    .ag-sub { font-size: 12.5px; color: #6b7280; line-height: 1.55; margin: 0 0 22px; }
-
-    /* ── Buttons ────────────────────────────────────── */
-    .ag-btn {
-        width: 100%; padding: 13px 16px;
-        border-radius: 11px; cursor: pointer;
-        display: flex; align-items: center; justify-content: center; gap: 10px;
-        font-size: 14px; font-weight: 700;
-        font-family: 'Inter', -apple-system, sans-serif;
-        transition: transform 0.14s, box-shadow 0.14s, border-color 0.14s;
-        margin-bottom: 9px; border: none;
-        letter-spacing: -0.1px;
-        white-space: nowrap; /* prevent text wrap */
-        min-height: 48px;    /* touch-friendly */
-    }
-    .ag-btn:hover  { transform: translateY(-1px); }
-    .ag-btn:active { transform: translateY(0); }
-
-    .ag-btn-google {
-        background: #fff; color: #1f2937;
-        border: 1.5px solid #e5e7eb;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    }
-    .ag-btn-google:hover { border-color: #10b981; box-shadow: 0 4px 14px rgba(16,185,129,0.12); }
-
-    .ag-btn-metamask {
-        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-        color: #fff;
-        box-shadow: 0 4px 14px rgba(249,115,22,0.28);
-    }
-    .ag-btn-metamask:hover { box-shadow: 0 6px 22px rgba(249,115,22,0.42); }
-
-    /* ── OR divider ─────────────────────────────────── */
-    .ag-or {
-        display: flex; align-items: center; gap: 10px;
-        margin: 4px 0 9px;
-        font-size: 11px; font-weight: 600; color: #9ca3af; letter-spacing: 0.07em;
-    }
-    .ag-or::before, .ag-or::after { content: ''; flex: 1; height: 1px; background: #f0f4f1; }
-
-    /* ── Guest ──────────────────────────────────────── */
-    .ag-guest {
-        width: 100%; background: none; border: none; cursor: pointer;
-        font-size: 12.5px; font-weight: 600; color: #9ca3af;
-        padding: 9px; font-family: 'Inter', -apple-system, sans-serif;
-        transition: color 0.14s; white-space: nowrap;
-    }
-    .ag-guest:hover { color: #059669; }
-
-    /* ── Security notice ────────────────────────────── */
-    .ag-security {
-        margin-top: 18px; padding: 12px 14px;
-        background: #f9fafb; border: 1px solid #f0f4f1;
-        border-radius: 10px;
-        display: flex; align-items: flex-start; gap: 10px; text-align: left;
-    }
-    .ag-security-icon {
-        width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
-        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-        display: flex; align-items: center; justify-content: center; font-size: 13px;
-    }
-    .ag-security-title { font-size: 11.5px; font-weight: 700; color: #0d1f13; margin-bottom: 2px; }
-    .ag-security-text  { font-size: 11px; color: #9ca3af; line-height: 1.5; }
-
-    /* ── Mobile overrides (≤ 430px) ─────────────────── */
-    /* ── Auth gate: all mobile sizes ── */
-    @media (max-height: 700px) {
-        /* Short screens (landscape or small phones) */
-        .ag-logo-row   { margin-bottom: 12px; }
-        .ag-logo-icon svg { width: 40px!important; height: 40px!important; }
-        .ag-brand      { font-size: 18px; }
-        .ag-poly-badge { margin-bottom: 10px; }
-        .ag-divider    { margin-bottom: 14px; }
-        .ag-heading    { font-size: 16px; margin-bottom: 5px; }
-        .ag-sub        { font-size: 12px; margin-bottom: 16px; }
-        .ag-btn        { padding: 11px 14px; min-height: 44px; margin-bottom: 7px; }
-        .ag-security   { margin-top: 12px; padding: 10px 12px; }
-        .ag-card       { padding: 24px 28px 22px; }
-    }
-    @media (max-width: 480px) {
-        .ag-card       { width: 95%; padding: 28px 22px 22px; border-radius: 18px; }
-        .ag-brand      { font-size: 19px; }
-        .ag-heading    { font-size: 18px; }
-        .ag-sub        { font-size: 12.5px; margin-bottom: 18px; }
-        .ag-btn        { font-size: 13.5px; }
-    }
-    @media (max-width: 390px) {
-        .ag-card       { width: 96%; padding: 22px 16px 20px; border-radius: 16px; }
-        .ag-logo-row   { gap: 9px; margin-bottom: 12px; }
-        .ag-logo-icon svg { width: 40px!important; height: 40px!important; }
-        .ag-brand      { font-size: 17px; }
-        .ag-tagline    { font-size: 9px; }
-        .ag-poly-badge { font-size: 9px; padding: 2px 7px; margin-bottom: 10px; }
-        .ag-divider    { margin-bottom: 14px; }
-        .ag-heading    { font-size: 16px; margin-bottom: 5px; }
-        .ag-sub        { font-size: 12px; margin-bottom: 14px; }
-        .ag-btn        { font-size: 13px; padding: 11px 12px; min-height: 44px; margin-bottom: 7px; }
-        .ag-or         { margin: 2px 0 7px; }
-        .ag-guest      { padding: 8px; font-size: 12px; }
-        .ag-security   { margin-top: 10px; padding: 9px 10px; }
-        .ag-security-title { font-size: 11px; }
-        .ag-security-text  { font-size: 10.5px; }
-    }
-    @media (max-width: 360px) {
-        .ag-card       { padding: 18px 14px 16px; }
-        .ag-logo-icon svg { width: 36px!important; height: 36px!important; }
-        .ag-brand      { font-size: 16px; }
-        .ag-heading    { font-size: 15px; }
-        .ag-btn        { font-size: 12.5px; padding: 10px 10px; }
-    }
-    </style>
-
-    <div id="authGate">
-        <div class="ag-card">
-            <div class="ag-strip"></div>
-
-            <!-- Logo Row — Hexagon Shield -->
-            <div class="ag-logo-row">
-                <div class="ag-logo-icon">
-                    <svg width="52" height="52" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                            <linearGradient id="agBg" x1="0" y1="0" x2="80" y2="80" gradientUnits="userSpaceOnUse">
-                                <stop offset="0%" stop-color="#0c1a0e"/>
-                                <stop offset="100%" stop-color="#14532d"/>
-                            </linearGradient>
-                            <linearGradient id="agHex" x1="40" y1="8" x2="40" y2="72" gradientUnits="userSpaceOnUse">
-                                <stop offset="0%" stop-color="rgba(52,211,153,0.30)"/>
-                                <stop offset="100%" stop-color="rgba(5,150,105,0.06)"/>
-                            </linearGradient>
-                        </defs>
-                        <rect width="80" height="80" rx="20" fill="url(#agBg)"/>
-                        <polygon points="40,10 68,25 68,55 40,70 12,55 12,25"
-                            fill="url(#agHex)" stroke="#34d399" stroke-width="1.8" stroke-opacity="0.85"/>
-                        <polygon points="40,19 59,29.5 59,50.5 40,61 21,50.5 21,29.5"
-                            fill="none" stroke="rgba(110,231,183,0.28)" stroke-width="1"/>
-                        <text x="40" y="49" font-family="Inter,sans-serif" font-size="20" font-weight="800"
-                            fill="white" text-anchor="middle" opacity="0.97" letter-spacing="-1.5">EC</text>
-                        <line x1="26" y1="54" x2="54" y2="54"
-                            stroke="rgba(52,211,153,0.5)" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </div>
-                <div class="ag-logo-text">
-                    <div class="ag-brand">EcoCoin</div>
-                    <div class="ag-tagline">Carbon · Polygon</div>
-                </div>
+    ">
+        <div style="
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 480px;
+            width: 90%;
+            padding: 48px 40px;
+            text-align: center;
+        ">
+            <!-- Logo -->
+            <div style="margin-bottom: 32px;">
+                <svg width="80" height="80" viewBox="0 0 100 100" style="margin: 0 auto;">
+                    <circle cx="50" cy="50" r="45" fill="#4CAF50" opacity="0.2"/>
+                    <circle cx="50" cy="50" r="35" fill="#4CAF50" opacity="0.4"/>
+                    <circle cx="50" cy="50" r="25" fill="#4CAF50"/>
+                    <text x="50" y="58" font-size="28" fill="white" font-weight="bold" text-anchor="middle">C</text>
+                </svg>
+                <h1 style="
+                    margin: 16px 0 8px 0;
+                    font-size: 32px;
+                    font-weight: 700;
+                    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                ">EcoCoin</h1>
+                <p style="
+                    margin: 0;
+                    color: #666;
+                    font-size: 15px;
+                    font-weight: 500;
+                ">Decentralized Carbon Credit Platform</p>
             </div>
-
-            <!-- Polygon badge -->
-            <div><span class="ag-poly-badge"><span class="ag-poly-dot"></span>Polygon Mainnet · Chain ID 137</span></div>
-
-            <div class="ag-divider"></div>
-
-            <h2 class="ag-heading">Sign in to your account</h2>
-            <p class="ag-sub">Access carbon credits, stake tokens, and contribute to a verified green future.</p>
-
-            <!-- Google -->
-            <button id="googleSignInBtn" class="ag-btn ag-btn-google" onclick="initiateGoogleLogin()">
-                <svg width="18" height="18" viewBox="0 0 24 24" style="flex-shrink:0">
+            
+            <!-- Welcome Message -->
+            <div style="margin-bottom: 32px;">
+                <h2 style="
+                    margin: 0 0 12px 0;
+                    color: #212121;
+                    font-size: 24px;
+                    font-weight: 600;
+                ">Welcome to EcoCoin</h2>
+                <p style="
+                    margin: 0;
+                    color: #666;
+                    font-size: 14px;
+                    line-height: 1.6;
+                ">Sign in to access your carbon credits, participate in staking, and contribute to a greener future.</p>
+            </div>
+            
+            <!-- Google Sign In Button -->
+            <button id="googleSignInBtn" onclick="initiateGoogleLogin()" style="
+                width: 100%;
+                background: white;
+                border: 2px solid #E0E0E0;
+                padding: 16px 24px;
+                border-radius: 12px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                font-size: 16px;
+                font-weight: 600;
+                color: #212121;
+                transition: all 0.3s ease;
+                margin-bottom: 16px;
+            " onmouseover="this.style.background='#F5F5F5'; this.style.borderColor='#4CAF50';" 
+               onmouseout="this.style.background='white'; this.style.borderColor='#E0E0E0';">
+                <svg width="24" height="24" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -17307,48 +16460,61 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                 </svg>
                 Continue with Google
             </button>
-
-            <div class="ag-or">OR</div>
-
-            <!-- MetaMask — clean fox icon, reliable at all sizes -->
-            <button id="metaMaskConnectBtn" class="ag-btn ag-btn-metamask" onclick="connectMetaMaskDirect()">
-                <svg width="22" height="22" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
-                    <!-- Fox head silhouette — simplified, clean -->
-                    <!-- Ears -->
-                    <polygon points="8,6 2,18 12,16" fill="#fff" opacity="0.9"/>
-                    <polygon points="32,6 38,18 28,16" fill="#fff" opacity="0.9"/>
-                    <!-- Inner ears -->
-                    <polygon points="8,8 4,17 11,15.5" fill="#f97316" opacity="0.7"/>
-                    <polygon points="32,8 36,17 29,15.5" fill="#f97316" opacity="0.7"/>
-                    <!-- Head -->
-                    <ellipse cx="20" cy="22" rx="14" ry="13" fill="#fff" opacity="0.92"/>
-                    <!-- Snout -->
-                    <ellipse cx="20" cy="27" rx="6" ry="4" fill="#fde68a" opacity="0.9"/>
-                    <!-- Eyes -->
-                    <circle cx="15" cy="21" r="2.2" fill="#1f2937"/>
-                    <circle cx="25" cy="21" r="2.2" fill="#1f2937"/>
-                    <circle cx="15.6" cy="20.4" r="0.8" fill="#fff"/>
-                    <circle cx="25.6" cy="20.4" r="0.8" fill="#fff"/>
-                    <!-- Nose -->
-                    <ellipse cx="20" cy="25.5" rx="1.5" ry="1" fill="#1f2937"/>
-                    <!-- Mouth -->
-                    <path d="M17.5 27.5 Q20 29.5 22.5 27.5" stroke="#1f2937" stroke-width="0.8" fill="none" stroke-linecap="round"/>
-                </svg>
+            
+            <!-- MetaMask Connect (Secondary) -->
+            <button id="metaMaskConnectBtn" onclick="connectMetaMaskDirect()" style="
+                width: 100%;
+                background: linear-gradient(135deg, #F6851B, #E2761B);
+                border: none;
+                padding: 16px 24px;
+                border-radius: 12px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                font-size: 16px;
+                font-weight: 600;
+                color: white;
+                transition: all 0.3s ease;
+                margin-bottom: 24px;
+            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 24px rgba(226,118,27,0.4)';"
+               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                <span style="font-size: 24px;">🦊</span>
                 Connect MetaMask Wallet
             </button>
 
-            <!-- Guest -->
-            <button class="ag-guest" onclick="proceedAsGuest()">
+            <!-- Guest Access -->
+            <button onclick="proceedAsGuest()" style="
+                width: 100%;
+                background: transparent;
+                border: none;
+                padding: 12px;
+                cursor: pointer;
+                color: #666;
+                font-size: 14px;
+                font-weight: 500;
+                transition: color 0.3s ease;
+            " onmouseover="this.style.color='#4CAF50';" 
+               onmouseout="this.style.color='#666';">
                 Continue as Guest (Limited Access)
             </button>
-
-            <!-- Security -->
-            <div class="ag-security">
-                <div class="ag-security-icon">🔒</div>
-                <div>
-                    <div class="ag-security-title">Secure Authentication</div>
-                    <div class="ag-security-text">End-to-end encrypted. We never store private keys. OAuth 2.0 · GDPR compliant · ISO 27001.</div>
+            
+            <!-- Security Notice -->
+            <div style="
+                margin-top: 32px;
+                padding: 16px;
+                background: #F5F5F5;
+                border-radius: 8px;
+                font-size: 12px;
+                color: #666;
+                line-height: 1.5;
+            ">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <span style="font-size: 16px;">🔒</span>
+                    <strong style="color: #212121;">Secure Authentication</strong>
                 </div>
+                <p style="margin: 0;">Your data is encrypted and protected. We never store your private keys. OAuth 2.0 secure authentication. GDPR compliant.</p>
             </div>
         </div>
     </div>
@@ -17456,8 +16622,8 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
         ">
             <span style="font-size: 16px;">🔗</span>
             <div>
-                <div style="font-weight: 600; margin-bottom: 2px;" class="network-name">Polygon Mainnet</div>
-                <div style="opacity: 0.9; font-size: 11px;" class="chain-id">Chain ID: 137</div>
+                <div style="font-weight: 600; margin-bottom: 2px;" class="network-name">Sepolia Testnet</div>
+                <div style="opacity: 0.9; font-size: 11px;" class="chain-id">Chain ID: 11155111</div>
             </div>
         </div>
         
@@ -17474,7 +16640,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
             <div class="price-info">
                 <div class="price-label">ECC Token</div>
                 <div class="price-value">
-                    <span id="livePrice" style="font-size: 14px;">Polygon Mainnet</span>
+                    <span id="livePrice" style="font-size: 14px;">Sepolia Testnet</span>
                     <span class="price-change" id="priceChange" style="font-size: 11px; opacity: 0.8;">Not Trading</span>
                 </div>
             </div>
@@ -17566,608 +16732,206 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
         
         <!-- SIDEBAR OVERLAY FOR MOBILE -->
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-        <!-- Mobile sidebar backdrop (new UI) -->
-        <div id="sb-backdrop" onclick="toggleSidebar()"></div>
 
-        <!-- ECOCOIN PREMIUM UI v4 -->
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-        <style id="eco-premium">
-        :root {
-            --sb:252px; --sb-bg:#0b1f13; --sb-glow:rgba(16,185,129,0.09);
-            --sb-border:rgba(255,255,255,0.055); --sb-hover:rgba(255,255,255,0.055);
-            --sb-active:rgba(16,185,129,0.14); --sb-active-bar:#10b981;
-            --sb-text:rgba(255,255,255,0.42); --sb-text-hov:rgba(255,255,255,0.82);
-            --sb-text-act:#6ee7b7; --sb-cat:rgba(255,255,255,0.22);
-            --app:#f2f5f3; --surface:#ffffff; --border:#e3ebe4;
-            --border-strong:#ccd8cd; --tx1:#0d1f13; --tx2:#4a6652; --tx3:#8aa890;
-            --accent:#059669; --danger:#ef4444;
-            --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:20px;
-            --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
-            --shadow-sm:0 1px 4px rgba(0,0,0,0.06),0 2px 8px rgba(0,0,0,0.04);
-            --shadow-md:0 4px 12px rgba(0,0,0,0.08),0 1px 3px rgba(0,0,0,0.05);
-            --shadow-lg:0 8px 24px rgba(0,0,0,0.1),0 2px 6px rgba(0,0,0,0.06);
-            --font:'Inter',-apple-system,sans-serif;
-            --mono:'IBM Plex Mono',monospace;
-            --ease:cubic-bezier(0.4,0,0.2,1);
-        }
-        *,*::before,*::after{box-sizing:border-box;}
-        html{font-size:14px;-webkit-font-smoothing:antialiased;}
-        body{font-family:var(--font)!important;background:var(--app)!important;color:var(--tx1)!important;margin:0;}
-        button,input,select,textarea{font-family:var(--font)!important;}
-        .app-layout{display:flex;min-height:100vh;}
-        .main-wrapper{margin-left:var(--sb)!important;flex:1;min-height:100vh;background:var(--app)!important;display:flex;flex-direction:column;}
-        .sidebar,aside.sidebar{display:none!important;width:0!important;}
-
-        /* ── SIDEBAR ── */
-        #sb{position:fixed;top:0;left:0;bottom:0;width:var(--sb);background:var(--sb-bg);display:flex;flex-direction:column;z-index:1000;overflow:hidden;}
-        #sb::before{content:'';position:absolute;top:0;left:0;right:0;height:180px;background:radial-gradient(ellipse 130% 80% at 50% -10%,var(--sb-glow) 0%,transparent 70%);pointer-events:none;z-index:0;}
-        #sb::after{content:'';position:absolute;top:0;right:0;bottom:0;width:1px;background:linear-gradient(180deg,transparent 0%,var(--sb-border) 15%,var(--sb-border) 85%,transparent 100%);pointer-events:none;}
-
-        #sb-logo{padding:18px 16px 15px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--sb-border);position:relative;z-index:1;flex-shrink:0;}
-        .sb-icon{width:40px;height:40px;border-radius:10px;flex-shrink:0;background:transparent;display:flex;align-items:center;justify-content:center;overflow:visible;}
-        .sb-icon svg{width:40px;height:40px;}
-        .sb-icon svg{width:18px;height:18px;}
-        .sb-wordmark{flex:1;min-width:0;}
-        .sb-brand{font-size:15px;font-weight:700;letter-spacing:-0.4px;color:#fff;line-height:1.1;}
-        .sb-sub{font-size:9.5px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:rgba(110,231,183,0.6);margin-top:1.5px;}
-        .sb-net{display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;background:rgba(5,150,105,0.12);border:1px solid rgba(5,150,105,0.22);flex-shrink:0;}
-        .sb-net-dot{width:5px;height:5px;border-radius:50%;background:#10b981;box-shadow:0 0 5px rgba(16,185,129,0.7);animation:sbPulse 2.2s ease-in-out infinite;}
-        @keyframes sbPulse{0%,100%{opacity:1}55%{opacity:0.4}}
-        .sb-net-label{font-size:9px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#6ee7b7;}
-
-        #sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 0 4px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.07) transparent;position:relative;z-index:1;}
-        #sb-nav::-webkit-scrollbar{width:2px;}
-        #sb-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);}
-
-        .sb-sep{height:1px;background:var(--sb-border);margin:3px 12px;}
-
-        .sb-cat{display:flex;align-items:center;gap:7px;padding:11px 14px 5px;cursor:pointer;user-select:none;transition:color 0.15s;}
-        .sb-cat-mark{width:4px;height:4px;border-radius:50%;flex-shrink:0;margin-top:1px;}
-        .sb-cat-text{font-size:9.5px;font-weight:700;letter-spacing:0.13em;text-transform:uppercase;color:var(--sb-cat);transition:color 0.15s;flex:1;}
-        .sb-cat:hover .sb-cat-text{color:rgba(255,255,255,0.45);}
-        .sb-cat-chev{font-size:8px;color:var(--sb-cat);transition:transform 0.22s var(--ease),color 0.15s;opacity:0.6;}
-        .sb-cat.acc-open .sb-cat-chev{transform:rotate(180deg);opacity:0.9;}
-        .sb-cat.acc-open .sb-cat-text{color:rgba(255,255,255,0.5);}
-
-        .sb-items{overflow:hidden;max-height:0;transition:max-height 0.3s var(--ease);padding:0 8px;}
-        .sb-items.acc-expanded{max-height:700px;}
-
-        .sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px 8px 11px;border-radius:var(--r-sm);color:var(--sb-text);text-decoration:none!important;font-size:12.5px;font-weight:500;transition:background 0.12s,color 0.12s,transform 0.1s;cursor:pointer;border:none;background:none;width:100%;text-align:left;margin-bottom:1px;position:relative;}
-        .sb-item:hover{background:var(--sb-hover);color:var(--sb-text-hov);transform:translateX(2px);text-decoration:none!important;}
-        .sb-item.active{background:var(--sb-active);color:var(--sb-text-act);font-weight:600;}
-        .sb-item.active::before{content:'';position:absolute;left:0;top:22%;bottom:22%;width:3px;border-radius:0 3px 3px 0;background:var(--sb-active-bar);box-shadow:0 0 8px rgba(16,185,129,0.5);}
-        .sb-ico{font-size:13px;width:18px;text-align:center;flex-shrink:0;opacity:0.65;transition:opacity 0.12s;}
-        .sb-item:hover .sb-ico,.sb-item.active .sb-ico{opacity:1;}
-        .sb-lbl{flex:1;}
-        .sb-badge{font-size:8px;font-weight:800;padding:2px 5px;border-radius:4px;letter-spacing:0.05em;text-transform:uppercase;flex-shrink:0;line-height:1.4;}
-
-        #sb-foot{padding:10px 12px 12px;border-top:1px solid var(--sb-border);background:rgba(0,0,0,0.18);flex-shrink:0;position:relative;z-index:1;}
-        .sb-user{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-md);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);margin-bottom:8px;}
-        .sb-avatar{width:32px;height:32px;border-radius:8px;flex-shrink:0;background:linear-gradient(135deg,#059669 0%,#047857 100%);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;box-shadow:0 2px 6px rgba(5,150,105,0.3);}
-        .sb-user-meta{flex:1;min-width:0;}
-        .sb-uname{font-size:12px;font-weight:600;color:rgba(255,255,255,0.88);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-        .sb-urole{font-size:10px;color:rgba(255,255,255,0.28);margin-top:1px;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-        .sb-signout{width:100%;padding:7px 10px;border-radius:var(--r-sm);background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.14);color:rgba(252,165,165,0.75);font-size:11.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s;}
-        .sb-signout:hover{background:rgba(239,68,68,0.14);border-color:rgba(239,68,68,0.28);color:#fca5a5;}
-
-        /* ── TOPBAR ── */
-        #topbar{height:54px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 22px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-xs);flex-shrink:0;overflow:hidden;}
-        .tb-left{display:flex;align-items:center;gap:12px;overflow:hidden;min-width:0;flex:1;}
-        .tb-menu-btn{display:none;width:34px;height:34px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--app);cursor:pointer;align-items:center;justify-content:center;font-size:14px;color:var(--tx2);transition:background 0.15s;}
-        .tb-menu-btn:hover{background:var(--border);}
-        .tb-crumb{display:flex;align-items:center;gap:7px;overflow:hidden;min-width:0;}
-        .tb-crumb-root{font-size:12px;color:var(--tx3);font-weight:500;}
-        .tb-crumb-sep{color:var(--border-strong);font-size:12px;}
-        .tb-page-title{font-size:14px;font-weight:700;color:var(--tx1);letter-spacing:-0.3px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:none;}
-        .tb-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-        .tb-search{display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;background:var(--app);border:1px solid var(--border);border-radius:var(--r-sm);width:200px;transition:all 0.15s;}
-        .tb-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(5,150,105,0.1);background:var(--surface);}
-        .tb-search-ico{font-size:12px;color:var(--tx3);flex-shrink:0;}
-        .tb-search-inp{flex:1;border:none!important;background:transparent!important;outline:none!important;font-size:12.5px!important;color:var(--tx1)!important;min-height:auto!important;padding:0!important;box-shadow:none!important;}
-        .tb-search-inp::placeholder{color:var(--tx3);}
-        .tb-btn{width:34px;height:34px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--app);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--tx2);position:relative;transition:all 0.15s;}
-        .tb-btn:hover{background:var(--surface);border-color:var(--border-strong);box-shadow:var(--shadow-xs);}
-        .tb-notif-badge{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--danger);border:1.5px solid var(--surface);}
-        .tb-wallet{display:flex;align-items:center;gap:7px;height:34px;padding:0 13px;background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border:1px solid #bbf7d0;border-radius:var(--r-sm);cursor:pointer;transition:all 0.15s;}
-        .tb-wallet:hover{border-color:#86efac;box-shadow:0 2px 8px rgba(5,150,105,0.12);}
-        .tb-wallet-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px rgba(5,150,105,0.6);flex-shrink:0;}
-        .tb-wallet-text{font-size:12px;font-weight:700;color:#065f46;}
-        .tb-div{width:1px;height:20px;background:var(--border);flex-shrink:0;}
-
-        /* ── CONTENT ── */
-        .eco-main{flex:1;padding:24px 26px;max-width:1400px;margin:0 auto;width:100%;}
-
-        .card{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:var(--r-lg)!important;padding:20px 22px!important;box-shadow:var(--shadow-sm)!important;margin-bottom:16px!important;transition:box-shadow 0.18s,transform 0.18s!important;}
-        .card:hover{box-shadow:var(--shadow-md)!important;transform:translateY(-1px)!important;}
-        .card-title{font-size:13.5px!important;font-weight:700!important;color:var(--tx1)!important;letter-spacing:-0.2px!important;margin-bottom:14px!important;}
-
-        .hero-section{background:linear-gradient(140deg,#071a0e 0%,#0a2e17 35%,#0d3d1e 65%,#082012 100%)!important;padding:48px 36px!important;margin-bottom:20px!important;border-radius:var(--r-xl)!important;overflow:hidden!important;position:relative!important;box-shadow:0 10px 40px rgba(7,26,14,0.4)!important;}
-        .hero-section::before{content:'';position:absolute;top:-40%;right:-10%;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(5,150,105,0.1) 0%,transparent 65%);pointer-events:none;}
-        .hero-title{font-size:clamp(24px,3vw,36px)!important;font-weight:800!important;letter-spacing:-1px!important;line-height:1.1!important;}
-        .hero-subtitle{font-size:14px!important;color:rgba(255,255,255,0.65)!important;line-height:1.6!important;}
-
-        input[type="text"]:not(.tb-search-inp),input[type="number"],input[type="email"],input[type="date"],input[type="password"],select,textarea{border-radius:var(--r-sm)!important;border:1.5px solid var(--border)!important;font-size:13px!important;background:var(--surface)!important;color:var(--tx1)!important;transition:border-color 0.15s,box-shadow 0.15s!important;}
-        input:not(.tb-search-inp):focus,select:focus,textarea:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(5,150,105,0.1)!important;outline:none!important;}
-
-        table{border-collapse:collapse!important;}
-        table thead th{background:#f7faf7!important;color:var(--tx2)!important;font-size:10.5px!important;font-weight:700!important;text-transform:uppercase!important;letter-spacing:0.08em!important;padding:10px 14px!important;border-bottom:1.5px solid var(--border)!important;}
-        table tbody td{padding:11px 14px!important;font-size:13px!important;border-bottom:1px solid #f0f5f0!important;color:var(--tx1)!important;}
-        table tbody tr:hover td{background:#f7fbf7!important;}
-
-        .notification,.toast{border-radius:var(--r-md)!important;font-family:var(--font)!important;font-size:12.5px!important;box-shadow:var(--shadow-lg)!important;}
-
-        ::-webkit-scrollbar{width:5px;height:5px;}
-        ::-webkit-scrollbar-track{background:transparent;}
-        ::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:4px;}
-        ::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.18);}
-
-        /* ═══════════════════════════════════════════════════════════
-           COMPREHENSIVE MOBILE SYSTEM — All screen sizes
-           Covers: sidebar, topbar, main content, grids, cards,
-                   hero, forms, tables, modals — every component.
-        ═══════════════════════════════════════════════════════════ */
-
-        /* ── Tablet (769–1100px) ─────────────────────────────────── */
-        @media(min-width:769px) and (max-width:1100px){
-            :root{--sb:224px;}
-            .eco-main{padding:20px 22px!important;}
-            .tb-search{width:180px;}
-        }
-
-        /* ── Mobile (≤768px) ─────────────────────────────────────── */
-        @media(max-width:768px){
-
-            /* --- Sidebar: slide off-screen, overlay on open --- */
-            #sb{
-                transform:translateX(-100%);
-                transition:transform 0.28s var(--ease);
-                width:82%!important; max-width:290px!important;
-                box-shadow:none;
-            }
-            #sb.open{
-                transform:translateX(0);
-                box-shadow:6px 0 40px rgba(0,0,0,0.45)!important;
-            }
-            /* Sidebar backdrop overlay */
-            #sb-backdrop{
-                display:none;
-                position:fixed;inset:0;
-                background:rgba(0,0,0,0.5);
-                z-index:999;
-                backdrop-filter:blur(1px);
-            }
-            #sb-backdrop.show{display:block;}
-
-            /* --- Main wrapper full width --- */
-            .main-wrapper{margin-left:0!important;width:100%!important;}
-
-            /* --- Topbar: compact, hide non-essential items --- */
-            #topbar{height:50px!important;padding:0 14px!important;}
-            .tb-menu-btn{display:flex!important;}
-            /* Hide search on small mobile — use a search icon instead */
-            .tb-search{display:none!important;}
-            /* Hide wallet chip text, keep dot only */
-            .tb-wallet-text{display:none!important;}
-            .tb-wallet{padding:0 9px!important;min-width:34px;justify-content:center;}
-            .tb-div{display:none!important;}
-            .tb-crumb-root{display:none!important;}
-            .tb-crumb-sep{display:none!important;}
-            #pageTitle{font-size:15px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;max-width:calc(100vw - 210px)!important;}
-
-            /* --- Main content area --- */
-            .eco-main{
-                padding:14px 14px!important;
-                max-width:100%!important;
-            }
-
-            /* --- Cards --- */
-            .card{
-                padding:14px 14px!important;
-                border-radius:12px!important;
-                margin-bottom:12px!important;
-            }
-            .card-title{font-size:13px!important;margin-bottom:10px!important;}
-
-            /* --- Hero section --- */
-            .hero-section{
-                padding:26px 16px!important;
-                margin-bottom:14px!important;
-                border-radius:14px!important;
-            }
-            .hero-title{
-                font-size:22px!important;
-                letter-spacing:-0.5px!important;
-            }
-            .hero-subtitle{font-size:13px!important;}
-
-            /* --- ALL grids → single column on mobile --- */
-            /* Catch both class-based and inline style grids */
-            [style*="display: grid"],[style*="display:grid"]{
-                grid-template-columns:1fr!important;
-                gap:12px!important;
-            }
-            /* Stat grids — 2 col on phones ≥375px */
-            [style*="grid-template-columns: repeat(auto-fit, minmax(1"]{
-                grid-template-columns:repeat(2,1fr)!important;
-                gap:10px!important;
-            }
-            /* Explicitly named grid classes */
-            .grid-2,.grid-3,.grid-4,.feature-grid,.stats-grid,.dashboard-grid{
-                grid-template-columns:1fr!important;gap:12px!important;
-            }
-
-            /* --- Typography scale down --- */
-            h1{font-size:20px!important;}
-            h2{font-size:17px!important;}
-            h3{font-size:15px!important;}
-            h4{font-size:14px!important;}
-            p{font-size:13px!important;}
-
-            /* --- Buttons touch targets --- */
-            button,.btn{
-                min-height:44px!important;
-                font-size:13.5px!important;
-            }
-
-            /* --- Form inputs — prevent iOS zoom (must be ≥16px) --- */
-            input[type="text"],input[type="email"],input[type="number"],
-            input[type="password"],input[type="date"],input[type="tel"],
-            select,textarea{
-                font-size:16px!important;
-                min-height:44px!important;
-                padding:10px 12px!important;
-                border-radius:8px!important;
-            }
-            textarea{min-height:80px!important;}
-
-            /* --- Tables: horizontal scroll wrapper --- */
-            table{
-                display:block!important;
-                overflow-x:auto!important;
-                -webkit-overflow-scrolling:touch!important;
-                white-space:nowrap!important;
-                font-size:12px!important;
-            }
-            table thead th{padding:8px 10px!important;font-size:10px!important;}
-            table tbody td{padding:8px 10px!important;font-size:12px!important;}
-
-            /* --- Modals — full width on mobile --- */
-            [style*="max-width: 800px"],[style*="max-width: 600px"],
-            [style*="max-width: 500px"],[style*="max-width:800px"],
-            [style*="max-width:600px"]{
-                max-width:96%!important;
-                width:96%!important;
-                margin:10px auto!important;
-            }
-
-            /* --- Tabs / sub-nav pills --- */
-            [data-subtab-parent]{
-                font-size:12px!important;
-                padding:8px 12px!important;
-            }
-
-            /* --- Toasts & notifications --- */
-            .notification,.toast{
-                left:10px!important;right:10px!important;
-                bottom:78px!important;
-                max-width:calc(100% - 20px)!important;
-                font-size:12.5px!important;
-            }
-
-            /* --- Overflow fixes --- */
-            body,html{overflow-x:hidden!important;}
-            .app-layout{overflow-x:hidden!important;}
-        }
-
-        /* ── Small phones (≤430px) ───────────────────────────────── */
-        @media(max-width:430px){
-            .eco-main{padding:12px 12px!important;}
-            .card{padding:12px 12px!important;}
-            .hero-section{padding:20px 14px!important;}
-            .hero-title{font-size:20px!important;}
-            #pageTitle{font-size:14px!important;}
-            button,.btn{font-size:13px!important;}
-        }
-
-        /* ── Tiny phones (≤360px) ────────────────────────────────── */
-        @media(max-width:360px){
-            .eco-main{padding:10px 10px!important;}
-            .card{padding:10px 10px!important;border-radius:10px!important;}
-            .hero-section{padding:16px 12px!important;}
-            .hero-title{font-size:18px!important;}
-            h1{font-size:18px!important;}
-            h2{font-size:16px!important;}
-            table{font-size:11px!important;}
-        }
-        </style>
-
-        <script>
-        (function(){
-            // Wire new sidebar to JS hooks
-            window.toggleSidebar = function(){
-                var s=document.getElementById('sb');
-                var o=document.getElementById('sidebarOverlay');
-                var b=document.getElementById('sb-backdrop');
-                if(s)s.classList.toggle('open');
-                if(o)o.classList.toggle('show');
-                if(b)b.classList.toggle('show');
-                /* Prevent body scroll when sidebar open on mobile */
-                if(s && s.classList.contains('open') && window.innerWidth<=768){
-                    document.body.style.overflow='hidden';
-                } else {
-                    document.body.style.overflow='';
-                }
-            };
-            window.closeSidebarOnMobile = function(){
-                if(window.innerWidth<=768){
-                    var s=document.getElementById('sb');
-                    var o=document.getElementById('sidebarOverlay');
-                    var b=document.getElementById('sb-backdrop');
-                    if(s)s.classList.remove('open');
-                    if(o)o.classList.remove('show');
-                    if(b)b.classList.remove('show');
-                    document.body.style.overflow='';
-                }
-            };
-            var _st=window.switchTab;
-            window.switchTab=function(t){
-                if(_st)_st.apply(this,arguments);
-                document.querySelectorAll('#sb .sb-item').forEach(function(el){
-                    el.classList.toggle('active', el.getAttribute('data-tab')===t);
-                });
-                var pt=document.getElementById('pageTitle');
-                if(pt&&t) pt.textContent=t.charAt(0).toUpperCase()+t.slice(1).replace(/-/g,' ');
-            };
-            window.updateSidebarUserInfo=function(){
-                var u=window.AUTH_STATE&&window.AUTH_STATE.user;
-                var n=document.getElementById('sidebarUserName');
-                var r=document.getElementById('sidebarUserRole');
-                if(u&&n) n.textContent=u.name||u.email||'User';
-                if(window.AUTH_STATE&&window.AUTH_STATE.walletAddress&&r){
-                    var a=window.AUTH_STATE.walletAddress;
-                    r.textContent=a.slice(0,6)+'…'+a.slice(-4);
-                }
-                var wt=document.querySelector('.tb-wallet-text');
-                if(wt&&window.AUTH_STATE&&window.AUTH_STATE.walletAddress){
-                    var a=window.AUTH_STATE.walletAddress;
-                    wt.textContent=a.slice(0,6)+'…'+a.slice(-4);
-                }
-            };
-        })();
-        </script>
-
+        <!-- APP LAYOUT WITH SIDEBAR -->
         <div class="app-layout">
-            <aside class="sidebar" id="sidebar" style="display:none!important;"></aside>
 
-            <!-- SIDEBAR -->
-            <aside id="sb">
-                <div id="sb-logo">
-                    <!-- LOGO #2 — HEXAGON SHIELD -->
-                    <div class="sb-icon">
-                        <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <defs>
-                                <linearGradient id="sbBg" x1="0" y1="0" x2="38" y2="38" gradientUnits="userSpaceOnUse">
-                                    <stop offset="0%" stop-color="#0c1a0e"/>
-                                    <stop offset="100%" stop-color="#14532d"/>
-                                </linearGradient>
-                                <linearGradient id="sbHex" x1="19" y1="4" x2="19" y2="34" gradientUnits="userSpaceOnUse">
-                                    <stop offset="0%" stop-color="rgba(52,211,153,0.28)"/>
-                                    <stop offset="100%" stop-color="rgba(5,150,105,0.06)"/>
-                                </linearGradient>
-                            </defs>
-                            <!-- Background rounded square -->
-                            <rect width="38" height="38" rx="9" fill="url(#sbBg)"/>
-                            <!-- Outer hex -->
-                            <polygon points="19,4.5 32,11.25 32,24.75 19,31.5 6,24.75 6,11.25"
-                                fill="url(#sbHex)"
-                                stroke="#34d399" stroke-width="1" stroke-opacity="0.75"/>
-                            <!-- Inner hex ring -->
-                            <polygon points="19,9 28,14 28,24 19,29 10,24 10,14"
-                                fill="none"
-                                stroke="rgba(110,231,183,0.28)" stroke-width="0.7"/>
-                            <!-- EC lettermark -->
-                            <text x="19" y="23" font-family="Inter,sans-serif" font-size="10.5" font-weight="800"
-                                fill="white" text-anchor="middle" opacity="0.96" letter-spacing="-0.8">EC</text>
-                            <!-- Bottom accent bar -->
-                            <line x1="13" y1="25.5" x2="25" y2="25.5"
-                                stroke="rgba(52,211,153,0.45)" stroke-width="0.9" stroke-linecap="round"/>
-                        </svg>
+            <!-- SIDEBAR NAVIGATION -->
+            <aside class="sidebar" id="sidebar" style="display: flex !important; visibility: visible !important; opacity: 1 !important; position: fixed; left: 0; top: 0; bottom: 0; width: 280px; background: linear-gradient(180deg, #064E3B 0%, #065F46 50%, #047857 100%); z-index: 1000; flex-direction: column; box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);">
+                <!-- Sidebar Header with Logo -->
+                <div class="sidebar-header" style="padding: 24px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; gap: 14px;">
+                    <div class="sidebar-logo" style="display: flex; align-items: center; gap: 12px;">
+                        <div class="sidebar-logo-icon" style="width: 44px; height: 44px; background: linear-gradient(135deg, #10B981 0%, #059669 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);">
+                            <svg width="24" height="24" viewBox="0 0 40 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="20" cy="16" r="12" fill="rgba(255,255,255,0.9)"/>
+                                <path d="M10 16 Q10 8, 18 8 Q18 16, 10 16" fill="#22C55E"/>
+                                <text x="20" y="20" font-size="11" font-weight="bold" fill="#059669" text-anchor="middle">C</text>
+                            </svg>
+                        </div>
+                        <span class="sidebar-logo-text" style="font-size: 22px; font-weight: 700; background: linear-gradient(135deg, #4ADE80 0%, #22C55E 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">EcoCoin</span>
                     </div>
-                    <div class="sb-wordmark">
-                        <div class="sb-brand">EcoCoin</div>
-                        <div class="sb-sub">Carbon · Polygon</div>
-                    </div>
-                    <div class="sb-net"><span class="sb-net-dot"></span><span class="sb-net-label">Polygon</span></div>
                 </div>
 
-                <div id="sb-nav" class="sidebar-nav">
-                    <!-- EARN -->
+                <!-- Navigation Menu -->
+                <nav class="sidebar-nav" id="sidebarNav" style="flex: 1; padding: 8px 0 8px 0; overflow-y: auto;">
+
+                    <!-- ── Earn ──────────────────────────────────────── -->
                     <div class="acc-group" id="acc-earn">
-                        <div class="sb-cat acc-header acc-open" onclick="toggleAccordion('acc-earn')">
-                            <span class="sb-cat-mark" style="background:#10b981"></span>
-                            <span class="sb-cat-text">Earn</span>
-                            <span class="sb-cat-chev acc-arrow">▾</span>
-                        </div>
-                        <div class="sb-items acc-body acc-expanded" id="acc-earn-body">
-                            <a href="#" class="sb-item nav-item active" data-tab="dashboard" onclick="switchTab('dashboard');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">📊</span><span class="sb-lbl">Dashboard</span>
+                        <button class="acc-header" onclick="toggleAccordion('acc-earn')">
+                            <span class="acc-icon">💚</span><span>Earn</span>
+                            <span class="acc-arrow">&#9660;</span>
+                        </button>
+                        <div class="acc-body" id="acc-earn-body">
+                            <a href="#" class="nav-item" data-tab="dashboard" onclick="switchTab('dashboard'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128202;</span><span>Dashboard</span>
                             </a>
-                            <a href="#" class="sb-item nav-item" data-tab="swap" onclick="switchTab('swap');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🔄</span><span class="sb-lbl">Swap</span>
-                                <span class="sb-badge ni-badge" style="background:#2563eb;color:#fff">NEW</span>
+                            <a href="#" class="nav-item" data-tab="swap" onclick="switchTab('swap'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128260;</span><span>Swap</span>
+                                <span class="ni-badge" style="background:#3B82F6;color:#fff;">NEW</span>
                             </a>
-                            <a href="#" class="sb-item nav-item" data-tab="earn" onclick="switchTab('stake');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">💰</span><span class="sb-lbl">Earn &amp; Stake</span>
+                            <a href="#" class="nav-item" data-tab="earn" onclick="switchTab('stake'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128176;</span><span>Earn &amp; Stake</span>
                             </a>
-                            <a href="#" class="sb-item nav-item" data-tab="farm" onclick="switchTab('farm');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🌾</span><span class="sb-lbl">LP Farming</span>
-                            </a>
-                        </div>
-                    </div>
-                    <div class="sb-sep"></div>
-                    <!-- CARBON -->
-                    <div class="acc-group" id="acc-carbon">
-                        <div class="sb-cat acc-header" onclick="toggleAccordion('acc-carbon')">
-                            <span class="sb-cat-mark" style="background:#06b6d4"></span>
-                            <span class="sb-cat-text">Carbon</span>
-                            <span class="sb-cat-chev acc-arrow">▾</span>
-                        </div>
-                        <div class="sb-items acc-body" id="acc-carbon-body">
-                            <a href="#" class="sb-item nav-item" data-tab="verify" onclick="switchTab('verification');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">✅</span><span class="sb-lbl">Verification</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="registry" onclick="switchTab('calculator');setTimeout(()=>switchMRVMode('registry'),100);closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🏛️</span><span class="sb-lbl">Registry</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="projects" onclick="switchTab('projects');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">📁</span><span class="sb-lbl">Projects</span>
-                                <span class="sb-badge ni-badge" style="background:#059669;color:#fff">NEW</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="calculator" onclick="switchTab('calculator');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🧮</span><span class="sb-lbl">Calculator</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="marketplace" onclick="switchTab('marketplace');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🛒</span><span class="sb-lbl">Marketplace</span>
+                            <a href="#" class="nav-item" data-tab="farm" onclick="switchTab('farm'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#127806;</span><span>LP Farming</span>
                             </a>
                         </div>
                     </div>
-                    <div class="sb-sep"></div>
-                    <!-- V2 -->
-                    <div class="acc-group" id="acc-v2">
-                        <div class="sb-cat acc-header" onclick="toggleAccordion('acc-v2')">
-                            <span class="sb-cat-mark" style="background:#6366f1"></span>
-                            <span class="sb-cat-text">V2 Contracts</span>
-                            <span class="sb-cat-chev acc-arrow">▾</span>
-                        </div>
-                        <div class="sb-items acc-body" id="acc-v2-body">
-                            <a href="#" class="sb-item nav-item" data-tab="vesting" onclick="switchTab('vesting');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">📅</span><span class="sb-lbl">Vesting</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="launchpad" onclick="switchTab('launchpad');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🚀</span><span class="sb-lbl">Launchpad</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="lottery" onclick="switchTab('lottery');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🎰</span><span class="sb-lbl">Lottery</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="bridge" onclick="switchTab('bridge');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🌉</span><span class="sb-lbl">Bridge</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="governance" onclick="switchTab('governance');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🗳️</span><span class="sb-lbl">Governance</span>
-                            </a>
-                        </div>
-                    </div>
-                    <div class="sb-sep"></div>
-                    <!-- COMMUNITY -->
-                    <div class="acc-group" id="acc-community">
-                        <div class="sb-cat acc-header" onclick="toggleAccordion('acc-community')">
-                            <span class="sb-cat-mark" style="background:#f59e0b"></span>
-                            <span class="sb-cat-text">Community</span>
-                            <span class="sb-cat-chev acc-arrow">▾</span>
-                        </div>
-                        <div class="sb-items acc-body" id="acc-community-body">
-                            <a href="#" class="sb-item nav-item" data-tab="learning" onclick="switchTab('learning');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🎓</span><span class="sb-lbl">Learning Hub</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="community" onclick="switchTab('community');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🤝</span><span class="sb-lbl">Community</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="referral" onclick="switchTab('referral');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">👥</span><span class="sb-lbl">Referrals</span>
-                                <span class="sb-badge ni-badge" style="background:#059669;color:#fff">+5%</span>
-                            </a>
-                        </div>
-                    </div>
-                    <div class="sb-sep"></div>
-                    <!-- INFO -->
-                    <div class="acc-group" id="acc-info">
-                        <div class="sb-cat acc-header" onclick="toggleAccordion('acc-info')">
-                            <span class="sb-cat-mark" style="background:#8b5cf6"></span>
-                            <span class="sb-cat-text">Info</span>
-                            <span class="sb-cat-chev acc-arrow">▾</span>
-                        </div>
-                        <div class="sb-items acc-body" id="acc-info-body">
-                            <a href="#" class="sb-item nav-item active" data-tab="home" onclick="switchTab('home');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">🏠</span><span class="sb-lbl">Home</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="tokenomics" onclick="switchTab('tokenomics');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">💎</span><span class="sb-lbl">Tokenomics</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" data-tab="analytics" onclick="switchTab('analytics');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">📈</span><span class="sb-lbl">Analytics</span>
-                            </a>
-                        </div>
-                    </div>
-                    <div class="sb-sep"></div>
-                    <!-- ADMIN -->
-                    <div class="acc-group" id="acc-admin">
-                        <div class="sb-cat acc-header" onclick="toggleAccordion('acc-admin')">
-                            <span class="sb-cat-mark" style="background:#f59e0b"></span>
-                            <span class="sb-cat-text">Admin</span>
-                            <span class="sb-cat-chev acc-arrow">▾</span>
-                        </div>
-                        <div class="sb-items acc-body" id="acc-admin-body">
-                            <a href="#" class="sb-item nav-item" data-tab="admin" onclick="switchTab('admin');closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">👑</span><span class="sb-lbl">Admin Dashboard</span>
-                                <span class="sb-badge ni-badge" style="background:linear-gradient(135deg,#d97706,#b45309);color:#fff">ADMIN</span>
-                            </a>
-                            <a href="#" class="sb-item nav-item" onclick="openAdminFinancialModal();closeSidebarOnMobile();">
-                                <span class="sb-ico ni-icon">💵</span><span class="sb-lbl">Financial Overview</span>
-                                <span class="sb-badge ni-badge" style="background:linear-gradient(135deg,#d97706,#b45309);color:#fff">ADMIN</span>
-                            </a>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Footer -->
-                <div id="sb-foot">
-                    <div class="sb-user">
-                        <div class="sb-avatar" id="sidebarUserAvatar">👤</div>
-                        <div class="sb-user-meta">
-                            <div class="sb-uname" id="sidebarUserName">Guest User</div>
-                            <div class="sb-urole" id="sidebarUserRole">Not connected</div>
+                    <!-- ── Carbon ────────────────────────────────────── -->
+                    <div class="acc-group" id="acc-carbon">
+                        <button class="acc-header" onclick="toggleAccordion('acc-carbon')">
+                            <span class="acc-icon">&#127807;</span><span>Carbon</span>
+                            <span class="acc-arrow">&#9660;</span>
+                        </button>
+                        <div class="acc-body" id="acc-carbon-body">
+                            <a href="#" class="nav-item" data-tab="verify" onclick="switchTab('verification'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#9989;</span><span>Verification</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="registry" onclick="switchTab('calculator'); setTimeout(() => switchMRVMode('registry'), 100); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#127963;</span><span>Registry</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="projects" onclick="switchTab('projects'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128194;</span><span>Projects</span>
+                                <span class="ni-badge" style="background:#10B981;color:#fff;">NEW</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="calculator" onclick="switchTab('calculator'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#129518;</span><span>Calculator</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="marketplace" onclick="switchTab('marketplace'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128722;</span><span>Marketplace</span>
+                            </a>
                         </div>
                     </div>
-                    <button class="sb-signout" id="sidebarLogoutBtn" onclick="logoutUser()">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                        Sign Out
+
+                    <!-- ── V2 Contracts ───────────────────────────────── -->
+                    <div class="acc-group" id="acc-v2">
+                        <button class="acc-header" onclick="toggleAccordion('acc-v2')">
+                            <span class="acc-icon">&#128309;</span><span>V2 Contracts</span>
+                            <span class="acc-arrow">&#9660;</span>
+                        </button>
+                        <div class="acc-body" id="acc-v2-body">
+                            <a href="#" class="nav-item" data-tab="vesting" onclick="switchTab('vesting'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128197;</span><span>Vesting</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="launchpad" onclick="switchTab('launchpad'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128640;</span><span>Launchpad</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="lottery" onclick="switchTab('lottery'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#127920;</span><span>Lottery</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="bridge" onclick="switchTab('bridge'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#127751;</span><span>Bridge</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="governance" onclick="switchTab('governance'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128499;&#65039;</span><span>Governance</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- ── Community ─────────────────────────────────── -->
+                    <div class="acc-group" id="acc-community">
+                        <button class="acc-header" onclick="toggleAccordion('acc-community')">
+                            <span class="acc-icon">&#129309;</span><span>Community</span>
+                            <span class="acc-arrow">&#9660;</span>
+                        </button>
+                        <div class="acc-body" id="acc-community-body">
+                            <a href="#" class="nav-item" data-tab="learning" onclick="switchTab('learning'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#127891;</span><span>Learning Hub</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="community" onclick="switchTab('community'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#129309;</span><span>Community</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="referral" onclick="switchTab('referral'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128101;</span><span>Referrals</span>
+                                <span class="ni-badge" style="background:#10B981;color:#fff;">+5%</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- ── Info ───────────────────────────────────────── -->
+                    <div class="acc-group" id="acc-info">
+                        <button class="acc-header" onclick="toggleAccordion('acc-info')">
+                            <span class="acc-icon">&#128203;</span><span>Info</span>
+                            <span class="acc-arrow">&#9660;</span>
+                        </button>
+                        <div class="acc-body" id="acc-info-body">
+                            <a href="#" class="nav-item active" data-tab="home" onclick="switchTab('home'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#127968;</span><span>Home</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="tokenomics" onclick="switchTab('tokenomics'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128142;</span><span>Tokenomics</span>
+                            </a>
+                            <a href="#" class="nav-item" data-tab="analytics" onclick="switchTab('analytics'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128200;</span><span>Analytics</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- ── Admin ─────────────────────────────────────── -->
+                    <div class="acc-group" id="acc-admin">
+                        <button class="acc-header" onclick="toggleAccordion('acc-admin')">
+                            <span class="acc-icon">&#128081;</span><span>Admin</span>
+                            <span class="acc-arrow">&#9660;</span>
+                        </button>
+                        <div class="acc-body" id="acc-admin-body">
+                            <a href="#" class="nav-item" data-tab="admin" onclick="switchTab('admin'); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128081;</span><span>Admin Dashboard</span>
+                                <span class="ni-badge" style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#111827;">ADMIN</span>
+                            </a>
+                            <a href="#" class="nav-item" onclick="openAdminFinancialModal(); closeSidebarOnMobile();">
+                                <span class="ni-icon">&#128176;</span><span>Financial Overview</span>
+                                <span class="ni-badge" style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#111827;">ADMIN</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Testnet tab hidden from sidebar (accessible via code only) -->
+
+                </nav>
+
+                <!-- User Section at Bottom -->
+                <div class="sidebar-user" style="padding: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.2);">
+                    <div class="sidebar-user-info" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <div class="sidebar-user-avatar" id="sidebarUserAvatar" style="width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(135deg, #10B981 0%, #059669 100%); display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">👤</div>
+                        <div class="sidebar-user-details" style="flex: 1; min-width: 0;">
+                            <div class="sidebar-user-name" id="sidebarUserName" style="font-size: 14px; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Guest User</div>
+                            <div class="sidebar-user-role" id="sidebarUserRole" style="font-size: 12px; color: rgba(255, 255, 255, 0.5);">Connect Wallet</div>
+                        </div>
+                    </div>
+                    <button class="sidebar-logout-btn" id="sidebarLogoutBtn" onclick="logoutUser()" style="width: 100%; padding: 10px 16px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; color: #F87171; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>🚪</span> Logout
                     </button>
                 </div>
             </aside>
 
             <!-- MAIN WRAPPER -->
-            <div class="main-wrapper" style="margin-left:var(--sb);min-height:100vh;flex:1;display:flex;flex-direction:column;">
-
-                <!-- TOPBAR -->
-                <header id="topbar">
-                    <div class="tb-left">
-                        <button class="tb-menu-btn sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">☰</button>
-                        <div class="tb-crumb">
-                            <span class="tb-crumb-root">EcoCoin</span>
-                            <span class="tb-crumb-sep">›</span>
-                            <h1 class="tb-page-title" id="pageTitle">Home</h1>
-                        </div>
-                    </div>
-                    <div class="tb-right">
-                        <div class="tb-search header-search">
-                            <span class="tb-search-ico">🔍</span>
-                            <input type="text" class="tb-search-inp" placeholder="Search…" id="globalSearch">
-                        </div>
-                        <div class="tb-div"></div>
-                        <button class="tb-btn header-icon-btn" title="Notifications">
-                            🔔<span class="tb-notif-badge header-badge"></span>
+            <div class="main-wrapper" style="margin-left: 280px; min-height: 100vh; background: #F9FAFB; flex: 1;">
+                <!-- Top Header Bar -->
+                <header class="top-header" style="background: rgba(255, 255, 255, 0.98); border-bottom: 1px solid #E5E7EB; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100;">
+                    <div class="top-header-left" style="display: flex; align-items: center; gap: 16px;">
+                        <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Toggle Menu" style="display: none; width: 40px; height: 40px; border: none; background: #F3F4F6; border-radius: 10px; cursor: pointer;">
+                            <span style="font-size: 20px;">☰</span>
                         </button>
-                        <button class="tb-btn header-icon-btn" title="Settings" onclick="switchTab('admin')">⚙️</button>
-                        <div class="tb-div"></div>
-                        <div class="tb-wallet" onclick="window.connectMetaMask&&window.connectMetaMask()">
-                            <span class="tb-wallet-dot"></span>
-                            <span class="tb-wallet-text">Connect Wallet</span>
+                        <h1 class="page-title" id="pageTitle" style="font-size: 18px; font-weight: 600; color: #111827; margin: 0;">Home</h1>
+                    </div>
+                    <div class="top-header-right" style="display: flex; align-items: center; gap: 12px;">
+                        <div class="header-search" style="display: flex; align-items: center; gap: 8px; background: #F3F4F6; border-radius: 10px; padding: 8px 16px; width: 240px;">
+                            <span style="color: #9CA3AF;">🔍</span>
+                            <input type="text" placeholder="Search..." id="globalSearch" style="border: none; background: transparent; outline: none; font-size: 14px; color: #111827; width: 100%;">
                         </div>
+                        <button class="header-icon-btn" title="Notifications" style="width: 40px; height: 40px; border: none; background: #F3F4F6; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative;">
+                            <span>🔔</span>
+                            <span class="header-badge" style="position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: #EF4444; border-radius: 50%; border: 2px solid white;"></span>
+                        </button>
+                        <button class="header-icon-btn" title="Settings" onclick="switchTab('admin')" style="width: 40px; height: 40px; border: none; background: #F3F4F6; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                            <span>⚙️</span>
+                        </button>
                     </div>
                 </header>
 
-                <!-- CONTENT -->
-                <div class="eco-main main-content" style="max-width:1400px;margin:0 auto;width:100%;">
+                <!-- MAIN CONTENT -->
+                <div class="main-content" style="max-width: 1400px; margin: 0 auto; padding: 32px 24px;">
             <!-- HOME / LANDING PAGE -->
             <div id="home" class="tab-content active" style="display: block;">
 
@@ -18228,7 +16992,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                     </div>
 
                     <p style="margin-top: 16px;">
-                        <a href="https://polygonscan.com/address/0x1D5404994cABc50332b713af77DB020cE571F425"
+                        <a href="https://sepolia.etherscan.io/address/0x1D5404994cABc50332b713af77DB020cE571F425"
                            target="_blank" rel="noopener"
                            style="color: rgba(255,255,255,0.5); font-size: 12px; text-decoration: none;">
                             View contract on Etherscan →
@@ -18568,11 +17332,11 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                         <div style="display: flex; gap: 16px;">
                             <div>
                                 <p style="margin: 0 0 4px 0; font-size: 12px; color: #6B7280;">Network</p>
-                                <p style="margin: 0; font-size: 13px; font-weight: 500; color: #10B981;" id="dashNetwork">Polygon</p>
+                                <p style="margin: 0; font-size: 13px; font-weight: 500; color: #10B981;" id="dashNetwork">Sepolia</p>
                             </div>
                             <div>
                                 <p style="margin: 0 0 4px 0; font-size: 12px; color: #6B7280;">Chain ID</p>
-                                <p style="margin: 0; font-size: 13px; font-weight: 500; color: #111827;" id="dashChainId">137</p>
+                                <p style="margin: 0; font-size: 13px; font-weight: 500; color: #111827;" id="dashChainId">11155111</p>
                             </div>
                         </div>
                     </div>
@@ -20265,7 +19029,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                                     <div style="font-size: 14px; color: #212121;">
                                         <div>• Amount: <span id="transferSummaryAmount">0</span> ECC</div>
                                         <div>• Gas Fee: ~0.001 ETH (estimate)</div>
-                                        <div>• Network: Polygon Mainnet</div>
+                                        <div>• Network: Sepolia Testnet</div>
                                     </div>
                                 </div>
                                 
@@ -20452,7 +19216,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                         </div>
                         <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 8px;">
                             <div style="font-size: 14px; opacity: 0.9; margin-bottom: 4px;">Network</div>
-                            <div style="font-size: 24px; font-weight: 700;">Polygon Mainnet</div>
+                            <div style="font-size: 24px; font-weight: 700;">Sepolia Testnet</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 8px;">
                             <div style="font-size: 14px; opacity: 0.9; margin-bottom: 4px;">Total Supply</div>
@@ -20585,10 +19349,10 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                         </div>
                         <div style="margin-bottom: 16px;">
                             <strong style="display: block; margin-bottom: 8px; color: var(--primary);">Network:</strong>
-                            <div style="font-size: 14px;">Polygon Mainnet (Chain ID: 137)</div>
+                            <div style="font-size: 14px;">Sepolia Testnet (Chain ID: 11155111)</div>
                         </div>
                         <div>
-                            <a href="https://polygonscan.com/address/0x1D5404994cABc50332b713af77DB020cE571F425"
+                            <a href="https://sepolia.etherscan.io/address/0x1D5404994cABc50332b713af77DB020cE571F425"
                                target="_blank"
                                class="btn btn-primary"
                                style="display: inline-block; text-decoration: none;">
@@ -21764,7 +20528,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                                 <span style="font-size: 24px;">🦊</span>
                                 <div>
                                     <p style="margin: 0; font-weight: 600; font-size: 13px; color: #111827;">Crypto Wallet</p>
-                                    <p style="margin: 2px 0 0 0; font-size: 11px; color: #6B7280;">MATIC, USDC, USDT on Polygon</p>
+                                    <p style="margin: 2px 0 0 0; font-size: 11px; color: #6B7280;">ETH, USDC, USDT on Sepolia</p>
                                 </div>
                             </div>
                             <div style="background: white; border-radius: 10px; padding: 14px; display: flex; align-items: center; gap: 12px;">
@@ -23903,6 +22667,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                 </div>
             </div>
 
+        </div>
 
             <!-- ═══════════════════════════════════════════════════════ -->
             <!-- VESTING TAB                                             -->
@@ -24072,7 +22837,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                     <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
                         <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: #1E40AF;">Supported Networks</p>
                         <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                            <span style="background: #DBEAFE; color: #1E40AF; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 500;">Polygon (137)</span>
+                            <span style="background: #DBEAFE; color: #1E40AF; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 500;">Ethereum Sepolia (11155111)</span>
                             <span style="background: #DBEAFE; color: #1E40AF; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 500;">Polygon Amoy (80002)</span>
                         </div>
                     </div>
@@ -24088,7 +22853,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                             <div>
                                 <label style="display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px;">Destination Chain ID</label>
                                 <select id="bridge-dest-chain" style="width: 100%; padding: 10px 14px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box;">
-                                    <option value="137" selected>Polygon Mainnet (137)</option>
+                                    <option value="11155111">Ethereum Sepolia (11155111)</option>
                                     <option value="80002">Polygon Amoy (80002)</option>
                                 </select>
                             </div>
@@ -26546,7 +25311,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
         // ═══════════════════════════════════════════════════════════════
 
         const SWAP_TOKENS = {
-            ETH: { symbol: 'MATIC', name: 'Ethereum', icon: '🔷', decimals: 18, address: 'native', price: 2500 },
+            ETH: { symbol: 'ETH', name: 'Ethereum', icon: '🔷', decimals: 18, address: 'native', price: 2500 },
             ECC: { symbol: 'ECC', name: 'EcoCoin', icon: '🌱', decimals: 18, address: '0x1D5404994cABc50332b713af77DB020cE571F425', price: 1 },
             USDT: { symbol: 'USDT', name: 'Tether USD', icon: '💵', decimals: 6, address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', price: 1 },
             USDC: { symbol: 'USDC', name: 'USD Coin', icon: '💲', decimals: 6, address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', price: 1 },
@@ -26777,7 +25542,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
         // REAL SWAP SYSTEM WITH EARLY CONTRIBUTOR REWARDS
         // ==========================================
         const SwapSystem = {
-            // Treasury wallet for receiving ETH (Polygon testnet - deployer address)
+            // Treasury wallet for receiving ETH (Sepolia testnet - deployer address)
             TREASURY_WALLET: '0x77D6D5945b9eCF55e15c80c0ae467B47Ab3D7FEA', // EcoCoin deployer wallet
             LP_WALLET: '0x77D6D5945b9eCF55e15c80c0ae467B47Ab3D7FEA', // Same for testnet
 
@@ -26914,7 +25679,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                         }
                         // For testnet, we'll simulate success if the error is about insufficient funds
                         if (txError.message.includes('insufficient funds')) {
-                            showNotification('⚠️ Testnet: Simulating swap (insufficient MATIC)', 'warning');
+                            showNotification('⚠️ Testnet: Simulating swap (insufficient SepoliaETH)', 'warning');
                             transactionSuccess = true; // Simulate for testnet
                             txHash = '0x' + Math.random().toString(16).substring(2, 66);
                         } else {
@@ -27000,7 +25765,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api';
                 if (error.code === 4001 || error.message?.includes('rejected')) {
                     errorMsg = 'Transaction was rejected by user';
                 } else if (error.message?.includes('insufficient funds')) {
-                    errorMsg = 'Insufficient MATIC. Get test ETH from a Polygon bridge.';
+                    errorMsg = 'Insufficient SepoliaETH. Get test ETH from a Sepolia faucet.';
                 } else if (error.message?.includes('network')) {
                     errorMsg = 'Network error. Please check your connection.';
                 } else if (error.message?.includes('MetaMask')) {
@@ -36778,9 +35543,9 @@ This project meets the requirements for carbon credit issuance upon third-party 
     const EMISSION_RATE = 1; // 1 ECC per 1 ton CO2
 
 // Network-specific contract addresses.
-// Polygon Mainnet configuration. Add mainnet/other networks as you deploy.
+// For now, we explicitly configure Sepolia testnet. Add mainnet/other networks as you deploy.
 const CONTRACT_ADDRESSES = {
-    137: CONTRACT_ADDRESS // Polygon Mainnet – using same address for now
+    11155111: CONTRACT_ADDRESS // Sepolia Testnet – using same address for now
     // 1: "0x...",        // Ethereum Mainnet
     // 137: "0x...",      // Polygon
     // 56: "0x...",       // BSC Mainnet
@@ -37388,16 +36153,16 @@ window.registerUserBackend = async function(userData) {
             1: {
                 chainId: '0x1',
                 chainName: 'Ethereum Mainnet',
-                nativeCurrency: { name: 'Ether', symbol: 'MATIC', decimals: 18 },
+                nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
                 rpcUrls: ['https://eth.llamarpc.com'],
                 blockExplorerUrls: ['https://etherscan.io']
             },
-            137: {
-                chainId: '0x89',
-                chainName: 'Polygon Mainnet',
-                nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-                rpcUrls: ['https://polygon-rpc.com'],
-                blockExplorerUrls: ['https://polygonscan.com']
+            11155111: {
+                chainId: '0xaa36a7',
+                chainName: 'Sepolia Testnet',
+                nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 },
+                rpcUrls: ['https://rpc.sepolia.org'],
+                blockExplorerUrls: ['https://sepolia.etherscan.io']
             },
             137: {
                 chainId: '0x89',
@@ -37770,7 +36535,7 @@ window.registerUserBackend = async function(userData) {
             const network = await web3Provider.getNetwork();
             const networkNames = {
                 1: 'Ethereum Mainnet',
-                137: 'Polygon Mainnet',
+                11155111: 'Sepolia Testnet',
                 137: 'Polygon',
                 80001: 'Mumbai Testnet',
                 56: 'BSC',
@@ -37778,7 +36543,7 @@ window.registerUserBackend = async function(userData) {
             };
             
             const networkName = networkNames[network.chainId] || `Chain ${network.chainId}`;
-            const isCorrectNetwork = network.chainId === 137;
+            const isCorrectNetwork = network.chainId === 11155111;
             
             // Update colors based on network
             networkBadge.style.background = isCorrectNetwork
@@ -38599,7 +37364,7 @@ class ResourceOptimizer {
         // Prefetch resources user is likely to need
         const likelyResources = [
             'https://etherscan.io',
-            'https://polygonscan.com'
+            'https://sepolia.etherscan.io'
         ];
         
         likelyResources.forEach(url => {
@@ -39800,12 +38565,12 @@ class EnvironmentManager {
             development: {
                 apiUrl: 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api',
                 debug: true,
-                chainId: 137
+                chainId: 11155111
             },
             staging: {
                 apiUrl: 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api',
                 debug: true,
-                chainId: 137
+                chainId: 11155111
             },
             production: {
                 apiUrl: 'https://us-central1-ecocoin-f32d8.cloudfunctions.net/api',
@@ -45464,7 +44229,7 @@ function downloadCSV(csvContent, filename) {
                     certificate.nftTokenId = tokenId;
                     certificate.nftTxHash = simulatedTxHash;
                     certificate.nftMetadata = nftMetadata;
-                    certificate.nftChain = 'Polygon Mainnet';
+                    certificate.nftChain = 'Sepolia Testnet';
                     certificate.nftContract = '0x...EcoCoinCertificateNFT';
 
                     // Save updates
@@ -45497,8 +44262,8 @@ function downloadCSV(csvContent, filename) {
                     showToast('NFT not found', 'error');
                     return;
                 }
-                // Open Polygon explorer
-                window.open(`https://polygonscan.com/tx/${cert.nftTxHash}`, '_blank');
+                // Open Sepolia explorer
+                window.open(`https://sepolia.etherscan.io/tx/${cert.nftTxHash}`, '_blank');
             },
 
             // Show verification result
@@ -47023,7 +45788,7 @@ function downloadCSV(csvContent, filename) {
                 compound: false,
                 txHash: mockTxHash,  // Transaction hash for verification
                 verified: false,     // Will be true when confirmed on-chain
-                network: 'Polygon Mainnet' // Network where staked
+                network: 'Sepolia Testnet' // Network where staked
             };
 
             pool.stakes.push(stake);
@@ -47038,7 +45803,7 @@ function downloadCSV(csvContent, filename) {
                 'APY: ' + selectedAPY.toFixed(1) + '%\n' +
                 (selectedLock.days > 0 ? 'Unlock Date: ' + unlockDate.toLocaleDateString() : 'Flexible staking - unstake anytime') + '\n\n' +
                 'Transaction Hash: ' + mockTxHash.substring(0, 10) + '...\n' +
-                'Network: Polygon Mainnet\n\n' +
+                'Network: Sepolia Testnet\n\n' +
                 'Rewards are accruing every block!\n\n' +
                 'Click "View Details" below to verify on blockchain.',
                 'success'
@@ -47365,7 +46130,7 @@ function downloadCSV(csvContent, filename) {
                 // Blockchain verification info
                 details += '\n🔗 BLOCKCHAIN VERIFICATION:\n';
                 details += 'Transaction: ' + (stake.txHash || 'N/A') + '\n';
-                details += 'Network: ' + (stake.network || 'Polygon Mainnet') + '\n';
+                details += 'Network: ' + (stake.network || 'Sepolia Testnet') + '\n';
                 details += 'Verified: ' + (stake.verified ? '✅ Yes' : '⏳ Pending') + '\n';
                 details += 'View on Explorer: [Click button below]\n';
                 details += '\n' + '─'.repeat(30) + '\n\n';
@@ -47393,8 +46158,8 @@ function downloadCSV(csvContent, filename) {
             let explorerUrl = '';
             
             // Determine explorer URL based on network
-            if (network && network.includes('Polygon')) {
-                explorerUrl = 'https://polygonscan.com/tx/' + txHash;
+            if (network && network.includes('Sepolia')) {
+                explorerUrl = 'https://sepolia.etherscan.io/tx/' + txHash;
             } else if (network && network.includes('Polygon')) {
                 explorerUrl = 'https://polygonscan.com/tx/' + txHash;
             } else if (network && network.includes('BSC')) {
@@ -47415,7 +46180,7 @@ function downloadCSV(csvContent, filename) {
                   '• Gas fees paid\n' +
                   '• Block confirmation\n' +
                   '• Smart contract address\n\n' +
-                  'NOTE: If you are on a public testnet (e.g. Polygon), this will show testnet data.\n' +
+                  'NOTE: If you are on a public testnet (e.g. Sepolia), this will show testnet data.\n' +
                   'Once EcoCoin is deployed on mainnet, this view will show live mainnet transactions.');
         }
 
@@ -53451,7 +52216,7 @@ Admin: ${address}`;
                 testSuite: 'EcoCoin Inline Test Suite',
                 version: '2.0.0',
                 url: window.location.href,
-                network: 'Polygon Mainnet (137)'
+                network: 'Sepolia Testnet (11155111)'
             },
             summary: {
                 total: testResults.total,
