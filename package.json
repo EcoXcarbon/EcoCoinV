@@ -1,0 +1,45 @@
+{
+  "name": "ecocoin-polygon",
+  "version": "5.0.0",
+  "description": "EcoCoin (ECC) — Carbon Credit Platform on Polygon",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "coverage": "hardhat coverage",
+    "deploy:amoy": "hardhat run scripts/deploy-polygon-amoy.js --network polygonAmoy",
+    "deploy:mainnet": "hardhat run scripts/deploy-polygon-mainnet.js --network polygonMainnet",
+    "airdrop:amoy": "hardhat run scripts/airdrop.js --network polygonAmoy",
+    "airdrop:mainnet": "hardhat run scripts/airdrop.js --network polygonMainnet",
+    "verify:amoy": "hardhat verify --network polygonAmoy",
+    "verify:mainnet": "hardhat verify --network polygonMainnet",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy-polygon-amoy.js --network hardhat"
+  },
+  "keywords": [
+    "ecocoin",
+    "polygon",
+    "carbon-credits",
+    "web3",
+    "sustainability"
+  ],
+  "author": "Yasir - IMSciences",
+  "license": "MIT",
+  "dependencies": {
+    "@chainlink/contracts": "^0.8.0",
+    "@openzeppelin/contracts": "^4.9.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "hardhat": "^2.22.0",
+    "hardhat-gas-reporter": "^2.3.0",
+    "nodemon": "^3.0.2",
+    "solidity-coverage": "^0.8.5"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}

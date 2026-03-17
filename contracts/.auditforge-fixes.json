@@ -1,0 +1,58 @@
+{
+  "A2": {
+    "findingId": "A2",
+    "findingName": "Hash Function Security",
+    "filePath": "E:\\fintech\\eco coin v\\contracts\\CarbonCreditNFT.sol",
+    "appliedAt": "2026-03-16T15:48:46.811Z",
+    "tier": "MEDIUM"
+  },
+  "B7": {
+    "findingId": "B7",
+    "findingName": "Front-Running & MEV Protection",
+    "filePath": "E:\\fintech\\eco coin v\\contracts\\deprecated\\EcoCoinV7Secured.sol",
+    "appliedAt": "2026-03-16T15:49:10.442Z",
+    "tier": "MEDIUM"
+  },
+  "B10": {
+    "findingId": "B10",
+    "findingName": "Event Emission Completeness",
+    "filePath": "E:\\fintech\\eco coin v\\contracts\\CarbonCreditNFT.sol",
+    "appliedAt": "2026-03-16T15:49:55.743Z",
+    "tier": "MEDIUM"
+  },
+  "C1": {
+    "findingId": "C1",
+    "findingName": "Multi-Signature Admin Control",
+    "filePath": "E:\\fintech\\eco coin v\\contracts\\CarbonCreditNFT.sol",
+    "appliedAt": "2026-03-16T15:50:44.234Z",
+    "tier": "MEDIUM"
+  },
+  "I1": {
+    "findingId": "I1",
+    "findingName": "Real-Time Transaction Monitoring",
+    "filePath": "E:\\fintech\\eco coin v\\contracts\\CarbonCreditNFT.sol",
+    "appliedAt": "2026-03-16T15:52:31.247Z",
+    "tier": "MEDIUM"
+  },
+  "I2": {
+    "findingId": "I2",
+    "findingName": "Incident Response Capability",
+    "filePath": "E:\\fintech\\eco coin v\\contracts\\CarbonCreditNFT.sol",
+    "appliedAt": "2026-03-16T15:53:08.886Z",
+    "tier": "MEDIUM"
+  },
+  "J3": {
+    "findingId": "J3",
+    "findingName": "Code Coverage",
+    "filePath": "E:\\fintech\\eco coin v\\contracts\\CarbonCreditNFT.sol",
+    "appliedAt": "2026-03-16T15:53:42.317Z",
+    "tier": "MEDIUM"
+  },
+  "J4": {
+    "findingId": "J4",
+    "findingName": "Formal Verification",
+    "filePath": "E:\\fintech\\eco coin v\\contracts\\CarbonCreditNFT.sol",
+    "appliedAt": "2026-03-16T15:54:06.597Z",
+    "tier": "MEDIUM"
+  }
+}

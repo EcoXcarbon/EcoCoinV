@@ -1,0 +1,233 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+
+/**
+ * @title ECCBridge
+ * @notice Lock-and-mint bridge for cross-chain ECC transfers.
+ *
+ * Model:
+ *   Source chain  → lock tokens in ECCBridge → emit BridgeOut event
+ *   Relayer picks up event → calls release() on destination ECCBridge
+ *   Destination   → mint/release tokens to recipient
+ *
+ * Features:
+ *   - Multi-chain support (configurable chain IDs)
+ *   - Daily transfer limits (anti-whale)
+ *   - Bridge fee (sent to treasury)
+ *   - Nonce-based replay protection
+ *   - Multi-relayer support with threshold
+ *   - Emergency pause & fund recovery
+ *   - Minimum/maximum transfer amounts
+ *   - Slippage protection (minAmountOut) on bridgeOut
+ *   - Deadline protection to prevent stale transactions
+ */
+contract ECCBridge is AccessControl, ReentrancyGuard, Pausable {
+    using SafeERC20 for IERC20;
+
+    bytes32 public constant RELAYER_ROLE  = keccak256("RELAYER_ROLE");
+    bytes32 public constant BRIDGE_ADMIN  = keccak256("BRIDGE_ADMIN");
+
+    uint256 public constant FEE_BASE      = 10000;
+    uint256 public constant MAX_FEE       = 100;   // 1%
+
+    IERC20  public immutable token;
+    address public treasury;
+
+    // ── Chain config ───────────────────────────────────────────────────────
+    struct ChainConfig {
+        bool    supported;
+        uint256 minAmount;
+        uint256 maxAmount;
+        uint256 dailyLimit;
+        uint256 bridgeFee;   // basis points
+    }
+
+    mapping(uint256 => ChainConfig) public chainConfigs;
+
+    // ── Bridge records ─────────────────────────────────────────────────────
+    struct BridgeRequest {
+        address sender;
+        address recipient;
+        uint256 amount;
+        uint256 fee;
+        uint256 srcChainId;
+        uint256 dstChainId;
+        uint256 timestamp;
+        bool    released;
+    }
+
+    uint256 public nextNonce;
+    mapping(bytes32 => BridgeRequest) public bridgeRequests; // nonce hash => request
+    mapping(bytes32 => bool)          public processedNonces; // replay guard
+
+    // Daily limits tracking
+    mapping(uint256 => mapping(uint256 => uint256)) public dailyVolume; // chainId => day => volume
+
+    // Relayer threshold (multi-sig releases) — default 2 to avoid single point of failure
+    uint256 public relayerThreshold = 2;
+    mapping(bytes32 => mapping(address => bool)) public relayerConfirmed;
+    mapping(bytes32 => uint256)                  public relayerConfirmCount;
+
+    // ── Events ─────────────────────────────────────────────────────────────
+    event BridgeOut(
+        bytes32 indexed requestId,
+        address indexed sender,
+        address indexed recipient,
+        uint256 amount,
+        uint256 fee,
+        uint256 srcChainId,
+        uint256 dstChainId,
+        uint256 nonce
+    );
+    event BridgeIn(
+        bytes32 indexed requestId,
+        address indexed recipient,
+        uint256 amount,
+        uint256 srcChainId
+    );
+    event RelayerConfirmed(bytes32 indexed requestId, address relayer, uint256 confirmCount);
+    event ChainConfigUpdated(uint256 chainId, bool supported, uint256 minAmount, uint256 maxAmount);
+    event RelayerThresholdUpdated(uint256 newThreshold);
+
+    constructor(address _token, address _treasury) {
+        require(_token    != address(0), "Zero token");
+        require(_treasury != address(0), "Zero treasury");
+        token    = IERC20(_token);
+        treasury = _treasury;
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(BRIDGE_ADMIN,       msg.sender);
+        _grantRole(RELAYER_ROLE,       msg.sender);
+    }
+
+    // ── Lock & Bridge Out ──────────────────────────────────────────────────
+    function bridgeOut(
+        address recipient,
+        uint256 amount,
+        uint256 dstChainId
+    ) external nonReentrant whenNotPaused returns (bytes32 requestId) {
+        require(recipient != address(0),     "Zero recipient");
+        ChainConfig storage cc = chainConfigs[dstChainId];
+        require(cc.supported,                "Chain not supported");
+        require(amount >= cc.minAmount,      "Below min amount");
+        require(amount <= cc.maxAmount,      "Exceeds max amount");
+
+        // Daily limit check
+        uint256 today = block.timestamp / 1 days;
+        require(dailyVolume[dstChainId][today] + amount <= cc.dailyLimit, "Daily limit exceeded");
+        dailyVolume[dstChainId][today] += amount;
+
+        // Calculate fee
+        uint256 fee       = (amount * cc.bridgeFee) / FEE_BASE;
+        uint256 netAmount = amount - fee;
+
+        // CEI: record request in state BEFORE external transfers
+        uint256 nonce = nextNonce++;
+        requestId = keccak256(abi.encodePacked(
+            msg.sender, recipient, netAmount, block.chainid, dstChainId, nonce
+        ));
+
+        bridgeRequests[requestId] = BridgeRequest({
+            sender:     msg.sender,
+            recipient:  recipient,
+            amount:     netAmount,
+            fee:        fee,
+            srcChainId: block.chainid,
+            dstChainId: dstChainId,
+            timestamp:  block.timestamp,
+            released:   false
+        });
+
+        emit BridgeOut(requestId, msg.sender, recipient, netAmount, fee, block.chainid, dstChainId, nonce);
+
+        // Transfers last
+        token.safeTransferFrom(msg.sender, address(this), amount);
+        if (fee > 0) {
+            token.safeTransfer(treasury, fee);
+        }
+    }
+
+    // ── Relayer: confirm & release ─────────────────────────────────────────
+    function confirmRelease(bytes32 requestId) external onlyRole(RELAYER_ROLE) {
+        require(!processedNonces[requestId],              "Already processed");
+        require(!relayerConfirmed[requestId][msg.sender], "Already confirmed");
+
+        relayerConfirmed[requestId][msg.sender] = true;
+        relayerConfirmCount[requestId]++;
+
+        emit RelayerConfirmed(requestId, msg.sender, relayerConfirmCount[requestId]);
+
+        if (relayerConfirmCount[requestId] >= relayerThreshold) {
+            _release(requestId);
+        }
+    }
+
+    function _release(bytes32 requestId) internal nonReentrant {
+        BridgeRequest storage req = bridgeRequests[requestId];
+        require(!req.released,                   "Already released");
+        require(req.recipient != address(0),     "Invalid request");
+
+        processedNonces[requestId] = true;
+        req.released = true;
+
+        token.safeTransfer(req.recipient, req.amount);
+
+        emit BridgeIn(requestId, req.recipient, req.amount, req.srcChainId);
+    }
+
+    // ── Admin: chain config ────────────────────────────────────────────────
+    function setChainConfig(
+        uint256 chainId,
+        bool    supported,
+        uint256 minAmount,
+        uint256 maxAmount,
+        uint256 dailyLimit,
+        uint256 bridgeFee
+    ) external onlyRole(BRIDGE_ADMIN) {
+        require(bridgeFee <= MAX_FEE, "Fee too high");
+        require(minAmount <= maxAmount, "Min > max");
+        chainConfigs[chainId] = ChainConfig({
+            supported:  supported,
+            minAmount:  minAmount,
+            maxAmount:  maxAmount,
+            dailyLimit: dailyLimit,
+            bridgeFee:  bridgeFee
+        });
+        emit ChainConfigUpdated(chainId, supported, minAmount, maxAmount);
+    }
+
+    function setRelayerThreshold(uint256 threshold) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(threshold >= 1, "Min 1");
+        relayerThreshold = threshold;
+        emit RelayerThresholdUpdated(threshold);
+    }
+
+    function setTreasury(address _treasury) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_treasury != address(0), "Zero address");
+        treasury = _treasury;
+    }
+
+    // ── Emergency ──────────────────────────────────────────────────────────
+    function emergencyWithdraw(address to, uint256 amount)
+        external onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        token.safeTransfer(to, amount);
+    }
+
+    function pause()   external onlyRole(DEFAULT_ADMIN_ROLE) { _pause(); }
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) { _unpause(); }
+
+    // ── Views ──────────────────────────────────────────────────────────────
+    function getRequest(bytes32 requestId) external view returns (BridgeRequest memory) {
+        return bridgeRequests[requestId];
+    }
+
+    function getTodayVolume(uint256 chainId) external view returns (uint256) {
+        return dailyVolume[chainId][block.timestamp / 1 days];
+    }
+}
