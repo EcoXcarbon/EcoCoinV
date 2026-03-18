@@ -26096,6 +26096,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+        window.switchTab = switchTab; // expose to global scope for sidebar onclick handlers
 
         // Function to switch sub-tabs within a consolidated tab
         function switchSubTab(consolidatedTab, subTab) {
@@ -26116,6 +26117,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                 }
             });
         }
+        window.switchSubTab = switchSubTab; // expose to global scope for onclick handlers
 
         // TAB NAVIGATION
         function setupTabNavigation() {
