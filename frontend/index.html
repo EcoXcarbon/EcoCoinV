@@ -8781,8 +8781,17 @@ Start your learning journey now!
                 </html>
             `;
 
-            // Open print dialog
+            // Open print dialog (fallback to blob download if popups are blocked)
             const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                const blob = new Blob([pdfContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'ecoacademy-report.html'; a.click();
+                URL.revokeObjectURL(url);
+                showToast('Popup blocked — HTML report downloaded instead. Open and print it.', 'info');
+                return;
+            }
             printWindow.document.write(pdfContent);
             printWindow.document.close();
             printWindow.focus();
@@ -35218,8 +35227,17 @@ ${project.verifiedAt ? 'Verified: ' + new Date(project.verifiedAt).toLocaleDateS
             // Generate HTML for printing/saving
             const pddHTML = PooledPDDGenerator.generatePDDHTML(pool.pdd);
 
-            // Create a printable window
+            // Create a printable window (fallback to blob download if popups are blocked)
             const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+                const blob = new Blob([pddHTML], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `${pool.pdd.metadata.pddId}-pdd.html`; a.click();
+                URL.revokeObjectURL(url);
+                showNotification('Popup blocked — PDD downloaded as HTML. Open and print it.', 'info');
+                return;
+            }
             printWindow.document.write(`
                 <!DOCTYPE html>
                 <html>
