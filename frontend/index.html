@@ -2256,41 +2256,54 @@ Score: 8.5/10 (was 2/10)
         // KYC Verification Submission Function
         window.submitKYCVerification = function() {
             // Check wallet connection
-            if (!web3UserAddress) {
-                showNotification('🔗 Please connect your wallet to submit KYC', 'warning');
+            if (!window.web3UserAddress) {
+                showNotification('Please connect your wallet to submit KYC', 'warning');
                 return;
             }
 
-            // Gather form data
+            // Gather form data from actual KYC form elements
             const formData = {
-                // Basic tier
-                emailVerified: document.getElementById('verifyEmail')?.checked || false,
-                phoneVerified: document.getElementById('verifyPhone')?.checked || false,
+                // Personal info
+                fullName: document.getElementById('kycFullName')?.value?.trim() || '',
+                documentType: document.getElementById('kycDocumentType')?.value || '',
+                expiryDate: document.getElementById('kycExpiryDate')?.value || '',
 
-                // Advanced tier
-                idDocument: document.getElementById('idUpload')?.files?.[0] || null,
-                selfie: document.getElementById('selfieUpload')?.files?.[0] || null,
-                addressProof: document.getElementById('addressUpload')?.files?.[0] || null,
+                // Document uploads
+                idDocumentFront: document.getElementById('kycDocFront')?.files?.[0] || null,
+                idDocumentBack: document.getElementById('kycDocBack')?.files?.[0] || null,
+                addressProof: document.getElementById('kycAddressProof')?.files?.[0] || null,
+
+                // Address info
+                addressLine1: document.getElementById('kycAddressLine1')?.value?.trim() || '',
+                city: document.getElementById('kycCity')?.value?.trim() || '',
 
                 // Consent
-                termsAccepted: document.getElementById('consentTerms')?.checked || false,
-                amlAccepted: document.getElementById('consentAML')?.checked || false,
                 apiSharingConsent: document.getElementById('consentAPISharing')?.checked || false,
 
-                // Determine tier based on completeness
+                // KYC progress
+                kycProgress: JSON.parse(localStorage.getItem('kycProgress') || '{}'),
+
                 tier: 'basic'
             };
 
             // Validate required fields
-            if (!formData.termsAccepted || !formData.amlAccepted) {
-                showNotification('❌ Please accept the Terms of Service and AML Policy', 'error');
+            if (!formData.fullName) {
+                showNotification('Please enter your full name', 'error');
+                return;
+            }
+            if (!formData.documentType) {
+                showNotification('Please select a document type', 'error');
+                return;
+            }
+            if (!formData.idDocumentFront) {
+                showNotification('Please upload your ID document (front side)', 'error');
                 return;
             }
 
             // Determine KYC tier
-            if (formData.idDocument && formData.selfie && formData.addressProof) {
+            if (formData.idDocumentFront && formData.addressProof && formData.kycProgress.liveness) {
                 formData.tier = 'advanced';
-            } else if (formData.idDocument && formData.selfie) {
+            } else if (formData.idDocumentFront) {
                 formData.tier = 'basic';
             }
 
@@ -18711,7 +18724,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                         </div>
 
                         <!-- Action Buttons for existing stake -->
-                        <div id="stake-actions" style="display: none; display: flex; gap: 12px; flex-wrap: wrap;">
+                        <div id="stake-actions" style="display: none; gap: 12px; flex-wrap: wrap;">
                             <button id="claim-btn" onclick="claimRewards()" style="flex: 1; min-width: 120px; padding: 12px 20px; background: #10B981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
                                 Claim Rewards
                             </button>
@@ -18781,7 +18794,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                 </div>
 
                 <script>
-                function updateStakeProjection() {
+                window.updateStakeProjection = function updateStakeProjection() {
                     const amount = parseFloat(document.getElementById('stakeAmount').value) || 0;
                     const tier = document.getElementById('stakeLockPeriod').value;
                     const apyRates = { '0': 0.08, '1': 0.10, '2': 0.12 };
@@ -18794,14 +18807,14 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                     document.getElementById('proj-daily').textContent = daily.toFixed(4) + ' ECC';
                     document.getElementById('proj-monthly').textContent = monthly.toFixed(4) + ' ECC';
                     document.getElementById('proj-yearly').textContent = yearly.toFixed(4) + ' ECC';
-                }
+                };
 
-                function setMaxStake() {
+                window.setMaxStake = function setMaxStake() {
                     if (window.userEccBalance) {
                         document.getElementById('stakeAmount').value = window.userEccBalance;
                         updateStakeProjection();
                     }
-                }
+                };
                 </script>
             </div>
 
@@ -21454,7 +21467,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                             <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">ECC Rewards Summary</h3>
                             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
                                 <div style="background: #FEF3C7; padding: 16px; border-radius: 12px; text-align: center;">
-                                    <p style="margin: 0; font-size: 24px; font-weight: 700; color: #92400E;" id="pendingECC">0</p>
+                                    <p style="margin: 0; font-size: 24px; font-weight: 700; color: #92400E;" id="pendingECC_corrections">0</p>
                                     <p style="margin: 4px 0 0 0; font-size: 12px; color: #B45309;">Pending Verification</p>
                                 </div>
                                 <div style="background: #D1FAE5; padding: 16px; border-radius: 12px; text-align: center;">
@@ -22562,11 +22575,11 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                                 <div style="background: white; border: 1px solid #E5E7EB; border-radius: 16px; padding: 20px; margin-bottom: 16px;">
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                         <div style="text-align: center; padding: 12px; background: #F9FAFB; border-radius: 10px;">
-                                            <p style="margin: 0; font-size: 24px; font-weight: 700; color: #10B981;" id="statsQuizzesTaken">0</p>
+                                            <p style="margin: 0; font-size: 24px; font-weight: 700; color: #10B981;" id="statsQuizzesTaken_detail">0</p>
                                             <p style="margin: 4px 0 0 0; font-size: 11px; color: #6B7280;">Quizzes Taken</p>
                                         </div>
                                         <div style="text-align: center; padding: 12px; background: #F9FAFB; border-radius: 10px;">
-                                            <p style="margin: 0; font-size: 24px; font-weight: 700; color: #3B82F6;" id="statsCorrectAnswers">0</p>
+                                            <p style="margin: 0; font-size: 24px; font-weight: 700; color: #3B82F6;" id="statsCorrectAnswers_detail">0</p>
                                             <p style="margin: 4px 0 0 0; font-size: 11px; color: #6B7280;">Correct Answers</p>
                                         </div>
                                         <div style="text-align: center; padding: 12px; background: #F9FAFB; border-radius: 10px;">
@@ -23581,7 +23594,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             </div>
 
             <!-- Token Selector Modal -->
-            <div id="tokenSelectorModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: none; align-items: center; justify-content: center;">
+            <div id="tokenSelectorModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
                 <div style="background: white; border-radius: 20px; width: 90%; max-width: 420px; max-height: 80vh; overflow: hidden;">
                     <div style="padding: 20px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
                         <h3 style="margin: 0; font-size: 18px; color: #111827;">Select Token</h3>
@@ -25155,7 +25168,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                 <div style="background: #FFFFFF; padding: 40px; border-radius: 12px; max-width: 600px; width: 90%;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
                         <h3 style="color: var(--primary); margin: 0;">Question ${qNum}/5</h3>
-                        <span style="color: var(--error); font-weight: bold;" id="quizTimer">30</span>
+                        <span style="color: var(--error); font-weight: bold;" id="quizTimer_modal">30</span>
                     </div>
                     <p style="font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #212121;">${q.q}</p>
                     <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -26005,7 +26018,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             // Simulate liveness check process
             setTimeout(() => {
                 hideLoading();
-                const livenessStatus = document.querySelector('#kycLivenessStatus, .kyc-liveness-status');
+                const livenessStatus = document.getElementById('livenessStatus');
                 if (livenessStatus) {
                     livenessStatus.textContent = 'Verified';
                     livenessStatus.style.color = '#10B981';
@@ -26039,7 +26052,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
 
             setTimeout(() => {
                 hideLoading();
-                const amlStatus = document.querySelector('#amlStatus, .aml-status');
+                const amlStatus = document.getElementById('ofacStatus');
                 if (amlStatus) {
                     amlStatus.textContent = 'Cleared';
                     amlStatus.style.color = '#10B981';
@@ -26277,8 +26290,8 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
         }
 
         function adminAddNews() {
-            const titleInput = document.getElementById('newsTitle') || document.querySelector('[name="newsTitle"]');
-            const contentInput = document.getElementById('newsContent') || document.querySelector('[name="newsContent"]');
+            const titleInput = document.getElementById('adminNewsText') || document.getElementById('newsTitle');
+            const contentInput = document.getElementById('adminNewsContent') || document.getElementById('newsContent');
 
             const title = titleInput?.value?.trim();
             const content = contentInput?.value?.trim();
@@ -26369,8 +26382,8 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
         }
 
         function adminTransferCredits() {
-            const toAddress = document.getElementById('transferToAddress')?.value?.trim();
-            const amount = parseFloat(document.getElementById('transferAmount')?.value) || 0;
+            const toAddress = (document.getElementById('adminTransferTo') || document.getElementById('transferToAddress'))?.value?.trim();
+            const amount = parseFloat((document.getElementById('adminTransferAmount') || document.getElementById('transferAmount'))?.value) || 0;
 
             if (!toAddress) {
                 showNotification('Please enter a recipient address', 'error');
@@ -29892,81 +29905,88 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
         // ═══════════════════════════════════════════════════════════════════════════════
         
         async function loadUserData() {
-            if (!web3Contract || !web3UserAddress) return;
-            
+            if (!window.web3Contract || !window.web3UserAddress) return;
+
             try {
-                console.log('📊 Loading user data from blockchain...');
-                
-                // Load balance
-                const balance = await web3Contract.balanceOf(web3UserAddress);
+                console.log('Loading user data from blockchain...');
+
+                // Load balance (balanceOf is on eccToken)
+                const balance = await window.web3Contract.balanceOf(window.web3UserAddress);
                 const balanceFormatted = ethers.utils.formatEther(balance);
-                console.log('💰 Balance:', balanceFormatted, 'ECC');
+                console.log('Balance:', balanceFormatted, 'ECC');
                 updateBalanceDisplay(balanceFormatted);
-                
-                // Load stake info
+
+                // Load stake info (getStakeInfo is on stakingVault)
                 try {
-                    const stakeInfo = await web3Contract.getStakeInfo(web3UserAddress);
-                    userStakeInfo = {
-                        amount: stakeInfo[0],
-                        startTime: stakeInfo[1],
-                        pendingRewards: stakeInfo[2],
-                        apyTier: stakeInfo[3]
-                    };
-                    console.log('🔒 Staked:', ethers.utils.formatEther(stakeInfo[0]), 'ECC');
-                    console.log('💎 Pending Rewards:', ethers.utils.formatEther(stakeInfo[2]), 'ECC');
-                    updateStakingDisplay();
+                    const vault = window.web3Contracts?.stakingVault;
+                    if (vault && typeof vault.getStakeInfo === 'function') {
+                        const stakeInfo = await vault.getStakeInfo(window.web3UserAddress);
+                        userStakeInfo = {
+                            amount: stakeInfo[0],
+                            startTime: stakeInfo[1],
+                            pendingRewards: stakeInfo[2],
+                            apyTier: stakeInfo[3]
+                        };
+                        console.log('Staked:', ethers.utils.formatEther(stakeInfo[0]), 'ECC');
+                        updateStakingDisplay();
+                    } else {
+                        // Fallback: try global wrapper
+                        const info = await window.getStakeInfo?.(window.web3UserAddress);
+                        if (info) { userStakeInfo = info; updateStakingDisplay(); }
+                    }
                 } catch (e) {
                     console.log('No active stake');
                     userStakeInfo = null;
                 }
-                
-                // Load referral stats
+
+                // Load referral stats (try global wrapper first, then contract)
                 try {
-                    const refStats = await web3Contract.getReferralStats(web3UserAddress);
-                    userReferralStats = {
-                        totalReferrals: refStats[0].toNumber(),
-                        totalRewardsEarned: refStats[1]
-                    };
-                    console.log('👥 Referrals:', refStats[0].toNumber());
-                    console.log('🎁 Referral Rewards:', ethers.utils.formatEther(refStats[1]), 'ECC');
-                    updateReferralDisplay();
+                    const refStats = await window.getReferralStats?.(window.web3UserAddress);
+                    if (refStats) {
+                        userReferralStats = {
+                            totalReferrals: typeof refStats.totalReferrals === 'number' ? refStats.totalReferrals : (refStats[0]?.toNumber?.() || 0),
+                            totalRewardsEarned: refStats.totalRewardsEarned || refStats[1] || ethers.BigNumber.from(0)
+                        };
+                        updateReferralDisplay();
+                    }
                 } catch (e) {
                     console.log('No referral data');
                     userReferralStats = { totalReferrals: 0, totalRewardsEarned: ethers.BigNumber.from(0) };
                 }
-                
+
                 // Load backend referral stats
                 try {
                     await loadReferralStats();
-                    console.log('✅ Backend referral data loaded');
                 } catch (e) {
                     console.log('No backend referral data');
                 }
-                
+
                 // Load backend carbon projects
                 try {
                     await loadCarbonProjects();
-                    console.log('✅ Backend carbon projects loaded');
                 } catch (e) {
                     console.log('No backend carbon projects');
                 }
-                
-                // Load platform stats
-                const stats = await web3Contract.getPlatformStats();
-                platformStats = {
-                    circulatingSupply: stats[0],
-                    totalCO2Offset: stats[1],
-                    retailOffsetTotal: stats[2],
-                    enterpriseOffsetTotal: stats[3],
-                    percentageOfMaxSupply: stats[4],
-                    totalStakedAmount: stats[5],
-                    totalReferralRewardsPaid: stats[6]
-                };
-                console.log('🌍 Platform Stats Loaded');
-                console.log('  - Total CO2 Offset:', ethers.utils.formatEther(stats[1]), 'tons');
-                console.log('  - Total Staked:', ethers.utils.formatEther(stats[5]), 'ECC');
-                updatePlatformStatsDisplay();
-                
+
+                // Load platform stats (try global wrapper first)
+                try {
+                    const stats = await window.getPlatformStats?.();
+                    if (stats) {
+                        platformStats = {
+                            circulatingSupply: stats.circulatingSupply || stats[0] || ethers.BigNumber.from(0),
+                            totalCO2Offset: stats.totalCO2Offset || stats[1] || ethers.BigNumber.from(0),
+                            retailOffsetTotal: stats.retailOffsetTotal || stats[2] || ethers.BigNumber.from(0),
+                            enterpriseOffsetTotal: stats.enterpriseOffsetTotal || stats[3] || ethers.BigNumber.from(0),
+                            percentageOfMaxSupply: stats.percentageOfMaxSupply || stats[4] || ethers.BigNumber.from(0),
+                            totalStakedAmount: stats.totalStakedAmount || stats[5] || ethers.BigNumber.from(0),
+                            totalReferralRewardsPaid: stats.totalReferralRewardsPaid || stats[6] || ethers.BigNumber.from(0)
+                        };
+                        updatePlatformStatsDisplay();
+                    }
+                } catch (e) {
+                    console.log('Platform stats not available');
+                }
+
             } catch (error) {
                 console.error('Error loading user data:', error);
             }
@@ -30224,7 +30244,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             try {
                 showNotification('Processing unstake transaction...', 'info');
 
-                const tx = await window.web3Contracts.stakingVault.unstake();
+                const tx = await window.web3Contracts.stakingVault.unstake(0);
                 showNotification('Unstake transaction sent...', 'info');
                 await tx.wait();
 
@@ -30270,7 +30290,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             try {
                 showNotification('Processing claim transaction...', 'info');
 
-                const tx = await window.web3Contracts.stakingVault.claimStakingRewards();
+                const tx = await window.web3Contracts.stakingVault.claimStakingRewards(0);
                 showNotification('Claim transaction sent...', 'info');
                 await tx.wait();
 
@@ -31402,9 +31422,12 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                 }
             });
 
-            document.getElementById('pendingECC').textContent = pendingECC.toFixed(2);
-            document.getElementById('verifiedECC').textContent = verifiedECC.toFixed(2);
-            document.getElementById('totalProjectECC').textContent = totalECC.toFixed(2);
+            const pendingEl = document.getElementById('pendingECC_corrections') || document.getElementById('pendingECC');
+            if (pendingEl) pendingEl.textContent = pendingECC.toFixed(2);
+            const verifiedEl = document.getElementById('verifiedECC');
+            if (verifiedEl) verifiedEl.textContent = verifiedECC.toFixed(2);
+            const totalEl = document.getElementById('totalProjectECC');
+            if (totalEl) totalEl.textContent = totalECC.toFixed(2);
 
             // Render projects list
             const listEl = document.getElementById('userProjectsList');
@@ -37110,12 +37133,15 @@ This project meets the requirements for carbon credit issuance upon third-party 
             const claimBtn = document.getElementById('claim-btn');
             const compoundBtn = document.getElementById('compound-btn');
             
+            const actionsDiv = document.getElementById('stake-actions');
             if (userStakeInfo.amount.gt(0)) {
+                if (actionsDiv) actionsDiv.style.display = 'flex';
                 if (stakeBtn) stakeBtn.style.display = 'none';
                 if (unstakeBtn) unstakeBtn.style.display = 'block';
                 if (claimBtn) claimBtn.style.display = 'inline-block';
                 if (compoundBtn) compoundBtn.style.display = 'inline-block';
             } else {
+                if (actionsDiv) actionsDiv.style.display = 'none';
                 if (stakeBtn) stakeBtn.style.display = 'inline-block';
                 if (unstakeBtn) unstakeBtn.style.display = 'none';
                 if (claimBtn) claimBtn.style.display = 'none';
