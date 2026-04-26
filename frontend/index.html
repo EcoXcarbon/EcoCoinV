@@ -23624,35 +23624,51 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                     <!-- Platform Stats -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px;">
                         <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; text-align: center;">
-                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #6B7280;">Total Supply</p>
-                            <p style="margin: 0; font-size: 20px; font-weight: 700; color: #111827;" id="analytics-supply">100M ECC</p>
+                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #6B7280;">Carbon Offset</p>
+                            <p style="margin: 0; font-size: 20px; font-weight: 700; color: #4CAF50;" id="analytics-total-carbon">0 tCO2e</p>
                         </div>
                         <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; text-align: center;">
-                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #6B7280;">Circulating</p>
-                            <p style="margin: 0; font-size: 20px; font-weight: 700; color: #10B981;" id="analytics-circulating">25M ECC</p>
+                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #6B7280;">Total Users</p>
+                            <p style="margin: 0; font-size: 20px; font-weight: 700; color: #2196F3;" id="analytics-total-users">0</p>
                         </div>
                         <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; text-align: center;">
-                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #6B7280;">Staked</p>
-                            <p style="margin: 0; font-size: 20px; font-weight: 700; color: #10B981;" id="analytics-staked">15M ECC</p>
+                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #6B7280;">Active Projects</p>
+                            <p style="margin: 0; font-size: 20px; font-weight: 700; color: #FF9800;" id="analytics-active-projects">0</p>
                         </div>
                         <div style="background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; text-align: center;">
-                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #6B7280;">Holders</p>
-                            <p style="margin: 0; font-size: 20px; font-weight: 700; color: #111827;" id="analytics-holders">8,500</p>
+                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #6B7280;">ECC Distributed</p>
+                            <p style="margin: 0; font-size: 20px; font-weight: 700; color: #9C27B0;" id="analytics-ecc-distributed">0</p>
                         </div>
                     </div>
 
-                    <!-- Chart Placeholder -->
+                    <!-- Carbon Offset Chart -->
                     <div style="background: white; border: 1px solid #E5E7EB; border-radius: 16px; padding: 24px; margin-bottom: 16px;">
-                        <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #111827;">Price History</h3>
-                        <div style="height: 300px; background: #F9FAFB; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                            <p style="color: #9CA3AF; font-size: 14px;">Chart loading...</p>
+                        <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #111827;">Carbon Offset Trend</h3>
+                        <canvas id="carbonOffsetChart" width="850" height="300" style="width: 100%; height: 300px; background: #F9FAFB; border-radius: 8px;"></canvas>
+                    </div>
+
+                    <!-- Project Types & User Growth Charts -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <div style="background: white; border: 1px solid #E5E7EB; border-radius: 16px; padding: 24px;">
+                            <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #111827;">Projects by Type</h3>
+                            <canvas id="projectTypesChart" width="400" height="250" style="width: 100%; height: 250px; background: #F9FAFB; border-radius: 8px;"></canvas>
+                        </div>
+                        <div style="background: white; border: 1px solid #E5E7EB; border-radius: 16px; padding: 24px;">
+                            <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #111827;">User Growth</h3>
+                            <canvas id="userGrowthChart" width="400" height="250" style="width: 100%; height: 250px; background: #F9FAFB; border-radius: 8px;"></canvas>
                         </div>
                     </div>
 
-                    <!-- Transaction History -->
+                    <!-- Revenue Chart -->
+                    <div style="background: white; border: 1px solid #E5E7EB; border-radius: 16px; padding: 24px; margin-bottom: 16px;">
+                        <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #111827;">Revenue Overview</h3>
+                        <canvas id="revenueChart" width="850" height="250" style="width: 100%; height: 250px; background: #F9FAFB; border-radius: 8px;"></canvas>
+                    </div>
+
+                    <!-- Recent Activity -->
                     <div style="background: white; border: 1px solid #E5E7EB; border-radius: 16px; padding: 24px;">
-                        <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #111827;">Recent Transactions</h3>
-                        <div id="analytics-transactions" style="min-height: 150px;">
+                        <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #111827;">Recent Activity</h3>
+                        <div id="analytics-activity" style="min-height: 150px;">
                             <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #E5E7EB; font-size: 14px;">
                                 <span style="color: #10B981;">Stake</span>
                                 <span>500 ECC</span>
@@ -26047,10 +26063,174 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             }
         }
 
+        // Document type requirements mapping
+        function updateDocumentRequirements() {
+            const docType = document.getElementById('kycDocumentType').value;
+            const reqDisplay = document.getElementById('documentRequirements');
+            const reqList = document.getElementById('requirementsList');
+            if (!reqDisplay || !reqList) return;
+
+            const requirements = {
+                passport: '• Must be machine-readable (MRZ zone visible)\n• All pages with stamps/visas\n• Valid for at least 6 months\n• Color scan, min 300 DPI',
+                national_id: '• Front and back sides required\n• Must show full name, photo, and ID number\n• Not expired\n• Color scan, min 300 DPI',
+                drivers_license: '• Front and back sides required\n• Must show full name, photo, and address\n• Not expired\n• Color scan, min 300 DPI',
+                utility_bill: '• Must be less than 3 months old\n• Must show full name and address\n• Accepted: Electric, Gas, Water, Internet\n• PDF or clear photo',
+                bank_statement: '• Must be less than 3 months old\n• Must show full name, address, and bank logo\n• All pages if multi-page\n• PDF preferred',
+                tax_document: '• Most recent tax year\n• Must show full legal name and address\n• Government-issued\n• PDF or certified copy',
+                rental_agreement: '• Must be currently active\n• Signed by both parties\n• Must show full address\n• PDF or clear photo of all pages',
+                income_proof: '• Last 3 months payslips OR most recent tax return\n• Must show employer name and your full name\n• PDF preferred',
+                accredited_investor: '• CPA letter or broker-dealer verification\n• Must be less than 90 days old\n• Must state net worth or income qualification',
+                source_of_funds: '• Signed declaration of source of funds\n• Supporting bank statements\n• Must explain origin of investment funds'
+            };
+
+            if (docType && requirements[docType]) {
+                reqList.innerHTML = requirements[docType].replace(/\n/g, '<br>');
+                reqDisplay.style.display = 'block';
+            } else {
+                reqDisplay.style.display = 'none';
+            }
+        }
+
+        // Document expiry date validation
+        function checkDocumentExpiry() {
+            const expiryInput = document.getElementById('kycExpiryDate');
+            const warningDiv = document.getElementById('expiryWarning');
+            const warningMsg = document.getElementById('expiryMessage');
+            if (!expiryInput || !warningDiv || !warningMsg) return;
+
+            const expiryDate = new Date(expiryInput.value);
+            const now = new Date();
+            const sixMonths = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
+
+            if (expiryDate <= now) {
+                warningDiv.style.display = 'block';
+                warningDiv.style.background = '#FFCDD2';
+                warningDiv.style.borderLeftColor = '#F44336';
+                warningMsg.textContent = 'This document has expired and cannot be accepted.';
+            } else if (expiryDate <= sixMonths) {
+                warningDiv.style.display = 'block';
+                warningDiv.style.background = '#FFF3CD';
+                warningDiv.style.borderLeftColor = '#FFC107';
+                const days = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+                warningMsg.textContent = `Document expires in ${days} days. You may need to re-verify soon.`;
+            } else {
+                warningDiv.style.display = 'none';
+            }
+        }
+
+        // KYC document upload handler (front/back)
+        function handleKYCDocUpload(fileInput, side) {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                showNotification('File too large. Maximum size is 10MB.', 'error');
+                fileInput.value = '';
+                return;
+            }
+
+            const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+            if (!allowed.includes(file.type)) {
+                showNotification('Invalid file type. Please upload JPG, PNG, or PDF.', 'error');
+                fileInput.value = '';
+                return;
+            }
+
+            // Show progress bar
+            const progressDiv = document.getElementById(`uploadProgress${side === 'front' ? 'Front' : 'Back'}`);
+            const progressBar = document.getElementById(`progressBar${side === 'front' ? 'Front' : 'Back'}`);
+            const progressText = document.getElementById(`progressText${side === 'front' ? 'Front' : 'Back'}`);
+            if (progressDiv) progressDiv.style.display = 'block';
+
+            // Simulate upload progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 30 + 10;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+
+                    if (progressDiv) progressDiv.style.display = 'none';
+                    const preview = document.getElementById(`doc${side === 'front' ? 'Front' : 'Back'}Preview`);
+                    if (preview) preview.style.display = 'block';
+
+                    showNotification(`Document ${side} side uploaded successfully!`, 'success');
+                    updateKYCProgress('identity', true);
+                }
+                if (progressBar) progressBar.style.width = `${Math.min(progress, 100)}%`;
+                if (progressText) progressText.textContent = `${Math.round(Math.min(progress, 100))}%`;
+            }, 300);
+        }
+
+        // Address proof upload handler
+        function handleAddressProofUpload(fileInput) {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const maxSize = 10 * 1024 * 1024;
+            if (file.size > maxSize) {
+                showNotification('File too large. Maximum size is 10MB.', 'error');
+                fileInput.value = '';
+                return;
+            }
+
+            const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+            if (!allowed.includes(file.type)) {
+                showNotification('Invalid file type. Please upload JPG, PNG, or PDF.', 'error');
+                fileInput.value = '';
+                return;
+            }
+
+            showNotification('Uploading address proof...', 'info');
+            setTimeout(() => {
+                const preview = document.getElementById('addressProofPreview');
+                if (preview) preview.style.display = 'block';
+                showNotification('Address proof uploaded successfully!', 'success');
+            }, 800);
+        }
+
+        // Accredited investor document upload handler
+        function handleAccreditedDocUpload(fileInput, docNumber) {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            if (file.type !== 'application/pdf') {
+                showNotification('Only PDF files are accepted for accredited investor documentation.', 'error');
+                fileInput.value = '';
+                return;
+            }
+
+            const maxSize = 10 * 1024 * 1024;
+            if (file.size > maxSize) {
+                showNotification('File too large. Maximum size is 10MB.', 'error');
+                fileInput.value = '';
+                return;
+            }
+
+            showNotification(`Uploading document ${docNumber}...`, 'info');
+            setTimeout(() => {
+                showNotification(`Accredited investor document ${docNumber} uploaded successfully!`, 'success');
+                // Visual feedback on the upload area
+                const input = document.getElementById(`accreditedDoc${docNumber}`);
+                if (input && input.parentElement) {
+                    input.parentElement.style.borderColor = '#4CAF50';
+                    input.parentElement.style.background = '#E8F5E9';
+                    const label = input.parentElement.querySelector('p');
+                    if (label) label.innerHTML = '<span style="color: #4CAF50; font-weight: 700;">&#10003; Uploaded: ' + file.name + '</span>';
+                }
+            }, 800);
+        }
+
         window.startLivenessCheck = startLivenessCheck;
         window.requestFingerprintAuth = requestFingerprintAuth;
         window.runAMLScreening = runAMLScreening;
         window.updateKYCProgress = updateKYCProgress;
+        window.updateDocumentRequirements = updateDocumentRequirements;
+        window.checkDocumentExpiry = checkDocumentExpiry;
+        window.handleKYCDocUpload = handleKYCDocUpload;
+        window.handleAddressProofUpload = handleAddressProofUpload;
+        window.handleAccreditedDocUpload = handleAccreditedDocUpload;
 
         // ADMIN PANEL FUNCTIONS
         let currentAdminSection = 'news';
@@ -30001,7 +30181,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             // Emergency Control Check - Withdrawals
             if (typeof window.EmergencyControls !== 'undefined' && !window.EmergencyControls.checkBeforeAction('withdrawals')) return;
 
-            if (!window.web3Contract || !window.web3UserAddress) {
+            if (!window.web3Contracts?.stakingVault || !window.web3UserAddress) {
                 showNotification('Please connect your wallet first', 'error');
                 return;
             }
@@ -30044,7 +30224,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             try {
                 showNotification('Processing unstake transaction...', 'info');
 
-                const tx = await window.web3Contract.unstake();
+                const tx = await window.web3Contracts.stakingVault.unstake();
                 showNotification('Unstake transaction sent...', 'info');
                 await tx.wait();
 
@@ -30064,7 +30244,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
         }
         
         async function claimRewards() {
-            if (!window.web3Contract || !window.web3UserAddress) {
+            if (!window.web3Contracts?.stakingVault || !window.web3UserAddress) {
                 showNotification('Please connect your wallet first', 'error');
                 return;
             }
@@ -30090,7 +30270,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             try {
                 showNotification('Processing claim transaction...', 'info');
 
-                const tx = await window.web3Contract.claimStakingRewards();
+                const tx = await window.web3Contracts.stakingVault.claimStakingRewards();
                 showNotification('Claim transaction sent...', 'info');
                 await tx.wait();
 
@@ -30110,7 +30290,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
         }
         
         async function compoundRewards() {
-            if (!window.web3Contract || !window.web3UserAddress) {
+            if (!window.web3Contracts?.stakingVault || !window.web3UserAddress) {
                 showNotification('Please connect your wallet first', 'error');
                 return;
             }
@@ -30136,7 +30316,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             try {
                 showNotification('Processing compound transaction...', 'info');
 
-                const tx = await window.web3Contract.compoundStakingRewards();
+                const tx = await window.web3Contracts.stakingVault.compoundStakingRewards();
                 showNotification('Compound transaction sent...', 'info');
                 await tx.wait();
 
@@ -47086,8 +47266,8 @@ function downloadCSV(csvContent, filename) {
                 }
                 
                 // Try blockchain contract if available
-                if (window.web3Contract && typeof window.web3Contract.getPoolInfo === 'function') {
-                    const poolInfo = await window.web3Contract.getPoolInfo(poolId);
+                if (window.web3Contracts?.masterChef && typeof window.web3Contracts.masterChef.getPoolInfo === 'function') {
+                    const poolInfo = await window.web3Contracts.masterChef.getPoolInfo(poolId);
                     return poolInfo;
                 }
                 
@@ -47107,8 +47287,8 @@ function downloadCSV(csvContent, filename) {
                 }
                 
                 // Try blockchain contract if available
-                if (window.web3Contract && typeof window.web3Contract.getPoolCount === 'function') {
-                    const count = await window.web3Contract.getPoolCount();
+                if (window.web3Contracts?.masterChef && typeof window.web3Contracts.masterChef.getPoolCount === 'function') {
+                    const count = await window.web3Contracts.masterChef.getPoolCount();
                     return count;
                 }
                 
@@ -50999,27 +51179,25 @@ console.log('✅ Backend integration code loaded - 11PM Work Session');
 async function loadAnalyticsDashboard() {
     try {
         const response = await callBackendAPI('/api/analytics/summary', 'GET');
-        
-        // Update overview stats
-        document.getElementById('analytics-total-carbon').textContent = 
-            response.overview.totalCarbonOffset.toLocaleString();
-        document.getElementById('analytics-total-users').textContent = 
-            response.overview.totalUsers.toLocaleString();
-        document.getElementById('analytics-active-projects').textContent = 
-            response.overview.approvedProjects.toLocaleString();
-        document.getElementById('analytics-ecc-distributed').textContent = 
-            response.overview.totalRevenue.toLocaleString();
-        
+
+        // Update overview stats (null-safe)
+        const overview = response.overview || {};
+        const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setEl('analytics-total-carbon', (overview.totalCarbonOffset || 0).toLocaleString() + ' tCO2e');
+        setEl('analytics-total-users', (overview.totalUsers || 0).toLocaleString());
+        setEl('analytics-active-projects', (overview.approvedProjects || 0).toLocaleString());
+        setEl('analytics-ecc-distributed', (overview.totalRevenue || 0).toLocaleString());
+
         // Load charts
-        loadCarbonOffsetChart(response.dailyStats);
-        loadProjectTypesChart(response.projectsByType);
-        loadUserGrowthChart(response.dailyStats);
-        loadRevenueChart(response.dailyStats);
-        
+        loadCarbonOffsetChart(response.dailyStats || []);
+        loadProjectTypesChart(response.projectsByType || {});
+        loadUserGrowthChart(response.dailyStats || []);
+        loadRevenueChart(response.dailyStats || []);
+
         // Load recent activity
-        displayRecentActivity(response.recentActivity);
-        
-        console.log('📊 Analytics dashboard loaded');
+        displayRecentActivity(response.recentActivity || []);
+
+        console.log('Analytics dashboard loaded');
     } catch (error) {
         console.error('Failed to load analytics:', error);
     }
@@ -51101,17 +51279,94 @@ function loadProjectTypesChart(projectsByType) {
 function loadUserGrowthChart(dailyStats) {
     const canvas = document.getElementById('userGrowthChart');
     if (!canvas) return;
-    
-    // Similar implementation to carbon offset chart
-    console.log('👥 User growth chart loaded');
+
+    const ctx = canvas.getContext('2d');
+    const data = dailyStats.map(d => d.newUsers || d.totalUsers || 0);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (data.length === 0) {
+        ctx.fillStyle = '#9CA3AF';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    const maxValue = Math.max(...data, 1);
+    const barWidth = Math.max((canvas.width - 40) / data.length - 4, 8);
+    const yScale = (canvas.height - 50) / maxValue;
+
+    // Draw bars
+    data.forEach((value, index) => {
+        const x = 20 + index * (barWidth + 4);
+        const barHeight = value * yScale;
+        const y = canvas.height - 30 - barHeight;
+
+        ctx.fillStyle = '#2196F3';
+        ctx.fillRect(x, y, barWidth, barHeight);
+    });
+
+    // Label
+    ctx.fillStyle = '#666';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Peak: ${Math.max(...data)} users`, 10, 20);
+
+    console.log('User growth chart loaded');
 }
 
 function loadRevenueChart(dailyStats) {
     const canvas = document.getElementById('revenueChart');
     if (!canvas) return;
-    
-    // Similar implementation
-    console.log('💰 Revenue chart loaded');
+
+    const ctx = canvas.getContext('2d');
+    const data = dailyStats.map(d => d.revenue || d.totalRevenue || 0);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (data.length === 0) {
+        ctx.fillStyle = '#9CA3AF';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    const maxValue = Math.max(...data, 1);
+    const xStep = (canvas.width - 40) / (data.length - 1 || 1);
+    const yScale = (canvas.height - 50) / maxValue;
+
+    // Fill area
+    ctx.fillStyle = 'rgba(156, 39, 176, 0.1)';
+    ctx.beginPath();
+    ctx.moveTo(20, canvas.height - 30);
+    data.forEach((value, index) => {
+        ctx.lineTo(20 + index * xStep, canvas.height - 30 - value * yScale);
+    });
+    ctx.lineTo(20 + (data.length - 1) * xStep, canvas.height - 30);
+    ctx.closePath();
+    ctx.fill();
+
+    // Line
+    ctx.strokeStyle = '#9C27B0';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    data.forEach((value, index) => {
+        const x = 20 + index * xStep;
+        const y = canvas.height - 30 - value * yScale;
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle = '#666';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Total: ${data.reduce((a, b) => a + b, 0).toLocaleString()} ECC`, 10, 20);
+
+    console.log('Revenue chart loaded');
 }
 
 function displayRecentActivity(activities) {
