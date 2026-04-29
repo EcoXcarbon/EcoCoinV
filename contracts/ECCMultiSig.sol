@@ -58,6 +58,7 @@ contract ECCMultiSig is ReentrancyGuard {
         bytes   data;
         bool    executed;
         bool    failed;
+        bool    cancelled;
         uint256 confirmations;
         uint256 submittedAt;
         string  description;
@@ -91,7 +92,7 @@ contract ECCMultiSig is ReentrancyGuard {
     // ── Constructor ────────────────────────────────────────────────────────
     constructor(address[] memory _owners, uint256 _required) {
         require(_owners.length >= 2,            "Min 2 owners");
-        require(_required >= 1,                 "Min 1 required");
+        require(_required >= 2,                 "Min 2 required");
         require(_required <= _owners.length,    "Required > owners");
 
         for (uint256 i = 0; i < _owners.length; i++) {
@@ -126,6 +127,7 @@ contract ECCMultiSig is ReentrancyGuard {
             data:          data,
             executed:      false,
             failed:        false,
+            cancelled:     false,
             confirmations: 0,
             submittedAt:   block.timestamp,
             description:   description
@@ -141,6 +143,7 @@ contract ECCMultiSig is ReentrancyGuard {
     function confirmTransaction(uint256 txId)
         external onlyOwner txExists(txId) notExecuted(txId) notExpired(txId) nonReentrant
     {
+        require(!transactions[txId].cancelled, "Tx cancelled");
         require(!confirmed[txId][msg.sender], "Already confirmed");
         _confirm(txId);
     }
@@ -157,7 +160,7 @@ contract ECCMultiSig is ReentrancyGuard {
 
     // ── Revoke confirmation ────────────────────────────────────────────────
     function revokeConfirmation(uint256 txId)
-        external onlyOwner txExists(txId) notExecuted(txId) nonReentrant
+        external onlyOwner txExists(txId) notExecuted(txId) notExpired(txId) nonReentrant
     {
         require(confirmed[txId][msg.sender], "Not confirmed");
         confirmed[txId][msg.sender] = false;
@@ -166,12 +169,14 @@ contract ECCMultiSig is ReentrancyGuard {
     }
 
     // ── Cancel expired transaction ─────────────────────────────────────────
+    // MS-05 fix: Use cancelled flag instead of setting executed=true
     function cancelExpiredTransaction(uint256 txId)
         external onlyOwner txExists(txId) notExecuted(txId) nonReentrant
     {
         require(block.timestamp > transactions[txId].submittedAt + EXPIRY, "Not expired");
-        transactions[txId].executed = true;
-        transactions[txId].failed   = true;
+        require(!transactions[txId].cancelled, "Already cancelled");
+        transactions[txId].cancelled = true;
+        transactions[txId].failed    = true;
         emit TransactionFailed(txId);
     }
 
@@ -179,27 +184,32 @@ contract ECCMultiSig is ReentrancyGuard {
     function executeTransaction(uint256 txId)
         external onlyOwner txExists(txId) notExecuted(txId) notExpired(txId) nonReentrant
     {
+        require(!transactions[txId].cancelled, "Tx cancelled");
         require(transactions[txId].confirmations >= required, "Not enough confirmations");
         _execute(txId);
     }
 
     // ── Internal execute ──────────────────────────────────────────────────
+    // MS-01/MS-02 fix: No retry mechanism. If execution fails, the transaction
+    // stays permanently failed. executed is only set to true AFTER success.
     function _execute(uint256 txId) internal {
         Transaction storage txn = transactions[txId];
-        // Mark executed BEFORE external call (CEI pattern — B1 fix)
-        txn.executed = true;
 
         (bool success, ) = txn.to.call{value: txn.value}(txn.data);
         if (success) {
+            txn.executed = true;
             emit TransactionExecuted(txId, msg.sender);
         } else {
             txn.failed = true;
+            txn.executed = true; // Mark as executed so it cannot be retried
             emit TransactionFailed(txId);
         }
     }
 
     // ── Owner management (onlySelf) ────────────────────────────────────────
-    function addOwner(address owner) external onlySelf nonReentrant {
+    // M-10 fix: no nonReentrant — these are called via _execute which
+    // already holds the reentrancy lock. onlySelf is sufficient protection.
+    function addOwner(address owner) external onlySelf {
         require(owner != address(0), "Zero address");
         require(!isOwner[owner], "Already owner");
         isOwner[owner] = true;
@@ -207,8 +217,9 @@ contract ECCMultiSig is ReentrancyGuard {
         emit OwnerAdded(owner);
     }
 
-    function removeOwner(address owner) external onlySelf nonReentrant {
+    function removeOwner(address owner) external onlySelf {
         require(isOwner[owner], "Not owner");
+        require(owners.length - 1 >= 2, "Min 2 owners");            // M-4 fix
         require(owners.length - 1 >= required, "Would break quorum");
         isOwner[owner] = false;
         for (uint256 i = 0; i < owners.length; i++) {
@@ -218,11 +229,21 @@ contract ECCMultiSig is ReentrancyGuard {
                 break;
             }
         }
+
+        // MS-03 fix: revoke removed owner's confirmations on ALL pending txns
+        uint256 total = transactions.length;
+        for (uint256 i = 0; i < total; i++) {
+            if (!transactions[i].executed && !transactions[i].cancelled && confirmed[i][owner]) {
+                confirmed[i][owner] = false;
+                transactions[i].confirmations--;
+            }
+        }
+
         emit OwnerRemoved(owner);
     }
 
-    function changeRequirement(uint256 _required) external onlySelf nonReentrant {
-        require(_required >= 1, "Min 1 required");
+    function changeRequirement(uint256 _required) external onlySelf {
+        require(_required >= 2, "Min 2 required");                   // M-2 fix
         require(_required <= owners.length, "Required > owners");
         required = _required;
         emit RequirementChanged(_required);
@@ -245,6 +266,7 @@ contract ECCMultiSig is ReentrancyGuard {
             bytes memory data,
             bool executed,
             bool failed,
+            bool cancelled,
             uint256 confirmations,
             uint256 submittedAt,
             string memory description
@@ -257,9 +279,20 @@ contract ECCMultiSig is ReentrancyGuard {
             txn.data,
             txn.executed,
             txn.failed,
+            txn.cancelled,
             txn.confirmations,
             txn.submittedAt,
             txn.description
         );
+    }
+
+    /// @notice Returns true if `owner` has confirmed transaction `txId`.
+    function isConfirmed(uint256 txId, address owner) external view txExists(txId) returns (bool) {
+        return confirmed[txId][owner];
+    }
+
+    /// @notice Returns true if transaction `txId` has passed its 7-day expiry.
+    function isExpired(uint256 txId) external view txExists(txId) returns (bool) {
+        return block.timestamp > transactions[txId].submittedAt + EXPIRY;
     }
 }

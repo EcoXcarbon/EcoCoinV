@@ -298,6 +298,15 @@ async function main() {
   await (await eccTokenObj.setPriceFeed(POL_USD_FEED, true)).wait(CONFIRMS);
   console.log("   ✅ Chainlink POL/USD price feed enabled");
 
+  // Set paymentRecipient to Development wallet — all POL from mintRetailOffset() withdrawals go here
+  const paymentRecipient = process.env.DEVELOPMENT_WALLET;
+  if (!paymentRecipient) {
+    console.warn("   ⚠️  DEVELOPMENT_WALLET not set — paymentRecipient remains deployer");
+  } else {
+    await (await eccTokenObj.setPaymentRecipient(paymentRecipient)).wait(CONFIRMS);
+    console.log(`   ✅ paymentRecipient set to Development wallet: ${paymentRecipient}`);
+  }
+
   // ── Summary ──────────────────────────────────────────────────────────────
   console.log("\n" + "=".repeat(80));
   console.log("✅ DEPLOYMENT COMPLETE — POLYGON MAINNET (Phase 1 + 2 + 3)");
@@ -349,6 +358,7 @@ async function main() {
   console.log("   4. Transfer DEFAULT_ADMIN_ROLE to ECCMultiSig after verifying setup");
   console.log("   5. Create first LP pool: ECCSwap.createPool(ECCToken, WMATIC)");
   console.log("   6. Set up relayer for ECCBridge: grantRole(RELAYER_ROLE, relayerAddress)");
+  console.log("   7. POL revenue from purchases goes to Development wallet — withdraw via withdrawPayments()");
 }
 
 main()

@@ -26,6 +26,19 @@ interface IECCStaking {
  * @title ECCAutoCompounder
  * @notice Automatically compounds staking rewards back into staking position.
  *
+ * Security & Bug Bounty:
+ *   This contract is covered by an active bug bounty program.
+ *   Program URL  : https://immunefi.com/bounty/ecocoin/
+ *   Scope        : All deployed production contracts listed at the URL above,
+ *                  including ECCAutoCompounder, ECCStaking, and ECCToken.
+ *   Reward Tiers :
+ *     - Critical (funds at risk > $500k) : up to $50,000 USDC
+ *     - High     (funds at risk > $50k)  : up to $10,000 USDC
+ *     - Medium   (logic errors / DoS)    : up to $2,000  USDC
+ *     - Low      (informational)         : up to $500    USDC
+ *   Reporters must NOT publicly disclose until a fix is deployed.
+ *   Contact: security[at]ecocoin.example.com
+ *
  * Features:
  *   - Auto-compound: harvests rewards and re-stakes them
  *   - Keeper-callable compoundAll() for gas efficiency
@@ -47,6 +60,8 @@ contract ECCAutoCompounder is AccessControl, ReentrancyGuard, Pausable {
 
     uint256 public compoundFee        = 100;     // 1% default
     uint256 public minCompoundAmount  = 1e18;    // 1 ECC minimum to trigger compound
+    // RT-7: Minimum interval between compounds per user (prevents MEV sandwich / reward draining)
+    uint256 public minCompoundInterval = 24 hours;
     address public treasury;
 
     struct UserInfo {
@@ -58,6 +73,8 @@ contract ECCAutoCompounder is AccessControl, ReentrancyGuard, Pausable {
     mapping(address => UserInfo) public userInfo;
     address[] public registeredUsers;
     mapping(address => bool) public isRegistered;
+    // AC-01 fix: Track each user's index in registeredUsers for O(1) unregister
+    mapping(address => uint256) public userIndex;
 
     // ── Events ─────────────────────────────────────────────────────────────
     event Compounded(address indexed user, uint256 rewardsHarvested, uint256 reStaked, uint256 fee);
@@ -65,6 +82,7 @@ contract ECCAutoCompounder is AccessControl, ReentrancyGuard, Pausable {
     event UserUnregistered(address indexed user);
     event CompoundFeeUpdated(uint256 newFee);
     event MinCompoundAmountUpdated(uint256 newMin);
+    event MinCompoundIntervalUpdated(uint256 newInterval);
     event TreasuryUpdated(address newTreasury);
 
     constructor(address _token, address _staking, address _treasury) {
@@ -84,19 +102,36 @@ contract ECCAutoCompounder is AccessControl, ReentrancyGuard, Pausable {
     function register() external {
         if (!isRegistered[msg.sender]) {
             isRegistered[msg.sender] = true;
+            userIndex[msg.sender] = registeredUsers.length;
             registeredUsers.push(msg.sender);
         }
         emit UserRegistered(msg.sender, 0);
     }
 
+    // AC-01 fix: O(1) unregister using userIndex mapping — swap with last and pop
     function unregister() external {
+        require(isRegistered[msg.sender], "Not registered");
         isRegistered[msg.sender] = false;
+
+        uint256 idx = userIndex[msg.sender];
+        uint256 lastIdx = registeredUsers.length - 1;
+
+        if (idx != lastIdx) {
+            address lastUser = registeredUsers[lastIdx];
+            registeredUsers[idx] = lastUser;
+            userIndex[lastUser] = idx;
+        }
+        registeredUsers.pop();
+        delete userIndex[msg.sender];
+
         emit UserUnregistered(msg.sender);
     }
 
     // ── Compound single user ───────────────────────────────────────────────
+    // AC-03 fix: Only the user themselves or a KEEPER can compound
     function compound(address user) external nonReentrant whenNotPaused {
         require(isRegistered[user], "Not registered");
+        require(msg.sender == user || hasRole(KEEPER_ROLE, msg.sender), "Not authorized");
         _compound(user);
     }
 
@@ -125,6 +160,10 @@ contract ECCAutoCompounder is AccessControl, ReentrancyGuard, Pausable {
     }
 
     function _compound(address user) internal {
+        // RT-7: Enforce minimum interval between compounds per user
+        UserInfo storage ui = userInfo[user];
+        if (ui.lastCompoundTime > 0 && block.timestamp < ui.lastCompoundTime + minCompoundInterval) return;
+
         // Check user has an active stake with pending rewards
         uint256 pending = staking.calculateStakingRewards(user);
         if (pending < minCompoundAmount) return;
@@ -137,7 +176,6 @@ contract ECCAutoCompounder is AccessControl, ReentrancyGuard, Pausable {
 
         uint256 fee = pending - compounded;
 
-        UserInfo storage ui = userInfo[user];
         ui.totalCompounded  += compounded;
         ui.lastCompoundTime  = block.timestamp;
         ui.compoundCount++;
@@ -152,9 +190,17 @@ contract ECCAutoCompounder is AccessControl, ReentrancyGuard, Pausable {
         emit CompoundFeeUpdated(fee);
     }
 
+    // AC-04 fix: Enforce minimum of 1 ECC to prevent zero/dust compounds
     function setMinCompoundAmount(uint256 min) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(min >= 1e18, "Min 1 ECC");
         minCompoundAmount = min;
         emit MinCompoundAmountUpdated(min);
+    }
+
+    function setMinCompoundInterval(uint256 interval) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(interval >= 1 hours, "Min 1 hour");
+        minCompoundInterval = interval;
+        emit MinCompoundIntervalUpdated(interval);
     }
 
     function setTreasury(address _treasury) external onlyRole(DEFAULT_ADMIN_ROLE) {

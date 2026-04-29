@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection — owner can write their own document
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Payments — read only for authenticated users; writes handled server-side via Admin SDK
+    match /payments/{paymentId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow write: if false;
+    }
+
+    // Pending transfers — server-side only via Admin SDK
+    match /pendingTransfers/{transferId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow write: if false;
+    }
+
+    // Referrals — server-side only via Admin SDK
+    match /referrals/{referralId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.referrerId;
+      allow write: if false;
+    }
+  }
+}

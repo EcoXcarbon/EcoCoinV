@@ -43,6 +43,7 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
         uint256 minAllocation;      // min per wallet
         uint256 totalRaised;        // total payment tokens collected
         uint256 totalSold;          // total sale tokens sold
+        uint256 depositedTokens;    // total sale tokens deposited by admin (#23)
         uint64  startTime;
         uint64  endTime;
         uint64  cliffDuration;      // vesting cliff after sale ends
@@ -50,6 +51,7 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
         SaleType   saleType;
         SaleStatus status;
         bool    claimsEnabled;      // admin enables after TGE
+        bool    raisedWithdrawn;    // true after withdrawRaised() (#14)
         string  projectName;
         string  projectURI;
     }
@@ -75,6 +77,8 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
     event SaleFinalized(uint256 indexed saleId, uint256 totalRaised);
     event SaleCancelled(uint256 indexed saleId);
     event WhitelistUpdated(uint256 indexed saleId, address[] addresses, bool status);
+    event ClaimsEnabled(uint256 indexed saleId);                             // #30
+    event UnsoldWithdrawn(uint256 indexed saleId, uint256 amount);           // #23
 
     constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -103,9 +107,16 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
         require(raisedRecipient  != address(0), "Zero recipient");   // B9 fix
         require(tokenPrice  > 0,           "Zero price");
         require(hardCap     > 0,           "Zero hard cap");
+        require(softCap     > 0,           "Soft cap required");     // #21
         require(softCap     <= hardCap,    "Soft > hard cap");
+        require(startTime   >= block.timestamp, "Start in past");
         require(startTime   < endTime,     "Invalid times");
         require(endTime     > block.timestamp, "End in past");
+        // #22: Prevent vesting timestamp overflow that would brick claims
+        require(
+            uint256(endTime) + uint256(cliffDuration) + uint256(vestingDuration) <= type(uint64).max,
+            "Vesting overflow"
+        );
 
         saleId = nextSaleId++;
         sales[saleId] = Sale({
@@ -119,6 +130,7 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
             minAllocation:    minAllocation,
             totalRaised:      0,
             totalSold:        0,
+            depositedTokens:  0,
             startTime:        startTime,
             endTime:          endTime,
             cliffDuration:    cliffDuration,
@@ -126,6 +138,7 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
             saleType:         saleType,
             status:           SaleStatus.PENDING,
             claimsEnabled:    false,
+            raisedWithdrawn:  false,
             projectName:      projectName,
             projectURI:       projectURI
         });
@@ -143,6 +156,9 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
         external payable nonReentrant whenNotPaused
     {
         Sale storage s = sales[saleId];
+        // #18: PENDING sales auto-activate on first buy — this is by design so admins
+        // can create a sale with a future startTime and have it activate automatically
+        // once the startTime has passed and the first purchase arrives.
         require(s.status == SaleStatus.PENDING || s.status == SaleStatus.ACTIVE, "Sale not active");
         require(block.timestamp >= s.startTime, "Not started");
         require(block.timestamp <= s.endTime,   "Sale ended");
@@ -158,30 +174,42 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
             payment = msg.value;
         } else {
             require(msg.value == 0, "Send ERC20 not POL");
-            payment = paymentAmount;
+            // LP-MED-1: Balance-diff for fee-on-transfer payment tokens.
+            // Transfer first, then use actual received amount for all state updates.
+            uint256 balBefore = IERC20(s.paymentToken).balanceOf(address(this));
+            IERC20(s.paymentToken).safeTransferFrom(msg.sender, address(this), paymentAmount);
+            payment = IERC20(s.paymentToken).balanceOf(address(this)) - balBefore;
         }
 
-        require(payment >= s.minAllocation || s.minAllocation == 0, "Below min");
-
         Allocation storage alloc = allocations[saleId][msg.sender];
+
+        // #27: Check minAllocation on cumulative total so subsequent small buys are allowed
+        require(alloc.paid + payment >= s.minAllocation || s.minAllocation == 0, "Below min");
+
+        // LP-01 fix: Enforce maxAllocation for ALL sale types including FCFS
         if (s.maxAllocation > 0) {
             require(alloc.paid + payment <= s.maxAllocation, "Exceeds max allocation");
         }
         require(s.totalRaised + payment <= s.hardCap, "Hard cap reached");
 
+        // #20: Standard integer truncation — tokensBought rounds DOWN, which may leave
+        // sub-wei dust in the buyer's favor. This is standard ERC-20 sale behavior and
+        // the dust is negligible relative to tokenPrice precision.
         uint256 tokensBought = (payment * 1e18) / s.tokenPrice;
         require(tokensBought >= minTokensOut, "Slippage: too few tokens"); // slippage guard
+        // NEW-3: Use per-sale depositedTokens instead of global balanceOf to prevent
+        // cross-sale token contamination when multiple sales share the same token.
+        require(
+            s.depositedTokens >= s.totalSold + tokensBought,
+            "Insufficient sale tokens deposited"
+        );
 
-        // CEI: update state before external transfer
+        // State updates — transfer already done for ERC-20; POL held via msg.value
         if (alloc.paid == 0) participants[saleId].push(msg.sender);
         alloc.paid         += payment;
         alloc.tokensBought += tokensBought;
         s.totalRaised      += payment;
         s.totalSold        += tokensBought;
-
-        if (s.paymentToken != address(0)) {
-            IERC20(s.paymentToken).safeTransferFrom(msg.sender, address(this), payment);
-        }
 
         emit Purchased(saleId, msg.sender, payment, tokensBought);
     }
@@ -193,6 +221,7 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
         require(block.timestamp >= s.endTime + s.cliffDuration, "Cliff not passed");
 
         Allocation storage alloc = allocations[saleId][msg.sender];
+        require(!alloc.refunded, "Already refunded");   // #17: prevent claim after refund
         require(alloc.tokensBought > 0, "Nothing bought");
 
         uint256 claimable = _claimable(s, alloc);
@@ -217,7 +246,8 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
         require(alloc.paid > 0,       "Nothing to refund");
         require(!alloc.refunded,      "Already refunded");
 
-        alloc.refunded = true;
+        alloc.refunded     = true;
+        alloc.tokensBought = 0;      // #16: clear so claim() cannot be called after refund
         uint256 amount = alloc.paid;
 
         if (s.paymentToken == address(0)) {
@@ -234,7 +264,10 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
     function finalizeSale(uint256 saleId) external onlyRole(SALE_ADMIN_ROLE) {
         Sale storage s = sales[saleId];
         require(block.timestamp > s.endTime, "Sale not ended");
-        require(s.status == SaleStatus.ACTIVE || s.status == SaleStatus.PENDING, "Already finalized");
+        // #26: Require ACTIVE status — prevents finalizing a PENDING sale with no purchases
+        require(s.status == SaleStatus.ACTIVE, "Sale not active");
+        // NEW-5: Enforce softCap for state machine consistency
+        require(s.totalRaised >= s.softCap, "Soft cap not met");
 
         s.status = SaleStatus.ENDED;
         emit SaleFinalized(saleId, s.totalRaised);
@@ -248,7 +281,12 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
     }
 
     function enableClaims(uint256 saleId) external onlyRole(SALE_ADMIN_ROLE) {
-        sales[saleId].claimsEnabled = true;
+        Sale storage s = sales[saleId];
+        require(s.status == SaleStatus.ENDED, "Sale not ended");              // #15
+        require(s.totalRaised >= s.softCap, "Soft cap not met");              // #15
+        require(!s.raisedWithdrawn || s.claimsEnabled, "Inconsistent state"); // #15 defensive
+        s.claimsEnabled = true;
+        emit ClaimsEnabled(saleId);                                           // #30
     }
 
     // ── Whitelist management ───────────────────────────────────────────────
@@ -269,10 +307,14 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
         Sale storage s = sales[saleId];
         require(s.status == SaleStatus.ENDED, "Sale not ended");
         require(s.totalRaised >= s.softCap,   "Soft cap not met");
+        require(s.claimsEnabled,              "Enable claims first"); // LP-05 fix
+        require(!s.raisedWithdrawn,           "Already withdrawn"); // #14
 
         address recipient = s.raisedRecipient;  // validated non-zero at createSale
         uint256 amount    = s.totalRaised;
-        s.totalRaised     = 0;                  // CEI: zero before transfer
+        // #14: Do NOT zero totalRaised — that would enable refunds after withdrawal.
+        // Instead mark as withdrawn to prevent double-withdrawal.
+        s.raisedWithdrawn = true;               // CEI: flag before transfer
 
         if (s.paymentToken == address(0)) {
             (bool ok, ) = recipient.call{value: amount}("");
@@ -284,9 +326,32 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
 
     // ── Admin: deposit sale tokens ─────────────────────────────────────────
     function depositSaleTokens(uint256 saleId, uint256 amount)
-        external onlyRole(SALE_ADMIN_ROLE)
+        external onlyRole(SALE_ADMIN_ROLE) nonReentrant
     {
+        // LP-LOW-5: Balance-diff for fee-on-transfer sale tokens
+        uint256 balBefore = IERC20(sales[saleId].saleToken).balanceOf(address(this));
         IERC20(sales[saleId].saleToken).safeTransferFrom(msg.sender, address(this), amount);
+        uint256 actual = IERC20(sales[saleId].saleToken).balanceOf(address(this)) - balBefore;
+        sales[saleId].depositedTokens += actual;
+    }
+
+    // ── Admin: withdraw unsold sale tokens (#23) ──────────────────────────
+    function withdrawUnsold(uint256 saleId)
+        external onlyRole(SALE_ADMIN_ROLE) nonReentrant
+    {
+        Sale storage s = sales[saleId];
+        // Allow withdrawal for both ENDED and CANCELLED sales to prevent token lockup
+        require(
+            s.status == SaleStatus.ENDED || s.status == SaleStatus.CANCELLED,
+            "Sale not ended or cancelled"
+        );
+        uint256 unsold = s.depositedTokens > s.totalSold
+            ? s.depositedTokens - s.totalSold
+            : 0;
+        require(unsold > 0, "No unsold tokens");
+        s.depositedTokens = s.totalSold; // zero out unsold portion
+        IERC20(s.saleToken).safeTransfer(msg.sender, unsold);
+        emit UnsoldWithdrawn(saleId, unsold);
     }
 
     function pause()   external onlyRole(DEFAULT_ADMIN_ROLE) { _pause(); }
@@ -314,5 +379,6 @@ contract ECCLaunchpad is AccessControl, ReentrancyGuard, Pausable {
         return vested > alloc.tokensClaimed ? vested - alloc.tokensClaimed : 0;
     }
 
-    receive() external payable {}
+    // #29: Reject arbitrary POL — native payments must go through buy()
+    receive() external payable { revert("Use buy()"); }
 }

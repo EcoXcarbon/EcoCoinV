@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -57,6 +57,9 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
     
     /// @notice Total rewards distributed
     uint256 public totalDistributed;
+
+    /// @notice RD-02 fix: Track total reserved tokens per token address to avoid unbounded loops
+    mapping(address => uint256) public totalReserved;
 
     // ═══════════════════════════════════════════════════════════════
     // STRUCTS
@@ -122,6 +125,7 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
     // Security: Events for monitoring (audit items #246-260)
     event RateLimitExceeded(address indexed user, uint256 claimCount, uint256 timestamp);
     event LargeClaimDetected(address indexed user, uint256 roundId, uint256 amount);
+    event ClaimSkipped(uint256 indexed roundId, address indexed user, string reason);
 
     // ═══════════════════════════════════════════════════════════════
     // CONSTRUCTOR
@@ -174,9 +178,12 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
             description: description
         });
         
+        // RD-02 fix: Track reserved tokens
+        totalReserved[token] += totalAmount;
+
         // Transfer tokens to contract
         IERC20(token).safeTransferFrom(msg.sender, address(this), totalAmount);
-        
+
         emit RoundCreated(
             roundId,
             token,
@@ -222,21 +229,25 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
         }
         
         // Verify merkle proof
-        bytes32 leaf = keccak256(abi.encodePacked(msg.sender, amount));
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender, amount))));
         require(
             MerkleProof.verify(merkleProof, round.merkleRoot, leaf),
             "Invalid proof"
         );
         
+        // H-03: Ensure round cannot be over-claimed
+        require(round.claimedAmount + amount <= round.totalAmount, "Round exhausted");
+
         // Update state
         hasClaimed[roundId][msg.sender] = true;
         claimed[roundId][msg.sender] = amount;
         round.claimedAmount += amount;
         totalDistributed += amount;
-        
+        totalReserved[address(round.token)] -= amount; // RD-02 fix
+
         // Transfer rewards
         round.token.safeTransfer(msg.sender, amount);
-        
+
         emit RewardClaimed(roundId, msg.sender, amount);
     }
     
@@ -246,6 +257,7 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
      * @param amounts Array of amounts
      * @param merkleProofs Array of merkle proofs
      */
+    // RD-01 fix: Rate limit check moved OUTSIDE loop — called once with batch size
     function claimBatch(
         uint256[] calldata roundIds,
         uint256[] calldata amounts,
@@ -255,39 +267,55 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
         require(roundIds.length == merkleProofs.length, "Length mismatch");
         // Security: Prevent DoS via unbounded loops (audit item #8 - SWC-113)
         require(roundIds.length <= MAX_BATCH_SIZE, "Batch too large");
-        
+
+        // RD-01 fix: Single rate limit check for entire batch
+        _checkRateLimitBatch(msg.sender, roundIds.length);
+
         for (uint256 i = 0; i < roundIds.length; i++) {
             uint256 roundId = roundIds[i];
-            uint256 amount = amounts[i];
+            uint256 amount  = amounts[i];
             bytes32[] memory proof = merkleProofs[i];
-            
-            require(roundId > 0 && roundId <= currentRound, "Invalid round");
-            
+
+            if (roundId == 0 || roundId > currentRound) {
+                emit ClaimSkipped(roundId, msg.sender, "Invalid round");
+                continue;
+            }
+
             RewardRound storage round = rounds[roundId];
-            
+
             if (!round.active ||
                 block.timestamp < round.startTime ||
                 block.timestamp > round.endTime ||
                 hasClaimed[roundId][msg.sender] ||
-                amount == 0) {
-                continue; // Skip invalid claims
+                amount == 0 ||
+                amount > MAX_SINGLE_CLAIM) {
+                emit ClaimSkipped(roundId, msg.sender, "Ineligible");
+                continue;
             }
-            
+
             // Verify merkle proof
-            bytes32 leaf = keccak256(abi.encodePacked(msg.sender, amount));
+            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender, amount))));
             if (!MerkleProof.verify(proof, round.merkleRoot, leaf)) {
-                continue; // Skip invalid proof
+                emit ClaimSkipped(roundId, msg.sender, "Bad proof");
+                continue;
             }
-            
+
+            // H-03: Ensure round cannot be over-claimed
+            if (round.claimedAmount + amount > round.totalAmount) {
+                emit ClaimSkipped(roundId, msg.sender, "Round exhausted");
+                continue;
+            }
+
             // Update state
             hasClaimed[roundId][msg.sender] = true;
-            claimed[roundId][msg.sender] = amount;
-            round.claimedAmount += amount;
-            totalDistributed += amount;
-            
+            claimed[roundId][msg.sender]     = amount;
+            round.claimedAmount             += amount;
+            totalDistributed                += amount;
+            totalReserved[address(round.token)] -= amount; // RD-02 fix
+
             // Transfer rewards
             round.token.safeTransfer(msg.sender, amount);
-            
+
             emit RewardClaimed(roundId, msg.sender, amount);
         }
     }
@@ -386,8 +414,10 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
     {
         require(roundId > 0 && roundId <= currentRound, "Invalid round");
         require(newMerkleRoot != bytes32(0), "Invalid merkle root");
-        
+
         RewardRound storage round = rounds[roundId];
+        // H-02: Prevent root swap after any claims have been made
+        require(round.claimedAmount == 0, "Cannot update root after claims");
         bytes32 oldRoot = round.merkleRoot;
         round.merkleRoot = newMerkleRoot;
         
@@ -429,10 +459,13 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
         
         RewardRound storage round = rounds[roundId];
         require(!round.active || block.timestamp > round.endTime, "Round still active");
+        // RD-04 fix: Give users 30 days after round end to claim before admin can withdraw
+        require(block.timestamp > round.endTime + 30 days, "Wait 30 days after end");
         
         uint256 unclaimed = round.totalAmount - round.claimedAmount;
         require(unclaimed > 0, "No unclaimed tokens");
-        
+
+        totalReserved[address(round.token)] -= unclaimed; // RD-02 fix
         round.totalAmount = round.claimedAmount;
         round.token.safeTransfer(to, unclaimed);
     }
@@ -476,6 +509,7 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
      * @param to Recipient
      * @param amount Amount to recover
      */
+    // RD-02 fix: Use tracked totalReserved instead of unbounded loop
     function emergencyRecover(address token, address to, uint256 amount)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
@@ -484,17 +518,9 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
         require(to != address(0), "Invalid recipient");
         require(amount > 0, "Invalid amount");
 
-        // Security: Calculate reserved tokens for active rounds (audit item #42 - withdrawal security)
-        uint256 reservedAmount = 0;
-        for (uint256 i = 1; i <= currentRound; i++) {
-            RewardRound storage round = rounds[i];
-            if (address(round.token) == token && round.active && block.timestamp <= round.endTime) {
-                reservedAmount += (round.totalAmount - round.claimedAmount);
-            }
-        }
-
         uint256 contractBalance = IERC20(token).balanceOf(address(this));
-        uint256 availableToRecover = contractBalance > reservedAmount ? contractBalance - reservedAmount : 0;
+        uint256 reserved = totalReserved[token];
+        uint256 availableToRecover = contractBalance > reserved ? contractBalance - reserved : 0;
 
         require(amount <= availableToRecover, "Cannot recover reserved funds");
 
@@ -512,16 +538,23 @@ contract RewardsDistributor is ReentrancyGuard, Pausable, AccessControl {
      * @dev Internal rate limit check per user (audit items #81-100)
      */
     function _checkRateLimit(address user) internal {
+        _checkRateLimitBatch(user, 1);
+    }
+
+    /**
+     * @dev RD-01 fix: Rate limit check with batch size increment
+     */
+    function _checkRateLimitBatch(address user, uint256 count) internal {
         if (block.timestamp > userClaimPeriodStart[user] + CLAIM_RATE_PERIOD) {
             // New period - reset counter
             userClaimPeriodStart[user] = block.timestamp;
-            userClaimCount[user] = 1;
+            userClaimCount[user] = count;
         } else {
-            userClaimCount[user]++;
-            if (userClaimCount[user] > CLAIM_RATE_LIMIT) {
-                emit RateLimitExceeded(user, userClaimCount[user], block.timestamp);
-                revert("Rate limit exceeded");
-            }
+            userClaimCount[user] += count;
+        }
+        if (userClaimCount[user] > CLAIM_RATE_LIMIT) {
+            emit RateLimitExceeded(user, userClaimCount[user], block.timestamp);
+            revert("Rate limit exceeded");
         }
     }
 }

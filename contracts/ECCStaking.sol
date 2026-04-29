@@ -9,13 +9,13 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @title ECCStaking
- * @notice EcoCoin staking vault — tiered APY (8/10/12%), lock periods (7/30/90 days).
+ * @notice EcoCoin staking vault — tiered APR (8/10/12%), lock periods (7/30/90 days).
  *
  * Responsibility 2 of 3:
  *   - Users stake ECC to earn passive yield.
- *   - Three tiers: Tier 0 → 8% APY / 7-day lock
- *                  Tier 1 → 10% APY / 30-day lock
- *                  Tier 2 → 12% APY / 90-day lock
+ *   - Three tiers: Tier 0 → 8% APR / 7-day lock
+ *                  Tier 1 → 10% APR / 30-day lock
+ *                  Tier 2 → 12% APR / 90-day lock
  *   - Rewards paid from a pre-funded pool (10 M ECC transferred by ECCToken.initializeContracts()).
  *   - Compound: re-stakes pending rewards to increase principal.
  *   - Emergency withdraw: returns principal, forfeits rewards.
@@ -42,13 +42,13 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
     uint256 public constant MAX_STAKE_AMOUNT   = 10_000_000  * 10 ** 18;
     uint256 public constant MAX_TOTAL_STAKED   = 100_000_000 * 10 ** 18;
 
-    uint8   public constant MIN_STAKING_APY    = 8;
-    uint8   public constant MAX_STAKING_APY    = 12;
+    uint8   public constant MIN_STAKING_APR    = 8;
+    uint8   public constant MAX_STAKING_APR    = 12;
     uint256 public constant SECONDS_PER_YEAR   = 365 days;
 
-    uint256 public constant MIN_STAKE_DURATION = 7  days;  // Tier 0 — 8% APY
-    uint256 public constant TIER_1_LOCK        = 30 days;  // Tier 1 — 10% APY
-    uint256 public constant TIER_2_LOCK        = 90 days;  // Tier 2 — 12% APY
+    uint256 public constant MIN_STAKE_DURATION = 7  days;  // Tier 0 — 8% APR
+    uint256 public constant TIER_1_LOCK        = 30 days;  // Tier 1 — 10% APR
+    uint256 public constant TIER_2_LOCK        = 90 days;  // Tier 2 — 12% APR
 
     uint256 private constant PRECISION       = 1e18;
     uint256 private constant PERCENTAGE_BASE = 100;
@@ -75,6 +75,7 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
     uint256 public totalStaked;
     uint256 public stakingPoolBalance;
     uint256 public totalStakingRewardsPaid;
+    bool    public poolSynced;
 
     // ═══════════════════════════════════════════════════════════════════════
     // EVENTS
@@ -107,6 +108,11 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
     // CONSTRUCTOR
     // ═══════════════════════════════════════════════════════════════════════
 
+    /**
+     * @param _admin Should be a multisig (e.g. Gnosis Safe) to mitigate
+     *               centralization risk — a single admin can pause the contract
+     *               and trap rewards.
+     */
     constructor(address _eccToken, address _admin) {
         if (_eccToken == address(0)) revert InvalidAddress();
         if (_admin    == address(0)) revert InvalidAddress();
@@ -121,7 +127,7 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
-     * @notice Stake ECC to earn APY rewards.
+     * @notice Stake ECC to earn APR rewards.
      * @param amount   Amount of ECC to stake (must be approved first).
      * @param apyTier  0 → 8% / 7d,  1 → 10% / 30d,  2 → 12% / 90d
      */
@@ -134,15 +140,19 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
         StakeInfo storage s = stakes[msg.sender];
         require(s.amount == 0, "Active stake exists");
 
-        // CEI: update state before external transfer
-        s.amount         = amount;
+        // Balance-before/after pattern: detect actual tokens received
+        // (handles fee-on-transfer tokens if contract is not fee-exempt)
+        uint256 balBefore = eccToken.balanceOf(address(this));
+        eccToken.safeTransferFrom(msg.sender, address(this), amount);
+        uint256 received = eccToken.balanceOf(address(this)) - balBefore;
+
+        s.amount         = received;
         s.startTime      = block.timestamp;
         s.lastRewardTime = block.timestamp;
         s.apyTier        = apyTier;
-        totalStaked += amount;
+        totalStaked += received;
 
-        eccToken.safeTransferFrom(msg.sender, address(this), amount);
-        emit Staked(msg.sender, amount, apyTier, block.timestamp);
+        emit Staked(msg.sender, received, apyTier, block.timestamp);
     }
 
     /**
@@ -156,15 +166,18 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
             revert MinimumStakeDurationNotMet();
 
         uint256 rewards = _calculateStakingRewards(msg.sender);
+        // S-1 fix: Cap rewards to available pool balance instead of reverting,
+        // so late claimers still get their principal back
+        if (rewards > stakingPoolBalance) rewards = stakingPoolBalance;
         if (rewards < minRewards) revert SlippageExceeded(minRewards, rewards);
-        if (stakingPoolBalance < rewards) revert InsufficientStakingPool();
 
         uint256 principal = s.amount;
-        s.amount              = 0;
-        s.accumulatedRewards += rewards;
         totalStaked          -= principal;
         stakingPoolBalance   -= rewards;
         totalStakingRewardsPaid += rewards;
+
+        // Clear all stake metadata to prevent stale state (MEDIUM #1)
+        delete stakes[msg.sender];
 
         eccToken.safeTransfer(msg.sender, principal + rewards);
         emit Unstaked(msg.sender, principal, rewards, block.timestamp);
@@ -190,6 +203,8 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
         uint256 rewards = _calculateStakingRewards(msg.sender);
         require(rewards > 0, "No rewards to compound");
         if (stakingPoolBalance < rewards) revert InsufficientStakingPool();
+        require(s.amount + rewards <= MAX_STAKE_AMOUNT, "Exceeds max stake");
+        require(totalStaked + rewards <= MAX_TOTAL_STAKED, "Exceeds max total");
 
         s.amount             += rewards;
         s.lastRewardTime      = block.timestamp;
@@ -225,6 +240,9 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
         uint256 fee = (rewards * feeBps) / 10000;
         compounded  = rewards - fee;
 
+        require(s.amount + compounded <= MAX_STAKE_AMOUNT, "Exceeds max stake");
+        require(totalStaked + compounded <= MAX_TOTAL_STAKED, "Exceeds max total");
+
         s.amount             += compounded;
         s.lastRewardTime      = block.timestamp;
         s.accumulatedRewards += rewards;
@@ -247,8 +265,10 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
         if (s.amount == 0) revert NoStakeFound();
 
         uint256 amount = s.amount;
-        s.amount       = 0;
         totalStaked   -= amount;
+
+        // Clear all stake metadata to prevent stale state (MEDIUM #1)
+        delete stakes[msg.sender];
 
         eccToken.safeTransfer(msg.sender, amount);
         emit EmergencyWithdraw(msg.sender, amount);
@@ -262,20 +282,25 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
      * @notice Top up the staking reward pool (admin-to-admin funding).
      * @dev For initial setup, call syncPoolBalance() after ECCToken.initializeContracts().
      */
+    // NEW-4: Balance-diff pattern — safe if ECCToken transfer fees are ever enabled
     function fundStakingPool(uint256 amount) external onlyRole(ADMIN_ROLE) {
         require(amount > 0, "Zero amount");
-        stakingPoolBalance += amount;
+        uint256 balBefore = eccToken.balanceOf(address(this));
         eccToken.safeTransferFrom(msg.sender, address(this), amount);
-        emit StakingPoolFunded(amount, stakingPoolBalance);
+        uint256 actual = eccToken.balanceOf(address(this)) - balBefore;
+        stakingPoolBalance += actual;
+        emit StakingPoolFunded(actual, stakingPoolBalance);
     }
 
     /**
      * @notice Register the ECC balance received from ECCToken.initializeContracts().
-     * @dev Call once immediately after initializeContracts(). Safe to call again if needed.
+     * @dev Call once immediately after initializeContracts(). Can only be called once.
      */
     function syncPoolBalance() external onlyRole(ADMIN_ROLE) {
+        require(!poolSynced, "Already synced");
         // Available rewards = total ECC held minus the principals being staked
         stakingPoolBalance = eccToken.balanceOf(address(this)) - totalStaked;
+        poolSynced = true;
         emit PoolBalanceSynced(stakingPoolBalance);
     }
 
@@ -313,6 +338,11 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
         return MIN_STAKE_DURATION;
     }
 
+    /**
+     * @dev Design choice (MEDIUM #7): rewards are claimable during the lock period.
+     *      Only the principal is locked — users can harvest yield at any time.
+     *      This is intentional to incentivize staking without trapping earned rewards.
+     */
     function _claimStakingRewards(address user) private returns (uint256) {
         StakeInfo storage s = stakes[user];
         if (s.amount == 0) return 0;
@@ -337,13 +367,14 @@ contract ECCStaking is ReentrancyGuard, Pausable, AccessControl {
         uint256 timeStaked = block.timestamp - s.lastRewardTime;
         if (timeStaked == 0) return 0;
 
-        uint256 apy;
-        if      (s.apyTier == 0) apy = 8;
-        else if (s.apyTier == 1) apy = 10;
-        else                     apy = 12;
+        uint256 apr;
+        if      (s.apyTier == 0) apr = 8;
+        else if (s.apyTier == 1) apr = 10;
+        else                     apr = 12;
 
-        uint256 rewards = (s.amount * apy * timeStaked * PRECISION)
+        // Simple interest (APR, not APY). PRECISION multiply/divide removed — it was a no-op.
+        uint256 rewards = (s.amount * apr * timeStaked)
                         / (PERCENTAGE_BASE * SECONDS_PER_YEAR);
-        return rewards / PRECISION;
+        return rewards;
     }
 }

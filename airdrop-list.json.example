@@ -1,0 +1,5 @@
+[
+  { "address": "0xRecipient1AddressHere", "amount": "500" },
+  { "address": "0xRecipient2AddressHere", "amount": "250" },
+  { "address": "0xRecipient3AddressHere", "amount": "100" }
+]

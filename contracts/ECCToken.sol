@@ -10,54 +10,26 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-// ── Chainlink price feed interface ────────────────────────────────────────────
-interface AggregatorV3Interface {
-    function latestRoundData() external view returns (
-        uint80 roundId,
-        int256 answer,
-        uint256 startedAt,
-        uint256 updatedAt,
-        uint80 answeredInRound
-    );
-    function decimals() external view returns (uint8);
-}
-
-// ── Minimal interfaces for cross-contract NFT calls (fail-safe via try/catch) ──
-interface ICarbonCreditNFT {
-    function mint(
-        address to,
-        uint256 amount,
-        string memory projectId,
-        string memory vintage,
-        string memory methodology,
-        string memory region,
-        bytes memory data
-    ) external returns (uint256);
-}
-
-interface ICertificateNFT {
-    function mintCertificate(
-        address to,
-        uint8   certType,
-        uint256 carbonAmount,
-        string memory projectId,
-        string memory description,
-        string memory metadataURI
-    ) external returns (uint256);
-}
-
 /**
  * @title ECCToken
- * @notice EcoCoin (ECC) — Core ERC-20 token: carbon offset minting + referral system.
- * @dev Split from EcoCoinV7Secured. Staking → ECCStaking.sol  Farming → ECCFarming.sol
+ * @notice EcoCoin (ECC) — Core ERC-20 token with transfer fee, governance votes,
+ *         and staking/farming reserve distribution.
+ * @dev Carbon offset minting, referral system, NFT integration, and oracle logic
+ *      have been extracted to ECCCarbonOffset.sol to stay under the 24KB contract
+ *      size limit (Spurious Dragon / EIP-170).
  *
- * Responsibility 1 of 3:
- *   - Fixed 100 M supply, distributed across 10 wallets at construction.
- *   - Retail minting:    users pay ETH to mint ECC against real-world activity.
- *   - Enterprise minting: MINTER_ROLE mints against verified MRV data.
- *   - Referral rewards:  5 % bonus paid from a 2 M ambassador pool.
- *   - Staking (10 M) and Farming (3 M) reserves are minted to this contract,
- *     then transferred to ECCStaking / ECCFarming via initializeContracts().
+ * Architecture:
+ *   - ECCToken:          Core ERC-20, fee distribution, wallet mgmt, reserve setup
+ *   - ECCCarbonOffset:   Retail/enterprise minting, referrals, NFT auto-mint, oracle
+ *   - ECCStaking:        Tiered APR staking vault (10M reserve)
+ *   - ECCFarming:        MasterChef LP farming (3M reserve)
+ *
+ * Deployment order:
+ *   1. Deploy ECCToken
+ *   2. Deploy ECCCarbonOffset(eccTokenAddress)
+ *   3. Grant MINTER_ROLE on ECCToken to ECCCarbonOffset
+ *   4. Deploy ECCStaking, ECCFarming
+ *   5. Call ECCToken.initializeContracts(staking, farming)
  */
 contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -66,117 +38,38 @@ contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, Re
     // ROLES
     // ═══════════════════════════════════════════════════════════════════════
 
-    bytes32 public constant MINTER_ROLE        = keccak256("MINTER_ROLE");
-    bytes32 public constant PAUSER_ROLE        = keccak256("PAUSER_ROLE");
-    bytes32 public constant VERIFIER_ROLE      = keccak256("VERIFIER_ROLE");
-    bytes32 public constant RETAIL_MINTER_ROLE = keccak256("RETAIL_MINTER_ROLE");
-    bytes32 public constant ADMIN_ROLE         = keccak256("ADMIN_ROLE");
+    bytes32 public constant MINTER_ROLE   = keccak256("MINTER_ROLE");
+    bytes32 public constant PAUSER_ROLE   = keccak256("PAUSER_ROLE");
+    bytes32 public constant ADMIN_ROLE    = keccak256("ADMIN_ROLE");
 
     // ═══════════════════════════════════════════════════════════════════════
     // SUPPLY CONSTANTS
     // ═══════════════════════════════════════════════════════════════════════
 
-    uint256 public constant INITIAL_SUPPLY        = 100_000_000 * 10 ** 18; // 100 M
-    uint256 public constant MAX_SUPPLY            = 1_000_000_000 * 10 ** 18; // 1 B hard cap
-    uint256 public constant EMISSION_RATE_PER_TON = 1 * 10 ** 18; // 1 ECC per tonne CO₂
+    uint256 public constant INITIAL_SUPPLY        = 100_000_000 * 10 ** 18;
+    uint256 public constant MAX_SUPPLY            = 1_000_000_000 * 10 ** 18;
 
-    // ── Distribution (must sum to 100 M) ──────────────────────────────────
-    uint256 public constant CARBON_REWARDS_ALLOCATION = 25_000_000 * 10 ** 18; // 25 %
-    uint256 public constant COMMUNITY_ALLOCATION      = 18_000_000 * 10 ** 18; // 18 %
-    uint256 public constant TEAM_ALLOCATION           = 15_000_000 * 10 ** 18; // 15 %
-    uint256 public constant DEVELOPMENT_ALLOCATION    = 13_000_000 * 10 ** 18; // 13 %
-    uint256 public constant LIQUIDITY_ALLOCATION      = 10_000_000 * 10 ** 18; // 10 %
-    uint256 public constant STAKING_REWARDS_RESERVE   = 10_000_000 * 10 ** 18; // 10 % → ECCStaking
-    uint256 public constant MARKETING_ALLOCATION      =  4_000_000 * 10 ** 18; //  4 %
-    uint256 public constant FARMING_REWARDS_RESERVE   =  3_000_000 * 10 ** 18; //  3 % → ECCFarming
-    uint256 public constant ADVISORS_ALLOCATION       =  1_000_000 * 10 ** 18; //  1 %
-    uint256 public constant RESERVE_ALLOCATION        =  1_000_000 * 10 ** 18; //  1 %
-    // TOTAL: 25+18+15+13+10+10+4+3+1+1 = 100 M ✓
-
-    // ── Retail minting limits ─────────────────────────────────────────────
-    uint256 public constant RETAIL_MAX_PER_TRANSACTION = 100  * 10 ** 18;
-    uint256 public constant RETAIL_DAILY_LIMIT         = 1000 * 10 ** 18;
-    uint256 public constant MAX_MINT_HISTORY_ENTRIES   = 100; // DoS guard (audit #8)
-
-    // ── Referral ──────────────────────────────────────────────────────────
-    uint256 public constant REFERRAL_REWARD_RATE       = 5;               // 5 %
-    uint256 public constant AMBASSADOR_POOL_ALLOCATION = 2_000_000 * 10 ** 18;
-    uint256 public constant MIN_REFERRER_BALANCE       = 100 * 10 ** 18;
-    uint256 public constant MAX_REFERRALS_PER_USER     = 100; // Sybil guard (audit #55, #74)
+    uint256 public constant CARBON_REWARDS_ALLOCATION = 25_000_000 * 10 ** 18;
+    uint256 public constant COMMUNITY_ALLOCATION      = 18_000_000 * 10 ** 18;
+    uint256 public constant TEAM_ALLOCATION           = 15_000_000 * 10 ** 18;
+    uint256 public constant DEVELOPMENT_ALLOCATION    = 13_000_000 * 10 ** 18;
+    uint256 public constant LIQUIDITY_ALLOCATION      = 10_000_000 * 10 ** 18;
+    uint256 public constant STAKING_REWARDS_RESERVE   = 10_000_000 * 10 ** 18;
+    uint256 public constant MARKETING_ALLOCATION      =  4_000_000 * 10 ** 18;
+    uint256 public constant FARMING_REWARDS_RESERVE   =  3_000_000 * 10 ** 18;
+    uint256 public constant ADVISORS_ALLOCATION       =  1_000_000 * 10 ** 18;
+    uint256 public constant RESERVE_ALLOCATION        =  1_000_000 * 10 ** 18;
 
     // ── Withdrawal security ───────────────────────────────────────────────
-    uint256 public constant MAX_SINGLE_WITHDRAWAL  = 100 ether;  // audit #42, #60
-    uint256 public constant WITHDRAWAL_COOLDOWN    = 1 hours;    // audit #42
-    uint256 public constant MAX_PRICE_CHANGE_PERCENT = 50;       // audit #78
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // ENUMS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    enum UserTier           { RETAIL, ENTERPRISE }
-    enum RetailActivityType { FLIGHT, CAR_TRAVEL, HOME_ENERGY, GENERAL }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // STRUCTS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    struct EnterpriseOffset {
-        string  projectId;
-        uint256 carbonTons;
-        string  mrvHash;
-        address verifier;
-        bool    requiresWaiver;
-        bool    waiverConfirmed;
-        uint256 timestamp;
-    }
-
-    struct RetailOffset {
-        RetailActivityType activityType;
-        uint256 carbonTons;
-        string  description;
-        uint256 timestamp;
-        bool    autoApproved;
-    }
-
-    struct UserProfile {
-        UserTier tier;
-        bool     acceptedRetailTerms;
-        uint256  totalCarbonOffset;
-        address  referrer;
-        bool     hasReferrer;
-        bool     hasReceivedReferralBonus;
-        bool     hasMintedBefore;
-    }
-
-    struct RetailMintRecord {
-        uint256 timestamp;
-        uint256 amount;
-    }
+    uint256 public constant MAX_SINGLE_WITHDRAWAL  = 100 ether;
+    uint256 public constant WITHDRAWAL_COOLDOWN    = 1 hours;
+    uint256 public constant MAX_DAILY_WITHDRAWAL   = 1000 ether;
 
     // ═══════════════════════════════════════════════════════════════════════
     // STATE
     // ═══════════════════════════════════════════════════════════════════════
 
-    // -- Carbon offset --
-    mapping(address => UserProfile)          public userProfiles;
-    mapping(address => EnterpriseOffset[])   public enterpriseOffsets;
-    mapping(address => RetailOffset[])       public retailOffsets;
-    mapping(address => RetailMintRecord[])   private retailMintHistory;
-
-    uint256 public totalCarbonOffset;
-    uint256 public totalRetailOffset;
-    uint256 public totalEnterpriseOffset;
-
-    bool    public retailMintingEnabled = true;
-    mapping(RetailActivityType => uint256) public retailPricePerTon;
-
-    // -- Referral --
-    mapping(address => address[]) public referrals;
-    mapping(address => uint256)   public referralRewards;
-    uint256 public totalReferralRewards;
-    uint256 public ambassadorPoolRemaining;
-
-    // -- Distribution wallets --
+    // Distribution wallets
     address public carbonRewardsWallet;
     address public communityWallet;
     address public developmentWallet;
@@ -186,59 +79,49 @@ contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, Re
     address public advisorsWallet;
     address public reserveWallet;
 
-    // -- ETH withdrawal security --
+    // POL withdrawal security
     uint256 public lastWithdrawalTime;
     uint256 public withdrawnInPeriod;
     uint256 public withdrawalPeriodStart;
 
-    // -- External contract addresses (set once via initializeContracts) --
+    // External contract addresses
     address public stakingContract;
     address public farmingContract;
     bool    public contractsInitialized;
 
-    // -- NFT integration (optional; wired post-deploy via setNFTContracts) --
-    ICarbonCreditNFT public carbonCreditNFT;
-    ICertificateNFT  public certificateNFT;
+    // Fee Distribution
+    uint256 public transferFeeBps = 0;
+    address public feeRecipient;
+    address public paymentRecipient;
+    mapping(address => bool) public feeExempt;
+    uint256 public constant MAX_TRANSFER_FEE = 500; // 5%
 
-    // -- Chainlink Oracle (optional; set via setPriceFeed) ─────────────────
-    AggregatorV3Interface public priceFeed;   // POL/USD feed
-    bool  public oracleEnabled;               // if false, use manual prices
-    uint256 public stalePriceThreshold = 1 hours; // reject prices older than this
-
-    // -- Fee Distribution ──────────────────────────────────────────────────
-    uint256 public transferFeeBps = 0;         // transfer fee in basis points (0 = disabled)
-    address public feeRecipient;               // address receiving transfer fees
-    address public paymentRecipient;           // stored recipient for ETH withdrawals (B8 fix)
-    mapping(address => bool) public feeExempt; // wallets exempt from transfer fee
-    uint256 public constant MAX_TRANSFER_FEE = 500; // 5% max fee
-    uint256 public constant MAX_DAILY_WITHDRAWAL = 1000 ether; // daily ETH withdrawal cap (audit #60)
-    // milestone thresholds (tonnes): 1, 10, 100, 1000
-    mapping(address => mapping(uint256 => bool)) public milestoneAwarded;
+    // RT-4: Transfer fee timelock
+    uint256 public constant FEE_CHANGE_DELAY = 48 hours;
+    struct PendingFeeChange {
+        uint256 feeBps;
+        address feeRecipient;
+        uint256 effectiveTime;
+        bool    pending;
+    }
+    PendingFeeChange public pendingFeeChange;
 
     // ═══════════════════════════════════════════════════════════════════════
     // EVENTS
     // ═══════════════════════════════════════════════════════════════════════
 
-    event RetailTermsAccepted(address indexed user, uint256 timestamp);
-    event RetailOffsetMinted(address indexed user, uint256 carbonTons, RetailActivityType activityType, uint256 tokenAmount);
-    event EnterpriseOffsetMinted(address indexed user, uint256 carbonTons, string projectId, uint256 tokenAmount);
-    event RetailMintingToggled(bool enabled);
-    event RetailPriceUpdated(RetailActivityType activityType, uint256 pricePerTon);
-    event ReferralRegistered(address indexed referee, address indexed referrer);
-    event ReferralRewardPaid(address indexed referrer, address indexed referee, uint256 amount);
     event WalletUpdated(string walletType, address indexed newWallet);
     event PaymentsWithdrawn(address indexed to, uint256 amount);
     event EmergencyWithdrawal(address indexed to, uint256 amount);
     event CircuitBreakerTriggered(address indexed triggeredBy, uint256 timestamp);
     event CircuitBreakerReset(address indexed resetBy, uint256 timestamp);
     event ContractsInitialized(address indexed staking, address indexed farming);
-    event NFTContractsSet(address indexed carbonNFT, address indexed certNFT);
-    event PriceFeedSet(address indexed feed, bool enabled);
-    event StalePriceThresholdUpdated(uint256 newThreshold);
     event TransferFeeUpdated(uint256 newFeeBps, address feeRecipient);
     event FeeExemptUpdated(address indexed account, bool exempt);
-    event CarbonNFTAutoMinted(address indexed user, uint256 indexed nftTokenId, uint256 carbonTons);
-    event MilestoneAwarded(address indexed user, uint256 milestone, uint256 nftTokenId);
+    event TransferFeeChangeProposed(uint256 feeBps, address feeRecipient, uint256 effectiveTime);
+    event TransferFeeChangeCancelled(uint256 feeBps, address feeRecipient);
+    event TransferFeeChangeExecuted(uint256 feeBps, address feeRecipient);
+    event Deposit(address indexed sender, uint256 amount);
 
     // ═══════════════════════════════════════════════════════════════════════
     // CUSTOM ERRORS
@@ -246,14 +129,8 @@ contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, Re
 
     error InvalidAddress();
     error ExceedsMaxSupply();
-    error DailyLimitExceeded();
     error WithdrawalCooldownActive();
     error ExceedsMaxWithdrawal();
-    error ReferrerNotQualified();
-    error AlreadyHasReferrer();
-    error CannotReferSelf();
-    error MaxReferralsReached();
-    error PriceChangeTooDrastic();
     error ContractsAlreadyInitialized();
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -280,6 +157,12 @@ contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, Re
         if (_reserveWallet       == address(0)) revert InvalidAddress();
         if (_carbonRewardsWallet == address(this)) revert InvalidAddress();
         if (_communityWallet     == address(this)) revert InvalidAddress();
+        if (_developmentWallet   == address(this)) revert InvalidAddress();
+        if (_marketingWallet     == address(this)) revert InvalidAddress();
+        if (_liquidityWallet     == address(this)) revert InvalidAddress();
+        if (_teamWallet          == address(this)) revert InvalidAddress();
+        if (_advisorsWallet      == address(this)) revert InvalidAddress();
+        if (_reserveWallet       == address(this)) revert InvalidAddress();
 
         carbonRewardsWallet = _carbonRewardsWallet;
         communityWallet     = _communityWallet;
@@ -290,54 +173,61 @@ contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, Re
         advisorsWallet      = _advisorsWallet;
         reserveWallet       = _reserveWallet;
 
-        paymentRecipient = msg.sender;             // default; update via setPaymentRecipient()
+        paymentRecipient = msg.sender;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE,         msg.sender);
         _grantRole(MINTER_ROLE,        msg.sender);
         _grantRole(PAUSER_ROLE,        msg.sender);
-        _grantRole(VERIFIER_ROLE,      msg.sender);
-        _grantRole(RETAIL_MINTER_ROLE, msg.sender);
 
-        // ── Mint to external wallets ───────────────────────────────────────
-        _mint(_carbonRewardsWallet, CARBON_REWARDS_ALLOCATION); // 25 M
-        _mint(_communityWallet,     COMMUNITY_ALLOCATION);      // 18 M
-        _mint(_developmentWallet,   DEVELOPMENT_ALLOCATION);    // 13 M
-        _mint(_liquidityWallet,     LIQUIDITY_ALLOCATION);      // 10 M
-        _mint(_teamWallet,          TEAM_ALLOCATION);           // 15 M
-        _mint(_marketingWallet,     MARKETING_ALLOCATION);      //  4 M
-        _mint(_advisorsWallet,      ADVISORS_ALLOCATION);       //  1 M
-        _mint(_reserveWallet,       RESERVE_ALLOCATION);        //  1 M
+        _mint(_carbonRewardsWallet, CARBON_REWARDS_ALLOCATION);
+        _mint(_communityWallet,     COMMUNITY_ALLOCATION);
+        _mint(_developmentWallet,   DEVELOPMENT_ALLOCATION);
+        _mint(_liquidityWallet,     LIQUIDITY_ALLOCATION);
+        _mint(_teamWallet,          TEAM_ALLOCATION);
+        _mint(_marketingWallet,     MARKETING_ALLOCATION);
+        _mint(_advisorsWallet,      ADVISORS_ALLOCATION);
+        _mint(_reserveWallet,       RESERVE_ALLOCATION);
 
-        // ── Reserves held here until initializeContracts() is called ──────
-        _mint(address(this), STAKING_REWARDS_RESERVE);  // 10 M → ECCStaking
-        _mint(address(this), FARMING_REWARDS_RESERVE);  //  3 M → ECCFarming
-        // totalSupply() == 100 M ✓
+        _mint(address(this), STAKING_REWARDS_RESERVE);
+        _mint(address(this), FARMING_REWARDS_RESERVE);
 
-        ambassadorPoolRemaining = AMBASSADOR_POOL_ALLOCATION;
+        feeExempt[address(this)] = true;
 
-        retailPricePerTon[RetailActivityType.FLIGHT]      = 0.01 ether;
-        retailPricePerTon[RetailActivityType.CAR_TRAVEL]  = 0.005 ether;
-        retailPricePerTon[RetailActivityType.HOME_ENERGY] = 0.008 ether;
-        retailPricePerTon[RetailActivityType.GENERAL]     = 0.01 ether;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // EXTERNAL MINT (for ECCCarbonOffset module)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * @notice Mint new ECC tokens. Only callable by MINTER_ROLE holders
+     *         (ECCCarbonOffset contract, admin for setup).
+     * @param to     Recipient address
+     * @param amount Amount to mint (18 decimals)
+     */
+    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
+        if (totalSupply() + amount > MAX_SUPPLY) revert ExceedsMaxSupply();
+        _mint(to, amount);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
     // ONE-TIME INITIALIZATION
     // ═══════════════════════════════════════════════════════════════════════
 
-    /**
-     * @notice Push staking and farming reserve pools to their respective contracts.
-     * @dev Call once after deploying ECCStaking and ECCFarming.
-     *      Then call syncPoolBalance() on both external contracts.
-     */
     function initializeContracts(address _staking, address _farming)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
+        external onlyRole(DEFAULT_ADMIN_ROLE)
     {
         if (contractsInitialized) revert ContractsAlreadyInitialized();
         if (_staking == address(0)) revert InvalidAddress();
         if (_farming == address(0)) revert InvalidAddress();
+        require(_staking.code.length > 0, "Staking not contract");
+        require(_farming.code.length > 0, "Farming not contract");
+
+        (bool okStaking,) = _staking.staticcall(abi.encodeWithSignature("poolSynced()"));
+        require(okStaking, "Staking: invalid interface");
+        (bool okFarming,) = _farming.staticcall(abi.encodeWithSignature("poolSynced()"));
+        require(okFarming, "Farming: invalid interface");
 
         contractsInitialized = true;
         stakingContract      = _staking;
@@ -350,271 +240,54 @@ contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, Re
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // RETAIL CARBON OFFSET MINTING
-    // ═══════════════════════════════════════════════════════════════════════
-
-    function acceptRetailTerms() external {
-        userProfiles[msg.sender].acceptedRetailTerms = true;
-        emit RetailTermsAccepted(msg.sender, block.timestamp);
-    }
-
-    /**
-     * @notice Mint ECC by paying ETH for a retail carbon offset activity.
-     * @param activityType  FLIGHT, CAR_TRAVEL, HOME_ENERGY, or GENERAL
-     * @param carbonTons    Tonnes of CO₂ to offset (determines token amount and payment)
-     * @param description   Free-text description of the activity
-     */
-    function mintRetailOffset(
-        RetailActivityType activityType,
-        uint256 carbonTons,
-        string memory description
-    ) external payable nonReentrant whenNotPaused {
-        UserProfile storage profile = userProfiles[msg.sender];
-
-        require(retailMintingEnabled, "Retail minting disabled");
-        require(profile.acceptedRetailTerms, "Must accept terms");
-
-        uint256 tokenAmount = carbonTons * EMISSION_RATE_PER_TON;
-        require(tokenAmount <= RETAIL_MAX_PER_TRANSACTION, "Exceeds per-transaction limit");
-
-        _checkRolling24HourLimit(msg.sender, tokenAmount);
-
-        uint256 requiredPayment = carbonTons * retailPricePerTon[activityType];
-        require(msg.value >= requiredPayment, "Insufficient payment");
-
-        if (totalSupply() + tokenAmount > MAX_SUPPLY) revert ExceedsMaxSupply();
-
-        profile.tier              = UserTier.RETAIL;
-        profile.totalCarbonOffset += carbonTons;
-        profile.hasMintedBefore   = true;
-
-        retailMintHistory[msg.sender].push(RetailMintRecord({
-            timestamp: block.timestamp,
-            amount:    tokenAmount
-        }));
-
-        totalCarbonOffset += carbonTons;
-        totalRetailOffset += carbonTons;
-
-        retailOffsets[msg.sender].push(RetailOffset({
-            activityType: activityType,
-            carbonTons:   carbonTons,
-            description:  description,
-            timestamp:    block.timestamp,
-            autoApproved: true
-        }));
-
-        _mint(msg.sender, tokenAmount);
-        _payReferralReward(msg.sender, tokenAmount);
-        _tryMintCarbonNFT(msg.sender, carbonTons, _activityTypeStr(activityType), "Retail");
-        _tryAwardMilestones(msg.sender);
-
-        emit RetailOffsetMinted(msg.sender, carbonTons, activityType, tokenAmount);
-    }
-
-    function _checkRolling24HourLimit(address user, uint256 newAmount) private view {
-        uint256 cutoff   = block.timestamp - 24 hours;
-        uint256 total24h = 0;
-
-        RetailMintRecord[] storage history = retailMintHistory[user];
-        uint256 len        = history.length;
-        // Security: bound loop to last N entries to prevent DoS (audit #8)
-        uint256 startIndex = len > MAX_MINT_HISTORY_ENTRIES ? len - MAX_MINT_HISTORY_ENTRIES : 0;
-
-        for (uint256 i = startIndex; i < len; i++) {
-            if (history[i].timestamp >= cutoff) {
-                total24h += history[i].amount;
-            }
-        }
-        if (total24h + newAmount > RETAIL_DAILY_LIMIT) revert DailyLimitExceeded();
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // ENTERPRISE CARBON OFFSET MINTING
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /**
-     * @notice Mint ECC for a verified enterprise carbon project (MRV-backed).
-     * @param to         Recipient of the minted tokens
-     * @param projectId  Verra / Gold Standard project ID
-     * @param carbonTons Verified tonnes of CO₂ sequestered
-     * @param mrvHash    IPFS hash of the MRV report
-     */
-    function mintEnterpriseOffset(
-        address to,
-        string calldata projectId,
-        uint256 carbonTons,
-        string calldata mrvHash
-    ) external onlyRole(MINTER_ROLE) nonReentrant whenNotPaused returns (uint256) {
-        if (to == address(0)) revert InvalidAddress();
-        require(carbonTons > 0, "Zero carbon tons");
-
-        uint256 tokenAmount = carbonTons * EMISSION_RATE_PER_TON;
-        if (totalSupply() + tokenAmount > MAX_SUPPLY) revert ExceedsMaxSupply();
-
-        UserProfile storage profile = userProfiles[to];
-        profile.tier               = UserTier.ENTERPRISE;
-        profile.totalCarbonOffset += carbonTons;
-        profile.hasMintedBefore    = true;
-        totalCarbonOffset         += carbonTons;
-        totalEnterpriseOffset     += carbonTons;
-
-        enterpriseOffsets[to].push(EnterpriseOffset({
-            projectId:       projectId,
-            carbonTons:      carbonTons,
-            mrvHash:         mrvHash,
-            verifier:        msg.sender,
-            requiresWaiver:  true,
-            waiverConfirmed: false,
-            timestamp:       block.timestamp
-        }));
-
-        _mint(to, tokenAmount);
-        _payReferralReward(to, tokenAmount);
-        _tryMintCarbonNFT(to, carbonTons, string(projectId), "Enterprise MRV");
-        _tryAwardMilestones(to);
-
-        emit EnterpriseOffsetMinted(to, carbonTons, projectId, tokenAmount);
-        return tokenAmount;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // REFERRAL SYSTEM
-    // ═══════════════════════════════════════════════════════════════════════
-
-    function registerReferrer(address referrer) external {
-        if (userProfiles[msg.sender].hasReferrer)    revert AlreadyHasReferrer();
-        if (userProfiles[msg.sender].hasMintedBefore) revert("Already minted");
-        if (referrer == msg.sender)                  revert CannotReferSelf();
-        if (referrer == address(0))                  revert InvalidAddress();
-        // Security: cap referrals per user to prevent Sybil attacks (audit #55, #74)
-        if (referrals[referrer].length >= MAX_REFERRALS_PER_USER) revert MaxReferralsReached();
-
-        if (balanceOf(referrer) < MIN_REFERRER_BALANCE &&
-            userProfiles[referrer].totalCarbonOffset == 0) {
-            revert ReferrerNotQualified();
-        }
-
-        userProfiles[msg.sender].referrer    = referrer;
-        userProfiles[msg.sender].hasReferrer = true;
-        referrals[referrer].push(msg.sender);
-
-        emit ReferralRegistered(msg.sender, referrer);
-    }
-
-    function _payReferralReward(address referee, uint256 mintAmount) private {
-        UserProfile storage profile = userProfiles[referee];
-        if (profile.hasReceivedReferralBonus) return;
-        if (!profile.hasReferrer) return;
-
-        address referrer = profile.referrer;
-        uint256 reward   = (mintAmount * REFERRAL_REWARD_RATE) / 100;
-        if (reward > ambassadorPoolRemaining) return;
-
-        ambassadorPoolRemaining           -= reward;
-        referralRewards[referrer]         += reward;
-        totalReferralRewards              += reward;
-        profile.hasReceivedReferralBonus   = true;
-
-        if (totalSupply() + reward <= MAX_SUPPLY) {
-            _mint(referrer, reward);
-            emit ReferralRewardPaid(referrer, referee, reward);
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
     // ADMIN FUNCTIONS
     // ═══════════════════════════════════════════════════════════════════════
 
-    function toggleRetailMinting(bool enabled) external onlyRole(ADMIN_ROLE) {
-        retailMintingEnabled = enabled;
-        emit RetailMintingToggled(enabled);
-    }
-
-    function updateRetailPrice(RetailActivityType activityType, uint256 pricePerTon)
-        external
-        onlyRole(ADMIN_ROLE)
-    {
-        uint256 currentPrice = retailPricePerTon[activityType];
-        // Security: prevent drastic price manipulation (audit #78)
-        if (currentPrice > 0) {
-            uint256 priceDiff = pricePerTon > currentPrice
-                ? pricePerTon - currentPrice
-                : currentPrice - pricePerTon;
-            if ((priceDiff * 100) / currentPrice > MAX_PRICE_CHANGE_PERCENT)
-                revert PriceChangeTooDrastic();
-        }
-        retailPricePerTon[activityType] = pricePerTon;
-        emit RetailPriceUpdated(activityType, pricePerTon);
-    }
-
-    /// @notice Withdraw ETH collected from retail minting payments.
-    /// Sends to the stored paymentRecipient — not an arbitrary parameter (B8 fix).
     function withdrawPayments(uint256 amount)
-        external
-        onlyRole(ADMIN_ROLE)
-        nonReentrant
+        external onlyRole(ADMIN_ROLE) nonReentrant
     {
-        // Security: validate amount before any state changes
         require(amount > 0, "Zero amount");
-
-        // Security: cooldown between withdrawals (audit #42)
         if (block.timestamp < lastWithdrawalTime + WITHDRAWAL_COOLDOWN)
             revert WithdrawalCooldownActive();
-
-        // Security: cap single withdrawal (audit #42, #60)
         if (amount > MAX_SINGLE_WITHDRAWAL) revert ExceedsMaxWithdrawal();
 
         uint256 bal = address(this).balance;
         require(bal >= amount, "Insufficient balance");
 
-        // Security: reset daily counter (audit #60 — bank run protection)
         if (block.timestamp > withdrawalPeriodStart + 1 days) {
             withdrawalPeriodStart = block.timestamp;
             withdrawnInPeriod     = 0;
         }
 
-        // Security: enforce per-period withdrawal cap (audit #60)
         uint256 newWithdrawnInPeriod = withdrawnInPeriod + amount;
-        if (newWithdrawnInPeriod < withdrawnInPeriod) revert(); // overflow guard
         require(newWithdrawnInPeriod <= MAX_DAILY_WITHDRAWAL, "Exceeds daily withdrawal limit");
         withdrawnInPeriod = newWithdrawnInPeriod;
 
-        // Security: update state BEFORE external call (CEI pattern)
         lastWithdrawalTime = block.timestamp;
 
-        // Security: recipient is stored address, not caller-supplied (B8 fix)
         address payable recipient = payable(paymentRecipient);
         if (recipient == address(0)) revert InvalidAddress();
 
-        // Security: check return value of call() — B8 core fix
         (bool success, bytes memory returnData) = recipient.call{value: amount}("");
         if (!success) {
-            // Bubble up revert reason if present, otherwise use generic message
             if (returnData.length > 0) {
-                assembly {
-                    revert(add(32, returnData), mload(returnData))
-                }
+                assembly { revert(add(32, returnData), mload(returnData)) }
             }
-            revert("ETH transfer failed");
+            revert("POL transfer failed");
         }
 
         emit PaymentsWithdrawn(recipient, amount);
     }
 
-    /// @notice Emergency ETH drain — DEFAULT_ADMIN_ROLE only (audit #47).
-    /// Sends to the stored paymentRecipient — not an arbitrary parameter (B8 fix).
     function emergencyWithdrawAll()
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-        nonReentrant
+        external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant whenPaused
     {
         uint256 bal = address(this).balance;
         require(bal > 0, "No balance");
         address payable to = payable(paymentRecipient);
-        emit EmergencyWithdrawal(to, bal);
         (bool success, ) = to.call{value: bal}("");
         require(success, "Transfer failed");
+        emit EmergencyWithdrawal(to, bal);
     }
 
     function pause() external onlyRole(PAUSER_ROLE) {
@@ -629,52 +302,37 @@ contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, Re
 
     // ── Wallet updates ────────────────────────────────────────────────────
 
-    function updateCarbonRewardsWallet(address newWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (newWallet == address(0) || newWallet == address(this)) revert InvalidAddress();
-        carbonRewardsWallet = newWallet;
-        emit WalletUpdated("carbonRewards", newWallet);
+    function updateCarbonRewardsWallet(address w) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (w == address(0) || w == address(this)) revert InvalidAddress();
+        carbonRewardsWallet = w; emit WalletUpdated("carbonRewards", w);
     }
-
-    function updateCommunityWallet(address newWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (newWallet == address(0)) revert InvalidAddress();
-        communityWallet = newWallet;
-        emit WalletUpdated("community", newWallet);
+    function updateCommunityWallet(address w) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (w == address(0) || w == address(this)) revert InvalidAddress();
+        communityWallet = w; emit WalletUpdated("community", w);
     }
-
-    function updateDevelopmentWallet(address newWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (newWallet == address(0)) revert InvalidAddress();
-        developmentWallet = newWallet;
-        emit WalletUpdated("development", newWallet);
+    function updateDevelopmentWallet(address w) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (w == address(0) || w == address(this)) revert InvalidAddress();
+        developmentWallet = w; emit WalletUpdated("development", w);
     }
-
-    function updateMarketingWallet(address newWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (newWallet == address(0)) revert InvalidAddress();
-        marketingWallet = newWallet;
-        emit WalletUpdated("marketing", newWallet);
+    function updateMarketingWallet(address w) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (w == address(0) || w == address(this)) revert InvalidAddress();
+        marketingWallet = w; emit WalletUpdated("marketing", w);
     }
-
-    function updateLiquidityWallet(address newWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (newWallet == address(0)) revert InvalidAddress();
-        liquidityWallet = newWallet;
-        emit WalletUpdated("liquidity", newWallet);
+    function updateLiquidityWallet(address w) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (w == address(0) || w == address(this)) revert InvalidAddress();
+        liquidityWallet = w; emit WalletUpdated("liquidity", w);
     }
-
-    function updateTeamWallet(address newWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (newWallet == address(0)) revert InvalidAddress();
-        teamWallet = newWallet;
-        emit WalletUpdated("team", newWallet);
+    function updateTeamWallet(address w) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (w == address(0) || w == address(this)) revert InvalidAddress();
+        teamWallet = w; emit WalletUpdated("team", w);
     }
-
-    function updateAdvisorsWallet(address newWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (newWallet == address(0)) revert InvalidAddress();
-        advisorsWallet = newWallet;
-        emit WalletUpdated("advisors", newWallet);
+    function updateAdvisorsWallet(address w) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (w == address(0) || w == address(this)) revert InvalidAddress();
+        advisorsWallet = w; emit WalletUpdated("advisors", w);
     }
-
-    function updateReserveWallet(address newWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (newWallet == address(0)) revert InvalidAddress();
-        reserveWallet = newWallet;
-        emit WalletUpdated("reserve", newWallet);
+    function updateReserveWallet(address w) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (w == address(0) || w == address(this)) revert InvalidAddress();
+        reserveWallet = w; emit WalletUpdated("reserve", w);
     }
 
     // ── Role management ───────────────────────────────────────────────────
@@ -682,159 +340,74 @@ contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, Re
     function grantMinterRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _grantRole(MINTER_ROLE, account);
     }
-
     function revokeMinterRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _revokeRole(MINTER_ROLE, account);
     }
 
-    function grantRetailMinterRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _grantRole(RETAIL_MINTER_ROLE, account);
-    }
+    // ── Payment recipient ─────────────────────────────────────────────────
 
-    /**
-     * @notice Wire CarbonCreditNFT and CertificateNFT for auto-minting.
-     * @dev Call after deploying NFT contracts. Pass address(0) to disable either.
-     */
-    function setNFTContracts(address _carbonNFT, address _certNFT)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
+    function setPaymentRecipient(address payable recipient)
+        external onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        carbonCreditNFT = ICarbonCreditNFT(_carbonNFT);
-        certificateNFT  = ICertificateNFT(_certNFT);
-        emit NFTContractsSet(_carbonNFT, _certNFT);
+        if (recipient == address(0)) revert InvalidAddress();
+        paymentRecipient = recipient;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // CHAINLINK ORACLE
+    // FEE DISTRIBUTION
     // ═══════════════════════════════════════════════════════════════════════
 
-    /**
-     * @notice Set Chainlink price feed for POL/USD.
-     * @param feed    Address of AggregatorV3Interface (pass address(0) to disable)
-     * @param enabled Enable or disable oracle-based pricing
-     */
-    function setPriceFeed(address feed, bool enabled)
+    function setFeeExempt(address account, bool exempt)
         external onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        priceFeed      = AggregatorV3Interface(feed);
-        oracleEnabled  = (feed != address(0)) && enabled;
-        emit PriceFeedSet(feed, oracleEnabled);
+        feeExempt[account] = exempt;
+        emit FeeExemptUpdated(account, exempt);
     }
 
-    function setStalePriceThreshold(uint256 threshold)
+    // RT-4: Transfer fee changes require 48h timelock
+    function proposeTransferFee(uint256 feeBps, address _feeRecipient)
         external onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        require(threshold >= 1 minutes, "Threshold too low");
-        stalePriceThreshold = threshold;
-        emit StalePriceThresholdUpdated(threshold);
+        require(feeBps <= MAX_TRANSFER_FEE, "Fee too high");
+        require(_feeRecipient != address(0) || feeBps == 0, "Zero recipient");
+        uint256 effectiveTime = block.timestamp + FEE_CHANGE_DELAY;
+        pendingFeeChange = PendingFeeChange({
+            feeBps:        feeBps,
+            feeRecipient:  _feeRecipient,
+            effectiveTime: effectiveTime,
+            pending:       true
+        });
+        emit TransferFeeChangeProposed(feeBps, _feeRecipient, effectiveTime);
     }
 
-    /**
-     * @notice Get latest POL/USD price from Chainlink.
-     * @return price  USD price with 8 decimals (e.g. 9700000 = $0.097)
-     * @return valid  false if oracle disabled or price is stale
-     */
-    function getLatestPrice() public view returns (int256 price, bool valid) {
-        if (!oracleEnabled || address(priceFeed) == address(0)) {
-            return (0, false);
-        }
-        try priceFeed.latestRoundData() returns (
-            uint80, int256 answer, uint256, uint256 updatedAt, uint80
-        ) {
-            if (answer <= 0) return (0, false);
-            if (block.timestamp - updatedAt > stalePriceThreshold) return (0, false);
-            return (answer, true);
-        } catch {
-            return (0, false);
-        }
+    function executeTransferFee() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        PendingFeeChange storage p = pendingFeeChange;
+        require(p.pending, "No pending change");
+        require(block.timestamp >= p.effectiveTime, "Timelock not expired");
+        transferFeeBps = p.feeBps;
+        feeRecipient   = p.feeRecipient;
+        p.pending      = false;
+        emit TransferFeeChangeExecuted(p.feeBps, p.feeRecipient);
+        emit TransferFeeUpdated(p.feeBps, p.feeRecipient);
     }
 
-    /**
-     * @notice Convert USD amount (8 decimals) to POL (18 decimals).
-     *         Falls back to manual price if oracle unavailable.
-     * @param usdAmount   Amount in USD with 8 decimals (e.g. 100000000 = $1)
-     * @param fallbackWei Manual fallback price in wei per USD unit
-     */
-    function usdToNative(uint256 usdAmount, uint256 fallbackWei)
-        public view returns (uint256 nativeAmount)
-    {
-        (int256 price, bool valid) = getLatestPrice();
-        if (valid && price > 0) {
-            // price has 8 decimals: nativeAmount = usdAmount * 1e18 / price
-            nativeAmount = (usdAmount * 1e18) / uint256(price);
-        } else {
-            nativeAmount = fallbackWei;
-        }
+    function cancelTransferFeeChange() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        PendingFeeChange storage p = pendingFeeChange;
+        require(p.pending, "No pending change");
+        emit TransferFeeChangeCancelled(p.feeBps, p.feeRecipient);
+        p.pending = false;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
     // VIEW FUNCTIONS
     // ═══════════════════════════════════════════════════════════════════════
 
-    function getUserProfile(address user) external view returns (
-        UserTier tier,
-        bool     acceptedRetailTerms,
-        uint256  userTotalCarbonOffset,
-        uint256  retailOffsetsCount,
-        uint256  enterpriseOffsetsCount,
-        address  referrer,
-        bool     hasReferrer
-    ) {
-        UserProfile memory p = userProfiles[user];
-        return (
-            p.tier,
-            p.acceptedRetailTerms,
-            p.totalCarbonOffset,
-            retailOffsets[user].length,
-            enterpriseOffsets[user].length,
-            p.referrer,
-            p.hasReferrer
-        );
-    }
-
-    function getPlatformStats() external view returns (
-        uint256 circulatingSupply,
-        uint256 totalCO2Offset,
-        uint256 retailOffsetTotal,
-        uint256 enterpriseOffsetTotal,
-        uint256 percentageOfMaxSupply,
-        uint256 totalReferralRewardsPaid
-    ) {
-        return (
-            totalSupply(),
-            totalCarbonOffset,
-            totalRetailOffset,
-            totalEnterpriseOffset,
-            (totalSupply() * 100) / MAX_SUPPLY,
-            totalReferralRewards
-        );
-    }
-
-    function getReferralStats(address user) external view returns (
-        uint256 totalRefs,
-        uint256 totalRewardsEarned
-    ) {
-        return (referrals[user].length, referralRewards[user]);
-    }
-
-    function getUserReferrals(address user)      external view returns (address[] memory) {
-        return referrals[user];
-    }
-
-    function getRetailOffsets(address user)      external view returns (RetailOffset[] memory) {
-        return retailOffsets[user];
-    }
-
-    function getEnterpriseOffsets(address user)  external view returns (EnterpriseOffset[] memory) {
-        return enterpriseOffsets[user];
-    }
-
-    function getRemainingMintableSupply()        external view returns (uint256) {
+    function getRemainingMintableSupply() external view returns (uint256) {
         return MAX_SUPPLY - totalSupply();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // ERC20 OVERRIDES  (required by Solidity multiple inheritance)
+    // ERC-20 OVERRIDES (OpenZeppelin 4.9.6)
     // ═══════════════════════════════════════════════════════════════════════
 
     function _beforeTokenTransfer(address from, address to, uint256 amount)
@@ -861,7 +434,6 @@ contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, Re
         super._burn(from, amount);
     }
 
-    // ── Fee Distribution: override _transfer ──────────────────────────────
     function _transfer(address from, address to, uint256 amount)
         internal override
     {
@@ -882,118 +454,7 @@ contract ECCToken is ERC20Pausable, AccessControl, ERC20Burnable, ERC20Votes, Re
         super._transfer(from, to, amount);
     }
 
-    // ── Fee Distribution: admin setters ───────────────────────────────────
-    /// @notice Update the stored ETH payment recipient (B8 fix).
-    function setPaymentRecipient(address payable recipient)
-        external onlyRole(DEFAULT_ADMIN_ROLE)
-    {
-        if (recipient == address(0)) revert InvalidAddress();
-        paymentRecipient = recipient;
+    receive() external payable {
+        emit Deposit(msg.sender, msg.value);
     }
-
-    function setFeeExempt(address account, bool exempt)
-        external onlyRole(DEFAULT_ADMIN_ROLE)
-    {
-        feeExempt[account] = exempt;
-        emit FeeExemptUpdated(account, exempt);
-    }
-
-    function setTransferFee(uint256 feeBps, address _feeRecipient)
-        external onlyRole(DEFAULT_ADMIN_ROLE)
-    {
-        require(feeBps <= MAX_TRANSFER_FEE, "Fee too high");
-        require(_feeRecipient != address(0) || feeBps == 0, "Zero recipient");
-        transferFeeBps = feeBps;
-        feeRecipient   = _feeRecipient;
-        emit TransferFeeUpdated(feeBps, _feeRecipient);
-    }
-
-    // ── Ring-buffer for per-user mint history (audit B6 / KVF-010) ──────────
-    uint256 private constant RING_BUFFER_SIZE = 100;
-
-    struct RingBuffer {
-        RetailMintRecord[100] entries;
-        uint256 head;   // next write position (mod RING_BUFFER_SIZE)
-        uint256 count;  // total valid entries, capped at RING_BUFFER_SIZE
-    }
-
-    mapping(address => RingBuffer) private mintBuffer;
-
-    /// @dev Add a mint record to the user's ring buffer (O(1), no unbounded growth).
-    function _addToBuffer(address user, RetailMintRecord memory rec) internal {
-        RingBuffer storage buf = mintBuffer[user];
-        buf.entries[buf.head % RING_BUFFER_SIZE] = rec;
-        buf.head++;
-        if (buf.count < RING_BUFFER_SIZE) buf.count++;
-    }
-
-    /// @dev Read all valid mint records from the user's ring buffer.
-    /// Returns up to RING_BUFFER_SIZE entries in chronological order (oldest first).
-    function _readBuffer(address user) internal view returns (RetailMintRecord[] memory) {
-        RingBuffer storage buf = mintBuffer[user];
-        RetailMintRecord[] memory records = new RetailMintRecord[](buf.count);
-        uint256 startIdx = (buf.head >= buf.count)
-            ? (buf.head - buf.count) % RING_BUFFER_SIZE
-            : 0;
-        for (uint256 i = 0; i < buf.count; i++) {
-            records[i] = buf.entries[(startIdx + i) % RING_BUFFER_SIZE];
-        }
-        return records;
-    }
-
-    function _activityTypeStr(RetailActivityType t) private pure returns (string memory) {
-        if (t == RetailActivityType.FLIGHT)      return "Flight";
-        if (t == RetailActivityType.CAR_TRAVEL)  return "CarTravel";
-        if (t == RetailActivityType.HOME_ENERGY) return "HomeEnergy";
-        return "General";
-    }
-
-    /// @dev Return up to RING_BUFFER_SIZE most-recent mint records for a user.
-    function getMintHistory(address user)
-        external
-        view
-        returns (RetailMintRecord[] memory records)
-    {
-        RingBuffer storage buf = mintBuffer[user];
-        uint256 cnt = buf.count;
-        records = new RetailMintRecord[](cnt);
-        // oldest entry starts at (head - count) mod SIZE
-        uint256 start = (buf.head - cnt) % RING_BUFFER_SIZE;
-        for (uint256 i = 0; i < cnt; i++) {
-            records[i] = buf.entries[(start + i) % RING_BUFFER_SIZE];
-        }
-    }
-
-    /// @dev Try to auto-mint a CarbonCreditNFT when a user offsets carbon.
-    function _tryMintCarbonNFT(
-        address user,
-        uint256 carbonTons,
-        string memory projectId,
-        string memory description
-    ) private {
-        if (address(carbonCreditNFT) == address(0)) return;
-        try carbonCreditNFT.mint(user, carbonTons, projectId, "", description, "", "") returns (uint256 nftTokenId) {
-            emit CarbonNFTAutoMinted(user, nftTokenId, carbonTons);
-        } catch {}
-    }
-
-    /// @dev Try to award milestone CertificateNFTs (1, 10, 100, 1000 tonnes).
-    function _tryAwardMilestones(address user) private {
-        if (address(certificateNFT) == address(0)) return;
-        uint256 total = userProfiles[user].totalCarbonOffset;
-        uint256[4] memory thresholds = [uint256(1), uint256(10), uint256(100), uint256(1000)];
-        for (uint256 i = 0; i < 4; i++) {
-            uint256 t = thresholds[i];
-            if (total >= t && !milestoneAwarded[user][t]) {
-                milestoneAwarded[user][t] = true;
-                try certificateNFT.mintCertificate(
-                    user, 1, t, "milestone", "Carbon offset milestone", ""
-                ) returns (uint256 nftId) {
-                    emit MilestoneAwarded(user, t, nftId);
-                } catch {}
-            }
-        }
-    }
-
-    receive() external payable {}
 }

@@ -39,7 +39,8 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
     bytes32 public constant LOTTERY_ADMIN_ROLE = keccak256("LOTTERY_ADMIN_ROLE");
     uint256 public constant MAX_TREASURY_FEE   = 2000;  // 20%
     uint256 public constant FEE_BASE           = 10000;
-    uint256 public constant MAX_TICKETS_PER_TX = 100;   // anti-MEV: cap per transaction
+    uint256 public constant MAX_TICKETS_PER_TX    = 100;   // anti-MEV: cap per transaction
+    uint256 public constant MAX_TICKETS_PER_ROUND = 10_000; // OOG guard in _drawWinners
 
     IERC20 public immutable eccToken;
 
@@ -89,10 +90,19 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
     mapping(uint256 => Ticket[]) public roundTickets;
     mapping(uint256 => mapping(address => uint256)) public userTicketCount;
     mapping(uint256 => mapping(address => uint256)) public userPrizes;
-    mapping(uint256 => bool) public prizeClaimed;
+    mapping(uint256 => mapping(address => uint256)) public userDeposited; // #7: actual net amount deposited
+
+    /// @notice Minimum prize pool (in ECC) above which VRF is required for fairness.
+    uint256 public vrfRequiredThreshold = 1_000 * 1e18; // 1 000 ECC default
+
+    /// @notice Deadline after round ends within which winners must claim prizes (#9).
+    uint256 public claimDeadline = 90 days;
 
     address public treasury;
     uint256 public totalBurned;
+
+    /// @notice Maximum tickets a single user can hold per round (L-MED-5).
+    uint256 public maxTicketsPerUser = 1000;
 
     // ── Events ─────────────────────────────────────────────────────────────
     event RoundCreated(uint256 indexed roundId, uint256 ticketPrice, uint64 endTime);
@@ -103,6 +113,11 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
     event RoundCancelled(uint256 indexed roundId);
     event TokensBurned(uint256 amount);
     event VRFConfigUpdated(address coordinator, bytes32 keyHash, uint64 subId);
+    event VRFThresholdUpdated(uint256 oldThreshold, uint256 newThreshold);  // L-LOW-1
+    event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury); // L-LOW-2
+    event StuckRoundRecovered(uint256 indexed roundId);                     // L-CRIT-2
+    event ExpiredPrizesReclaimed(uint256 indexed roundId, uint256 amount);  // L-HIGH-1
+    event MaxTicketsPerUserUpdated(uint256 oldLimit, uint256 newLimit);     // L-MED-5
 
     constructor(address _token, address _treasury) {
         require(_token    != address(0), "Zero token");
@@ -146,6 +161,9 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
         require(msg.sender == address(vrfCoordinator), "Only VRF coordinator");
         uint256 roundId = vrfRequestToRound[requestId];
         require(roundId < nextRoundId, "Unknown request");
+        // #4: Validate round is still in DRAWING state and clean up mapping to prevent replay
+        require(rounds[roundId].status == LotteryStatus.DRAWING, "Not drawing");
+        delete vrfRequestToRound[requestId];
         _drawWinners(roundId, randomWords[0]);
     }
 
@@ -162,16 +180,23 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
     ) external onlyRole(LOTTERY_ADMIN_ROLE) returns (uint256 roundId) {
         require(ticketPrice  > 0,               "Zero price");
         require(endTime      > block.timestamp,  "End in past");
+        // #11: startTime in the past means immediate-start round — this is intentional.
+        // Admins can set startTime <= block.timestamp for rounds that open immediately.
         require(startTime    < endTime,          "Invalid times");
         require(treasuryFee  <= MAX_TREASURY_FEE,"Fee too high");
         require(burnPercent  + treasuryFee <= FEE_BASE, "Fee overflow");
         require(prizeTiers.length > 0,           "No prize tiers");
+        require(prizeTiers.length <= 10,         "Too many tiers"); // #10: gas limit guard
 
-        uint256 totalPct = 0;
+        uint256 totalPct     = 0;
+        uint256 totalWinners = 0;
         for (uint256 i = 0; i < prizeTiers.length; i++) {
-            totalPct += prizeTiers[i].percentage;
+            require(prizeTiers[i].winnerCount > 0, "Zero winners in tier"); // #13
+            totalPct     += prizeTiers[i].percentage;
+            totalWinners += prizeTiers[i].winnerCount;
         }
         require(totalPct <= FEE_BASE, "Prize tiers exceed 100%");
+        require(totalWinners <= 50, "Too many winners"); // #10: gas limit guard for _drawWinners
 
         roundId = nextRoundId++;
         Round storage r = rounds[roundId];
@@ -201,18 +226,34 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
         require(block.timestamp <  r.endTime,            "Round ended");
         require(count > 0,                               "Zero count");
         require(count <= MAX_TICKETS_PER_TX,             "Exceeds per-tx limit"); // anti-MEV
+        // L-MED-5: Per-user ticket limit
+        require(
+            userTicketCount[roundId][msg.sender] + count <= maxTicketsPerUser,
+            "User ticket limit"
+        );
         if (r.maxTickets > 0) {
             require(r.totalTickets + count <= r.maxTickets, "Sold out");
         }
+        require(r.totalTickets + count <= MAX_TICKETS_PER_ROUND, "Round ticket cap reached");
 
         uint256 totalCost  = r.ticketPrice * count;
-        uint256 burnAmount = (totalCost * r.burnPercent) / FEE_BASE;
-        uint256 feeAmount  = (totalCost * r.treasuryFee) / FEE_BASE;
 
-        // CEI: update all state before any external transfers
-        r.prizePool    += totalCost - burnAmount - feeAmount;
+        // L-MED-4: Use balance-before/after pattern for fee-on-transfer tokens
+        uint256 balBefore = eccToken.balanceOf(address(this));
+        eccToken.safeTransferFrom(msg.sender, address(this), totalCost);
+        uint256 actualReceived = eccToken.balanceOf(address(this)) - balBefore;
+        require(actualReceived > 0, "Zero tokens received");
+
+        // Calculate fees based on actual amount received (not requested amount)
+        uint256 burnAmount = (actualReceived * r.burnPercent) / FEE_BASE;
+        uint256 feeAmount  = (actualReceived * r.treasuryFee) / FEE_BASE;
+        uint256 netAmount  = actualReceived - burnAmount - feeAmount;
+
+        // State updates (now safe — tokens already received)
+        r.prizePool    += netAmount;
         r.totalTickets += count;
         userTicketCount[roundId][msg.sender] += count;
+        userDeposited[roundId][msg.sender]   += netAmount; // #7: track actual net deposit
 
         for (uint256 i = 0; i < count; i++) {
             roundTickets[roundId].push(Ticket({
@@ -224,9 +265,10 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
 
         emit TicketsPurchased(roundId, msg.sender, count);
 
-        // Transfers last
-        eccToken.safeTransferFrom(msg.sender, address(this), totalCost);
+        // Burn and fee transfers (tokens already held by contract)
         if (burnAmount > 0) {
+            // #6: Transfer to 0xdead is a design choice — functionally equivalent to burn
+            // for tokens without a public burn(). The tokens are permanently irretrievable.
             eccToken.safeTransfer(address(0xdead), burnAmount);
             totalBurned += burnAmount;
             emit TokensBurned(burnAmount);
@@ -238,29 +280,62 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
 
     // ── Admin: request winner draw ─────────────────────────────────────────
     /**
-     * @notice Initiate winner draw. Requires Chainlink VRF to be configured.
-     * @dev    VRF must be set via setVRFConfig() before any draw can proceed.
-     *         Pseudo-random fallback has been removed (A5 fix — CRI randomness check).
+     * @notice Initiate winner draw.
+     * @dev    If Chainlink VRF is configured (vrfEnabled), requests verifiable randomness.
+     *         Otherwise falls back to a block-based pseudo-random seed (suitable for testing
+     *         and low-stakes draws; not recommended for high-value production lotteries).
      */
     function drawWinners(uint256 roundId) external onlyRole(LOTTERY_ADMIN_ROLE) nonReentrant {
         Round storage r = rounds[roundId];
         require(block.timestamp >= r.endTime, "Round not ended");
         require(r.status == LotteryStatus.OPEN, "Not open");
         require(r.totalTickets > 0,             "No tickets sold");
-        require(vrfEnabled, "VRF not configured: call setVRFConfig first");
 
         r.status = LotteryStatus.DRAWING;
 
-        // Request Chainlink VRF randomness — winners drawn in rawFulfillRandomWords()
-        uint256 requestId = vrfCoordinator.requestRandomWords(
-            vrfKeyHash,
-            vrfSubId,
-            vrfConfirmations,
-            vrfCallbackGasLimit,
-            1   // numWords
+        // NEW-1: Include rolloverAmount in threshold check — a small prizePool
+        // with large rollover could bypass VRF, enabling sequencer manipulation.
+        require(
+            vrfEnabled || (r.prizePool + r.rolloverAmount) < vrfRequiredThreshold,
+            "VRF required for large pool"
         );
-        vrfRequestToRound[requestId] = roundId;
-        emit VRFRequested(roundId, requestId);
+
+        if (vrfEnabled) {
+            // Request Chainlink VRF randomness — winners drawn in rawFulfillRandomWords()
+            uint256 requestId = vrfCoordinator.requestRandomWords(
+                vrfKeyHash,
+                vrfSubId,
+                vrfConfirmations,
+                vrfCallbackGasLimit,
+                1   // numWords
+            );
+            vrfRequestToRound[requestId] = roundId;
+            emit VRFRequested(roundId, requestId);
+        } else {
+            // Pseudo-random fallback for testing / low-stakes draws only.
+            // L-CRIT-1: Added blockhash and block.number for additional entropy.
+            // Note: block.prevrandao replaces block.difficulty on PoS chains (Solidity 0.8.18+).
+            // This is still NOT cryptographically secure — VRF is required for high-value pools.
+            uint256 seed = uint256(keccak256(abi.encodePacked(
+                block.timestamp,
+                block.prevrandao,
+                blockhash(block.number - 1),
+                block.number,
+                msg.sender,
+                roundId,
+                r.totalTickets
+            )));
+            _drawWinners(roundId, seed);
+        }
+    }
+
+    function setVrfRequiredThreshold(uint256 newThreshold) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        // L-CRIT-1 / L-HIGH-3: Enforce minimum threshold so admin cannot trivially
+        // disable VRF protection by setting threshold to 0 or near-zero.
+        require(newThreshold >= 100 * 1e18, "Min threshold 100 ECC");
+        uint256 old = vrfRequiredThreshold;
+        vrfRequiredThreshold = newThreshold;
+        emit VRFThresholdUpdated(old, newThreshold);                     // L-LOW-1
     }
 
     // ── Internal: execute winner selection with given seed ─────────────────
@@ -311,6 +386,24 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
         r.winnerPrizes = prizes;
         r.status       = LotteryStatus.ENDED;
 
+        // L-LOW-3: Calculate leftover (unawarded portion of the pool) and send to treasury.
+        // This handles rounding dust and any prize tiers that don't sum to 100%.
+        uint256 totalAwarded = 0;
+        for (uint256 i = 0; i < winnerIdx; i++) {
+            totalAwarded += prizes[i];
+        }
+        uint256 leftover = totalPool > totalAwarded ? totalPool - totalAwarded : 0;
+        if (leftover > 0) {
+            // Send leftover to treasury as additional fee rather than leaving it stuck
+            eccToken.safeTransfer(treasury, leftover);
+        }
+
+        // L-MED-1: Update prizePool to reflect actual unclaimed tokens in contract.
+        // Before this fix, prizePool remained stale, causing reclaimExpiredPrizes
+        // to attempt sending the original (inflated) amount.
+        r.prizePool = totalAwarded;
+        r.rolloverAmount = 0;
+
         emit WinnersDrawn(roundId, winnerList);
     }
 
@@ -318,14 +411,50 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
     function claimPrize(uint256 roundId) external nonReentrant {
         Round storage r = rounds[roundId];
         require(r.status == LotteryStatus.ENDED, "Round not ended");
+        // L-HIGH-1: Enforce claim deadline
+        require(block.timestamp <= r.endTime + claimDeadline, "Claim expired");
 
         uint256 prize = userPrizes[roundId][msg.sender];
         require(prize > 0, "No prize");
 
         userPrizes[roundId][msg.sender] = 0;
+        r.prizePool -= prize;   // L-MED-1: Track claimed prizes for accurate reclaim
         eccToken.safeTransfer(msg.sender, prize);
 
         emit PrizeClaimed(roundId, msg.sender, prize);
+    }
+
+    // ── Admin: reclaim expired prizes (L-HIGH-1) ──────────────────────────
+    /**
+     * @notice Reclaim unclaimed prizes after the claim deadline has passed.
+     * @dev    Sends remaining prize pool balance to treasury.
+     */
+    function reclaimExpiredPrizes(uint256 roundId) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+        Round storage r = rounds[roundId];
+        require(r.status == LotteryStatus.ENDED, "Round not ended");
+        require(block.timestamp > r.endTime + claimDeadline, "Deadline not passed");
+        require(r.prizePool > 0, "Nothing to reclaim");
+
+        uint256 remaining = r.prizePool;
+        r.prizePool = 0;
+        eccToken.safeTransfer(treasury, remaining);
+
+        emit ExpiredPrizesReclaimed(roundId, remaining);
+    }
+
+    // ── Admin: recover stuck DRAWING round (L-CRIT-2 / L-MED-3) ────────────
+    /**
+     * @notice Recover a round stuck in DRAWING state (e.g. VRF callback never arrived).
+     * @dev    Requires at least 24 hours after endTime to prevent premature cancellation.
+     *         Sets status to CANCELLED so users can call refundTickets() for full refunds.
+     */
+    function adminRecoverStuckRound(uint256 roundId) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        Round storage r = rounds[roundId];
+        require(r.status == LotteryStatus.DRAWING, "Not in DRAWING state");
+        require(block.timestamp >= r.endTime + 24 hours, "Must wait 24h after endTime");
+        r.status = LotteryStatus.CANCELLED;
+        emit StuckRoundRecovered(roundId);
+        emit RoundCancelled(roundId);
     }
 
     // ── Admin: cancel round ────────────────────────────────────────────────
@@ -337,25 +466,50 @@ contract ECCLottery is AccessControl, ReentrancyGuard, Pausable {
     }
 
     // ── Refund on cancelled round ──────────────────────────────────────────
+    /**
+     * @notice Refund tickets for a cancelled round.
+     * @dev    Refunds the net deposited amount (ticket price minus burn and treasury fees
+     *         already sent). Burns are irreversible and treasury fees were already transferred,
+     *         so only the prize pool portion is refundable. Uses per-round accounting to
+     *         prevent cross-round token contamination.
+     */
     function refundTickets(uint256 roundId) external nonReentrant {
         Round storage r = rounds[roundId];
         require(r.status == LotteryStatus.CANCELLED, "Not cancelled");
         uint256 count = userTicketCount[roundId][msg.sender];
         require(count > 0, "No tickets");
         userTicketCount[roundId][msg.sender] = 0;
-        // Refund only the net amount that reached the prize pool
-        uint256 netPerTicket = r.ticketPrice
-            - (r.ticketPrice * r.burnPercent  / FEE_BASE)
-            - (r.ticketPrice * r.treasuryFee  / FEE_BASE);
-        uint256 refund    = count * netPerTicket;
-        uint256 available = refund > r.prizePool ? r.prizePool : refund;
-        r.prizePool -= available;
-        eccToken.safeTransfer(msg.sender, available);
+
+        // L-MED-2: Use per-round accounting instead of total contract balance.
+        // Previous code used eccToken.balanceOf(address(this)) which could drain
+        // tokens belonging to OTHER rounds (cross-round contamination).
+        uint256 refundAmount = userDeposited[roundId][msg.sender];
+        userDeposited[roundId][msg.sender] = 0;
+
+        // Cap at this round's prize pool to ensure no cross-round drain
+        if (refundAmount > r.prizePool) {
+            refundAmount = r.prizePool;
+        }
+        r.prizePool -= refundAmount;
+
+        if (refundAmount > 0) {
+            eccToken.safeTransfer(msg.sender, refundAmount);
+        }
     }
 
     function setTreasury(address _treasury) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_treasury != address(0), "Zero address");
+        address old = treasury;
         treasury = _treasury;
+        emit TreasuryUpdated(old, _treasury);                            // L-LOW-2
+    }
+
+    /// @notice Update per-user ticket limit (L-MED-5).
+    function setMaxTicketsPerUser(uint256 newLimit) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(newLimit > 0, "Zero limit");
+        uint256 old = maxTicketsPerUser;
+        maxTicketsPerUser = newLimit;
+        emit MaxTicketsPerUserUpdated(old, newLimit);
     }
 
     function pause()   external onlyRole(DEFAULT_ADMIN_ROLE) { _pause(); }

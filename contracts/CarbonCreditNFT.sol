@@ -1,34 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-
-// ============================================================
-// Dependency versions (enforced via package.json / npm audit)
-// @openzeppelin/contracts  ^4.9.6   (>=4.9.3, latest safe patch)
-// @chainlink/contracts     ^0.8.0
-// ============================================================
+pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
-import "@openzeppelin/contracts/governance/TimelockController.sol";
-
-// package.json (excerpt — pin in your repo):
-// {
-//   "dependencies": {
-//     "@openzeppelin/contracts": "^4.9.6",
-//     "@chainlink/contracts": "^0.8.0"
-//   },
-//   "scripts": {
-//     "audit": "npm audit --audit-level=high",
-//     "audit:ci": "npm audit --audit-level=high --json | tee audit-report.json"
-//   }
-// }
 
 /// @dev Minimal interface for auto-issuing retirement certificates.
 interface ICertificateNFTForCarbon {
@@ -247,14 +224,14 @@ contract CarbonCreditNFT is ERC1155, AccessControl, Pausable, ReentrancyGuard {
     /// @notice Transfer whitelist for compliance
     mapping(address => bool) public transferWhitelist;
 
-    /// @notice Rate limiting tracking (audit items #81-100)
-    uint256 public mintsThisPeriod;
-    uint256 public mintPeriodStart;
+    /// @notice Per-minter rate limiting tracking (audit items #81-100, L-03 fix)
+    mapping(address => uint256) public mintsThisPeriod;
+    mapping(address => uint256) public mintPeriodStart;
 
-    /// @notice CertificateNFT contract for auto-issuing first-retirement certificates.
+    /// @notice CertificateNFT contract for auto-issuing retirement certificates.
     ICertificateNFTForCarbon public certificateNFT;
-    /// @notice Tracks whether a user has already received their first retirement certificate.
-    mapping(address => bool) public retirementCertIssued;
+    /// @notice CC-04 fix: Counter for retirement certificates issued per user (allows multiple).
+    mapping(address => uint256) public retirementCertCount;
 
     // ═══════════════════════════════════════════════════════════════
     // STRUCTS
@@ -316,6 +293,7 @@ contract CarbonCreditNFT is ERC1155, AccessControl, Pausable, ReentrancyGuard {
     event LargeRetirementDetected(address indexed user, uint256 tokenId, uint256 amount);
     event CertificateNFTSet(address indexed certNFT);
     event RetirementCertAutoIssued(address indexed user, uint256 certTokenId, uint256 carbonTons);
+    event CertificateIssuanceFailed(address indexed user, uint256 tokenId);
 
     // ═══════════════════════════════════════════════════════════════
     // CONSTRUCTOR
@@ -369,8 +347,8 @@ contract CarbonCreditNFT is ERC1155, AccessControl, Pausable, ReentrancyGuard {
         require(bytes(projectId).length > 0, "Invalid project ID");
 
         // Security: Rate limiting check (audit items #81-100)
-        _checkRateLimit();
-        
+        _checkRateLimit(1);
+
         uint256 tokenId = _nextTokenId++;
         
         // Create carbon credit metadata
@@ -418,8 +396,11 @@ contract CarbonCreditNFT is ERC1155, AccessControl, Pausable, ReentrancyGuard {
         // Security: Prevent DoS via unbounded loops (audit item #8 - SWC-113)
         require(amounts.length <= MAX_BATCH_SIZE, "Batch too large");
         
+        // Security: Rate limiting check — count entire batch (audit items #81-100, L-04 fix)
+        _checkRateLimit(amounts.length);
+
         uint256[] memory tokenIds = new uint256[](amounts.length);
-        
+
         for (uint256 i = 0; i < amounts.length; i++) {
             require(amounts[i] > 0, "Invalid amount");
             
@@ -462,6 +443,9 @@ contract CarbonCreditNFT is ERC1155, AccessControl, Pausable, ReentrancyGuard {
         string memory reason
     ) external nonReentrant whenNotPaused {
         require(tokenExists[tokenId], "Token does not exist");
+        // RT-8: Only verified carbon credits can be retired to prevent
+        // retirement of unverified/fraudulent credits
+        require(carbonCredits[tokenId].verified, "Credit not verified");
         require(amount > 0, "Invalid amount");
         require(balanceOf(msg.sender, tokenId) >= amount, "Insufficient balance");
         
@@ -493,23 +477,38 @@ contract CarbonCreditNFT is ERC1155, AccessControl, Pausable, ReentrancyGuard {
         // Security: Prevent DoS via unbounded loops (audit item #8 - SWC-113)
         require(tokenIds.length <= MAX_BATCH_SIZE, "Batch too large");
         
+        uint256 totalCarbonRetired = 0;
+        uint256 maxAmount = 0;
+        uint256 maxTokenId = 0;
         for (uint256 i = 0; i < tokenIds.length; i++) {
             require(tokenExists[tokenIds[i]], "Token does not exist");
+            require(carbonCredits[tokenIds[i]].verified, "Credit not verified");
             require(amounts[i] > 0, "Invalid amount");
             require(
                 balanceOf(msg.sender, tokenIds[i]) >= amounts[i],
                 "Insufficient balance"
             );
-            
+
             totalRetired[tokenIds[i]] += amounts[i];
             userRetired[msg.sender][tokenIds[i]] += amounts[i];
             userTotalRetired[msg.sender] += amounts[i];
             carbonCredits[tokenIds[i]].retiredAmount += amounts[i];
-            
+            totalCarbonRetired += amounts[i];
+
+            // Track the tokenId with the largest retirement amount (M-03 fix)
+            if (amounts[i] > maxAmount) {
+                maxAmount = amounts[i];
+                maxTokenId = tokenIds[i];
+            }
+
             emit CarbonCreditRetired(msg.sender, tokenIds[i], amounts[i], reason);
         }
-        
+
         _burnBatch(msg.sender, tokenIds, amounts);
+
+        if (totalCarbonRetired > 0) {
+            _tryIssueRetirementCert(msg.sender, totalCarbonRetired, maxTokenId);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -678,13 +677,12 @@ contract CarbonCreditNFT is ERC1155, AccessControl, Pausable, ReentrancyGuard {
         if (from == address(0) || to == address(0)) {
             return;
         }
-        
-        // Optional: Enforce transfer whitelist for compliance
-        // Uncomment if you want to restrict transfers
-        // require(
-        //     transferWhitelist[from] || transferWhitelist[to],
-        //     "Transfer not whitelisted"
-        // );
+
+        // CC-01 fix: Enforce transfer whitelist for compliance
+        require(
+            transferWhitelist[from] || transferWhitelist[to],
+            "Transfer not whitelisted"
+        );
     }
     
     /**
@@ -715,33 +713,36 @@ contract CarbonCreditNFT is ERC1155, AccessControl, Pausable, ReentrancyGuard {
         emit CertificateNFTSet(_certificateNFT);
     }
 
-    /// @dev Try issuing a RETIREMENT (type=0) certificate on the user's first retirement. Silent on failure.
+    /// @dev CC-04 fix: Issue a RETIREMENT (type=0) certificate on each retirement. Silent on failure.
     function _tryIssueRetirementCert(address user, uint256 carbonTons, uint256 tokenId) private {
         if (address(certificateNFT) == address(0)) return;
-        if (retirementCertIssued[user]) return;
-        retirementCertIssued[user] = true;
         string memory projectId = carbonCredits[tokenId].projectId;
         try certificateNFT.mintCertificate(
-            user, 0, carbonTons, projectId, "First carbon retirement", ""
+            user, 0, carbonTons, projectId, "Carbon retirement certificate", ""
         ) returns (uint256 certId) {
+            retirementCertCount[user]++;
             emit RetirementCertAutoIssued(user, certId, carbonTons);
-        } catch {}
+        } catch {
+            emit CertificateIssuanceFailed(user, tokenId);
+        }
     }
 
     /**
      * @dev Internal rate limit check (audit items #81-100)
+     * CC-02 fix: Check count AFTER resetting period to prevent boundary bypass
      */
-    function _checkRateLimit() internal {
-        if (block.timestamp > mintPeriodStart + MINT_RATE_PERIOD) {
+    function _checkRateLimit(uint256 count) internal {
+        if (block.timestamp >= mintPeriodStart[msg.sender] + MINT_RATE_PERIOD) {
             // New period - reset counter
-            mintPeriodStart = block.timestamp;
-            mintsThisPeriod = 1;
+            mintPeriodStart[msg.sender] = block.timestamp;
+            mintsThisPeriod[msg.sender] = count;
         } else {
-            mintsThisPeriod++;
-            if (mintsThisPeriod > MINT_RATE_LIMIT) {
-                emit RateLimitExceeded(msg.sender, mintsThisPeriod, block.timestamp);
-                revert("Rate limit exceeded");
-            }
+            mintsThisPeriod[msg.sender] += count;
+        }
+        // Always check after updating — covers both new and existing periods
+        if (mintsThisPeriod[msg.sender] > MINT_RATE_LIMIT) {
+            emit RateLimitExceeded(msg.sender, mintsThisPeriod[msg.sender], block.timestamp);
+            revert("Rate limit exceeded");
         }
     }
 }

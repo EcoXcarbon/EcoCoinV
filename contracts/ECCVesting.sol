@@ -39,6 +39,7 @@ contract ECCVesting is AccessControl, ReentrancyGuard, Pausable {
         uint64  startTime;         // vesting start (unix)
         uint64  cliffDuration;     // seconds before any tokens vest
         uint64  vestingDuration;   // total seconds of vesting
+        uint64  createdAt;         // V-2 fix: timestamp when schedule was created
         uint32  steps;             // for STEPPED: number of equal tranches
         VestingType vestingType;
         bool    revocable;
@@ -49,6 +50,7 @@ contract ECCVesting is AccessControl, ReentrancyGuard, Pausable {
     // ── State ──────────────────────────────────────────────────────────────
     IERC20 public immutable token;
     uint256 public nextScheduleId;
+    uint256 public totalCommitted;  // V-2: tracks tokens committed to active schedules
     mapping(uint256 => Schedule) public schedules;
     mapping(address => uint256[]) public beneficiarySchedules;
 
@@ -84,15 +86,30 @@ contract ECCVesting is AccessControl, ReentrancyGuard, Pausable {
         require(vestingType != VestingType.STEPPED || steps > 0, "Steps must be > 0");
         require(cliffDuration <= vestingDuration, "Cliff > duration");
 
-        // CEI: write state before external transfer
+        // V-1: CLIFF type is all-or-nothing; cliff must equal vesting duration
+        require(
+            vestingType != VestingType.CLIFF || cliffDuration == vestingDuration,
+            "Cliff must equal vesting duration"
+        );
+
+        // V-6: Prevent unbounded beneficiary schedule arrays
+        require(beneficiarySchedules[beneficiary].length < 100, "Too many schedules");
+
+        // V-3: Use balance-before/after pattern to handle fee-on-transfer tokens
+        uint256 balBefore = token.balanceOf(address(this));
+        token.safeTransferFrom(msg.sender, address(this), totalAmount);
+        uint256 received = token.balanceOf(address(this)) - balBefore;
+
+        // CEI: write state after measuring actual received amount
         id = nextScheduleId++;
         schedules[id] = Schedule({
             beneficiary:     beneficiary,
-            totalAmount:     totalAmount,
+            totalAmount:     received,
             claimedAmount:   0,
             startTime:       startTime == 0 ? uint64(block.timestamp) : startTime,
             cliffDuration:   cliffDuration,
             vestingDuration: vestingDuration,
+            createdAt:       uint64(block.timestamp),
             steps:           steps,
             vestingType:     vestingType,
             revocable:       revocable,
@@ -101,9 +118,10 @@ contract ECCVesting is AccessControl, ReentrancyGuard, Pausable {
         });
         beneficiarySchedules[beneficiary].push(id);
 
-        // Pull tokens after all state is written
-        token.safeTransferFrom(msg.sender, address(this), totalAmount);
-        emit ScheduleCreated(id, beneficiary, totalAmount, label);
+        // V-2: Track committed tokens
+        totalCommitted += received;
+
+        emit ScheduleCreated(id, beneficiary, received, label);
     }
 
     // ── Beneficiary: claim vested tokens ──────────────────────────────────
@@ -116,6 +134,7 @@ contract ECCVesting is AccessControl, ReentrancyGuard, Pausable {
         require(claimable > 0, "Nothing to claim");
 
         s.claimedAmount += claimable;
+        totalCommitted -= claimable; // V-2: Release committed tokens on claim
         token.safeTransfer(s.beneficiary, claimable);
 
         emit TokensClaimed(scheduleId, s.beneficiary, claimable);
@@ -124,28 +143,45 @@ contract ECCVesting is AccessControl, ReentrancyGuard, Pausable {
     // ── Claim all schedules for sender ─────────────────────────────────────
     function claimAll() external nonReentrant whenNotPaused {
         uint256[] storage ids = beneficiarySchedules[msg.sender];
+        uint256 totalClaimed = 0; // V-7: Track total claimed across all schedules
         for (uint256 i = 0; i < ids.length; i++) {
             Schedule storage s = schedules[ids[i]];
             if (s.revoked) continue;
             uint256 claimable = _claimable(s);
             if (claimable == 0) continue;
             s.claimedAmount += claimable;
+            totalClaimed += claimable;
             token.safeTransfer(s.beneficiary, claimable);
             emit TokensClaimed(ids[i], s.beneficiary, claimable);
         }
+        require(totalClaimed > 0, "Nothing to claim"); // V-7: Revert if nothing was claimed
+        totalCommitted -= totalClaimed; // V-2: Release committed tokens
     }
 
     // ── Admin: revoke schedule ─────────────────────────────────────────────
+    // V-5: Immediate revocation of future-start schedules is by design for
+    // revocable schedules. Admins can revoke at any time, including before
+    // the schedule starts, returning all unvested tokens.
     function revoke(uint256 scheduleId) external onlyRole(VESTING_ADMIN_ROLE) nonReentrant {
         Schedule storage s = schedules[scheduleId];
         require(s.revocable, "Not revocable");
         require(!s.revoked,  "Already revoked");
+        // V-2 fix: Minimum notice period — cannot revoke before vesting starts
+        // unless at least 7 days have passed since schedule creation
+        require(
+            block.timestamp >= s.startTime || block.timestamp >= s.createdAt + 7 days,
+            "Too early to revoke"
+        );
 
         uint256 vested    = _vestedAmount(s);
         uint256 claimable = vested > s.claimedAmount ? vested - s.claimedAmount : 0;
         uint256 unvested  = s.totalAmount - vested;
 
         s.revoked = true;
+
+        // V-2: Release all remaining committed tokens for this schedule
+        // (both the claimable portion going to beneficiary and unvested returning to admin)
+        totalCommitted -= (claimable + unvested);
 
         // Pay out vested-but-unclaimed tokens to beneficiary before revoking
         if (claimable > 0) {
@@ -163,10 +199,15 @@ contract ECCVesting is AccessControl, ReentrancyGuard, Pausable {
     }
 
     // ── Admin: emergency withdraw ──────────────────────────────────────────
+    // V-2: Can only withdraw tokens not committed to active vesting schedules
     function emergencyWithdraw(address to, uint256 amount)
-        external onlyRole(DEFAULT_ADMIN_ROLE)
+        external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant
     {
         require(to != address(0), "Zero address");
+        require(
+            amount <= token.balanceOf(address(this)) - totalCommitted,
+            "Cannot withdraw committed tokens"
+        );
         token.safeTransfer(to, amount);
         emit EmergencyWithdraw(to, amount);
     }
@@ -203,6 +244,9 @@ contract ECCVesting is AccessControl, ReentrancyGuard, Pausable {
     }
 
     // ── Internal: vested amount calculator ────────────────────────────────
+    // V-4: Integer division may cause minor rounding dust on intermediate claims.
+    // This is benign — the final claim (when elapsed >= duration) always returns
+    // the full totalAmount, ensuring the beneficiary receives all tokens.
     function _vestedAmount(Schedule storage s) internal view returns (uint256) {
         if (s.revoked) return s.claimedAmount; // freeze at claimed
 

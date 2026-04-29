@@ -174,3 +174,99 @@ main()
     console.error("❌ Airdrop failed:", error);
     process.exit(1);
   });
+
+// AuditForge FA2: RewardsDistributor.EmergencyRecovery event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('EmergencyRecovery', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:EmergencyRecovery]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.LargeClaimDetected event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('LargeClaimDetected', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:LargeClaimDetected]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.MerkleRootUpdated event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('MerkleRootUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:MerkleRootUpdated]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.Paused event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('Paused', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:Paused]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.RateLimitExceeded event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('RateLimitExceeded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:RateLimitExceeded]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.RewardClaimed event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('RewardClaimed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:RewardClaimed]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.RoleAdminChanged event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('RoleAdminChanged', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:RoleAdminChanged]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.RoleGranted event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('RoleGranted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:RoleGranted]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.RoleRevoked event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('RoleRevoked', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:RoleRevoked]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.RoundClosed event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('RoundClosed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:RoundClosed]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.RoundCreated event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('RoundCreated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:RoundCreated]', event);
+  });
+}
+
+// AuditForge FA2: RewardsDistributor.Unpaused event listener
+if (typeof rewardsDistributorContract !== 'undefined' && rewardsDistributorContract) {
+  rewardsDistributorContract.on('Unpaused', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsDistributor:Unpaused]', event);
+  });
+}

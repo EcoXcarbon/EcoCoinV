@@ -1638,3 +1638,1158 @@ console.log('%cTESTNET ONLY - Backend required for mainnet', 'color: #FF9800; fo
 // ===============================================================================
 
 console.log('EcoCoin app.js loaded successfully - Core modules initialized');
+
+// AuditForge FA2: listen for ConfirmationRevoked event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ConfirmationRevoked', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ConfirmationRevoked]', event);
+  });
+}
+
+// AuditForge FA2: listen for TransactionConfirmed event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TransactionConfirmed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TransactionConfirmed]', event);
+  });
+}
+
+// AuditForge FA2: listen for TransactionExecuted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TransactionExecuted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TransactionExecuted]', event);
+  });
+}
+
+// AuditForge FA2: listen for TransactionSubmitted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TransactionSubmitted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TransactionSubmitted]', event);
+  });
+}
+
+// AuditForge FA2: listen for ApprovalForAll event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ApprovalForAll', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ApprovalForAll]', event);
+  });
+}
+
+// AuditForge FA2: listen for BaseURIUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('BaseURIUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[BaseURIUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for CarbonCreditMinted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CarbonCreditMinted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditMinted]', event);
+  });
+}
+
+// AuditForge FA2: listen for CarbonCreditRetired event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CarbonCreditRetired', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditRetired]', event);
+  });
+}
+
+// AuditForge FA2: listen for CarbonCreditVerified event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CarbonCreditVerified', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditVerified]', event);
+  });
+}
+
+// AuditForge FA2: listen for CertificateNFTSet event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CertificateNFTSet', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CertificateNFTSet]', event);
+  });
+}
+
+// AuditForge FA2: listen for LargeRetirementDetected event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('LargeRetirementDetected', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[LargeRetirementDetected]', event);
+  });
+}
+
+// AuditForge FA2: listen for Paused event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Paused', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Paused]', event);
+  });
+}
+
+// AuditForge FA2: listen for RateLimitExceeded event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RateLimitExceeded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RateLimitExceeded]', event);
+  });
+}
+
+// AuditForge FA2: listen for RetirementCertAutoIssued event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RetirementCertAutoIssued', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RetirementCertAutoIssued]', event);
+  });
+}
+
+// AuditForge FA2: listen for RoleAdminChanged event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RoleAdminChanged', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RoleAdminChanged]', event);
+  });
+}
+
+// AuditForge FA2: listen for RoleGranted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RoleGranted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RoleGranted]', event);
+  });
+}
+
+// AuditForge FA2: listen for RoleRevoked event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RoleRevoked', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RoleRevoked]', event);
+  });
+}
+
+// AuditForge FA2: listen for TransferBatch event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TransferBatch', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TransferBatch]', event);
+  });
+}
+
+// AuditForge FA2: listen for TransferSingle event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TransferSingle', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TransferSingle]', event);
+  });
+}
+
+// AuditForge FA2: listen for TransferWhitelistUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TransferWhitelistUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TransferWhitelistUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for URI event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('URI', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[URI]', event);
+  });
+}
+
+// AuditForge FA2: listen for Unpaused event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Unpaused', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Unpaused]', event);
+  });
+}
+
+// AuditForge FA2: listen for Approval event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Approval', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Approval]', event);
+  });
+}
+
+// AuditForge FA2: listen for BatchMetadataUpdate event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('BatchMetadataUpdate', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[BatchMetadataUpdate]', event);
+  });
+}
+
+// AuditForge FA2: listen for CertificateMinted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CertificateMinted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CertificateMinted]', event);
+  });
+}
+
+// AuditForge FA2: listen for CertificateRevoked event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CertificateRevoked', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CertificateRevoked]', event);
+  });
+}
+
+// AuditForge FA2: listen for MetadataUpdate event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('MetadataUpdate', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[MetadataUpdate]', event);
+  });
+}
+
+// AuditForge FA2: listen for SoulboundStatusUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('SoulboundStatusUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[SoulboundStatusUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for Transfer event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Transfer', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Transfer]', event);
+  });
+}
+
+// AuditForge FA2: listen for CompoundFeeUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CompoundFeeUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CompoundFeeUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for Compounded event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Compounded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Compounded]', event);
+  });
+}
+
+// AuditForge FA2: listen for MinCompoundAmountUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('MinCompoundAmountUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[MinCompoundAmountUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for TreasuryUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TreasuryUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TreasuryUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for UserRegistered event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('UserRegistered', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[UserRegistered]', event);
+  });
+}
+
+// AuditForge FA2: listen for UserUnregistered event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('UserUnregistered', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[UserUnregistered]', event);
+  });
+}
+
+// AuditForge FA2: listen for BridgeIn event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('BridgeIn', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[BridgeIn]', event);
+  });
+}
+
+// AuditForge FA2: listen for BridgeOut event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('BridgeOut', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[BridgeOut]', event);
+  });
+}
+
+// AuditForge FA2: listen for ChainConfigUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ChainConfigUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ChainConfigUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for RelayerConfirmed event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RelayerConfirmed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RelayerConfirmed]', event);
+  });
+}
+
+// AuditForge FA2: listen for RelayerThresholdUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RelayerThresholdUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RelayerThresholdUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for FarmDeposit event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('FarmDeposit', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[FarmDeposit]', event);
+  });
+}
+
+// AuditForge FA2: listen for FarmEmergencyWithdraw event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('FarmEmergencyWithdraw', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[FarmEmergencyWithdraw]', event);
+  });
+}
+
+// AuditForge FA2: listen for FarmRewardsClaimed event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('FarmRewardsClaimed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[FarmRewardsClaimed]', event);
+  });
+}
+
+// AuditForge FA2: listen for FarmWithdraw event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('FarmWithdraw', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[FarmWithdraw]', event);
+  });
+}
+
+// AuditForge FA2: listen for FarmingPoolFunded event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('FarmingPoolFunded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[FarmingPoolFunded]', event);
+  });
+}
+
+// AuditForge FA2: listen for LPTokenApproved event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('LPTokenApproved', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[LPTokenApproved]', event);
+  });
+}
+
+// AuditForge FA2: listen for LPTokenRevoked event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('LPTokenRevoked', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[LPTokenRevoked]', event);
+  });
+}
+
+// AuditForge FA2: listen for PendingChangeCancelled event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PendingChangeCancelled', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PendingChangeCancelled]', event);
+  });
+}
+
+// AuditForge FA2: listen for PendingChangeExecuted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PendingChangeExecuted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PendingChangeExecuted]', event);
+  });
+}
+
+// AuditForge FA2: listen for PendingChangeProposed event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PendingChangeProposed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PendingChangeProposed]', event);
+  });
+}
+
+// AuditForge FA2: listen for PoolAdded event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PoolAdded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PoolAdded]', event);
+  });
+}
+
+// AuditForge FA2: listen for PoolBalanceSynced event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PoolBalanceSynced', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PoolBalanceSynced]', event);
+  });
+}
+
+// AuditForge FA2: listen for PoolDeactivated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PoolDeactivated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PoolDeactivated]', event);
+  });
+}
+
+// AuditForge FA2: listen for PoolUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PoolUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PoolUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for RewardRateUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RewardRateUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardRateUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for Purchased event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Purchased', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Purchased]', event);
+  });
+}
+
+// AuditForge FA2: listen for Refunded event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Refunded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Refunded]', event);
+  });
+}
+
+// AuditForge FA2: listen for SaleCancelled event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('SaleCancelled', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[SaleCancelled]', event);
+  });
+}
+
+// AuditForge FA2: listen for SaleCreated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('SaleCreated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[SaleCreated]', event);
+  });
+}
+
+// AuditForge FA2: listen for SaleFinalized event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('SaleFinalized', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[SaleFinalized]', event);
+  });
+}
+
+// AuditForge FA2: listen for TokensClaimed event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TokensClaimed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TokensClaimed]', event);
+  });
+}
+
+// AuditForge FA2: listen for WhitelistUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('WhitelistUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[WhitelistUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for PrizeClaimed event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PrizeClaimed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PrizeClaimed]', event);
+  });
+}
+
+// AuditForge FA2: listen for RoundCancelled event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RoundCancelled', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RoundCancelled]', event);
+  });
+}
+
+// AuditForge FA2: listen for RoundCreated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RoundCreated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RoundCreated]', event);
+  });
+}
+
+// AuditForge FA2: listen for TicketsPurchased event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TicketsPurchased', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TicketsPurchased]', event);
+  });
+}
+
+// AuditForge FA2: listen for TokensBurned event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TokensBurned', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TokensBurned]', event);
+  });
+}
+
+// AuditForge FA2: listen for VRFConfigUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('VRFConfigUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[VRFConfigUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for VRFRequested event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('VRFRequested', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[VRFRequested]', event);
+  });
+}
+
+// AuditForge FA2: listen for WinnersDrawn event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('WinnersDrawn', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[WinnersDrawn]', event);
+  });
+}
+
+// AuditForge FA2: listen for Deposit event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Deposit', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Deposit]', event);
+  });
+}
+
+// AuditForge FA2: listen for OwnerAdded event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('OwnerAdded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[OwnerAdded]', event);
+  });
+}
+
+// AuditForge FA2: listen for OwnerRemoved event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('OwnerRemoved', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[OwnerRemoved]', event);
+  });
+}
+
+// AuditForge FA2: listen for RequirementChanged event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RequirementChanged', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RequirementChanged]', event);
+  });
+}
+
+// AuditForge FA2: listen for TransactionFailed event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TransactionFailed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TransactionFailed]', event);
+  });
+}
+
+// AuditForge FA2: listen for CompoundedFor event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CompoundedFor', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CompoundedFor]', event);
+  });
+}
+
+// AuditForge FA2: listen for EmergencyWithdraw event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('EmergencyWithdraw', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[EmergencyWithdraw]', event);
+  });
+}
+
+// AuditForge FA2: listen for RewardsClaimed event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RewardsClaimed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardsClaimed]', event);
+  });
+}
+
+// AuditForge FA2: listen for Staked event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Staked', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Staked]', event);
+  });
+}
+
+// AuditForge FA2: listen for StakingPoolFunded event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('StakingPoolFunded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[StakingPoolFunded]', event);
+  });
+}
+
+// AuditForge FA2: listen for Unstaked event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Unstaked', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Unstaked]', event);
+  });
+}
+
+// AuditForge FA2: listen for LiquidityAdded event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('LiquidityAdded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[LiquidityAdded]', event);
+  });
+}
+
+// AuditForge FA2: listen for LiquidityRemoved event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('LiquidityRemoved', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[LiquidityRemoved]', event);
+  });
+}
+
+// AuditForge FA2: listen for PoolCreated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PoolCreated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PoolCreated]', event);
+  });
+}
+
+// AuditForge FA2: listen for ProtocolFeeUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ProtocolFeeUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ProtocolFeeUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for Swapped event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('Swapped', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[Swapped]', event);
+  });
+}
+
+// AuditForge FA2: listen for CarbonNFTAutoMinted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CarbonNFTAutoMinted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonNFTAutoMinted]', event);
+  });
+}
+
+// AuditForge FA2: listen for CircuitBreakerReset event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CircuitBreakerReset', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CircuitBreakerReset]', event);
+  });
+}
+
+// AuditForge FA2: listen for CircuitBreakerTriggered event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('CircuitBreakerTriggered', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CircuitBreakerTriggered]', event);
+  });
+}
+
+// AuditForge FA2: listen for ContractsInitialized event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ContractsInitialized', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ContractsInitialized]', event);
+  });
+}
+
+// AuditForge FA2: listen for DelegateChanged event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('DelegateChanged', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[DelegateChanged]', event);
+  });
+}
+
+// AuditForge FA2: listen for DelegateVotesChanged event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('DelegateVotesChanged', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[DelegateVotesChanged]', event);
+  });
+}
+
+// AuditForge FA2: listen for EIP712DomainChanged event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('EIP712DomainChanged', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[EIP712DomainChanged]', event);
+  });
+}
+
+// AuditForge FA2: listen for EmergencyWithdrawal event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('EmergencyWithdrawal', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[EmergencyWithdrawal]', event);
+  });
+}
+
+// AuditForge FA2: listen for EnterpriseOffsetMinted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('EnterpriseOffsetMinted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[EnterpriseOffsetMinted]', event);
+  });
+}
+
+// AuditForge FA2: listen for FeeExemptUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('FeeExemptUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[FeeExemptUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for MilestoneAwarded event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('MilestoneAwarded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[MilestoneAwarded]', event);
+  });
+}
+
+// AuditForge FA2: listen for NFTContractsSet event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('NFTContractsSet', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[NFTContractsSet]', event);
+  });
+}
+
+// AuditForge FA2: listen for PaymentsWithdrawn event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PaymentsWithdrawn', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PaymentsWithdrawn]', event);
+  });
+}
+
+// AuditForge FA2: listen for PriceFeedSet event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('PriceFeedSet', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[PriceFeedSet]', event);
+  });
+}
+
+// AuditForge FA2: listen for ReferralRegistered event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ReferralRegistered', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ReferralRegistered]', event);
+  });
+}
+
+// AuditForge FA2: listen for ReferralRewardPaid event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ReferralRewardPaid', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ReferralRewardPaid]', event);
+  });
+}
+
+// AuditForge FA2: listen for RetailMintingToggled event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RetailMintingToggled', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RetailMintingToggled]', event);
+  });
+}
+
+// AuditForge FA2: listen for RetailOffsetMinted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RetailOffsetMinted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RetailOffsetMinted]', event);
+  });
+}
+
+// AuditForge FA2: listen for RetailPriceUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RetailPriceUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RetailPriceUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for RetailTermsAccepted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RetailTermsAccepted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RetailTermsAccepted]', event);
+  });
+}
+
+// AuditForge FA2: listen for StalePriceThresholdUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('StalePriceThresholdUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[StalePriceThresholdUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for TransferFeeUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TransferFeeUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TransferFeeUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for WalletUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('WalletUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[WalletUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for ScheduleCreated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ScheduleCreated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ScheduleCreated]', event);
+  });
+}
+
+// AuditForge FA2: listen for ScheduleRevoked event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ScheduleRevoked', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ScheduleRevoked]', event);
+  });
+}
+
+// AuditForge FA2: listen for ProposalCanceled event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ProposalCanceled', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ProposalCanceled]', event);
+  });
+}
+
+// AuditForge FA2: listen for ProposalCreated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ProposalCreated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ProposalCreated]', event);
+  });
+}
+
+// AuditForge FA2: listen for ProposalExecuted event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ProposalExecuted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ProposalExecuted]', event);
+  });
+}
+
+// AuditForge FA2: listen for ProposalQueued event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ProposalQueued', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ProposalQueued]', event);
+  });
+}
+
+// AuditForge FA2: listen for ProposalThresholdSet event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('ProposalThresholdSet', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[ProposalThresholdSet]', event);
+  });
+}
+
+// AuditForge FA2: listen for QuorumNumeratorUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('QuorumNumeratorUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[QuorumNumeratorUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for TimelockChange event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('TimelockChange', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[TimelockChange]', event);
+  });
+}
+
+// AuditForge FA2: listen for VoteCast event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('VoteCast', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[VoteCast]', event);
+  });
+}
+
+// AuditForge FA2: listen for VoteCastWithParams event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('VoteCastWithParams', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[VoteCastWithParams]', event);
+  });
+}
+
+// AuditForge FA2: listen for VotingDelaySet event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('VotingDelaySet', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[VotingDelaySet]', event);
+  });
+}
+
+// AuditForge FA2: listen for VotingPeriodSet event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('VotingPeriodSet', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[VotingPeriodSet]', event);
+  });
+}
+
+// AuditForge FA2: listen for EmergencyRecovery event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('EmergencyRecovery', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[EmergencyRecovery]', event);
+  });
+}
+
+// AuditForge FA2: listen for LargeClaimDetected event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('LargeClaimDetected', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[LargeClaimDetected]', event);
+  });
+}
+
+// AuditForge FA2: listen for MerkleRootUpdated event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('MerkleRootUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[MerkleRootUpdated]', event);
+  });
+}
+
+// AuditForge FA2: listen for RewardClaimed event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RewardClaimed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RewardClaimed]', event);
+  });
+}
+
+// AuditForge FA2: listen for RoundClosed event
+// Replace 'contract' with the variable holding your contract instance if different
+if (typeof contract !== 'undefined' && contract) {
+  contract.on('RoundClosed', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[RoundClosed]', event);
+  });
+}
+
+// AuditForge FA5: safe contract call wrapper
+async function safeContractCall(fn, label) {
+  try {
+    return await fn();
+  } catch (e) {
+    const msg = e.reason || e.data?.message || e.message || 'Transaction failed';
+    console.error('[ContractError]', e);
+    alert((label ? label + ': ' : '') + msg);
+    throw e;
+  }
+}

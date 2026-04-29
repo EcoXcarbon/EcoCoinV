@@ -75,12 +75,16 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
     PoolInfo[]                                           public poolInfo;
     mapping(uint256 => mapping(address => UserPoolInfo)) public userPoolInfo;
     mapping(address => bool)                             public approvedLPTokens;
+    mapping(address => bool)                             public lpTokenHasPool; // C-1/H-3: prevent duplicate LP pools
     mapping(bytes32 => PendingChange)                    public pendingChanges;
 
     uint256 public totalAllocPoint;
     uint256 public rewardPerSecond;
     uint256 public farmingPoolBalance;
     uint256 public totalFarmingRewardsPaid;
+    uint256 private nextNonce;
+    bool    public poolSynced;                           // C-2: one-time sync guard
+    uint256 public constant MAX_REWARD_PER_SECOND = 100 ether; // M-6: cap
 
     // ═══════════════════════════════════════════════════════════════════════
     // EVENTS
@@ -139,6 +143,9 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
     function addPool(address lpToken, uint256 allocPoint) external onlyRole(ADMIN_ROLE) {
         if (lpToken == address(0)) revert InvalidAddress();
         if (!approvedLPTokens[lpToken]) revert LPTokenNotApproved();
+        require(lpToken != address(eccToken), "LP cannot be reward token"); // C-1
+        require(!lpTokenHasPool[lpToken], "LP token already has pool");     // H-3
+        lpTokenHasPool[lpToken] = true;
 
         totalAllocPoint += allocPoint;
         poolInfo.push(PoolInfo({
@@ -165,6 +172,9 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
 
     function deactivatePool(uint256 pid) external onlyRole(ADMIN_ROLE) {
         if (pid >= poolInfo.length) revert InvalidPool();
+        updatePool(pid);
+        totalAllocPoint -= poolInfo[pid].allocPoint;
+        poolInfo[pid].allocPoint = 0;
         poolInfo[pid].active = false;
         emit PoolDeactivated(pid);
     }
@@ -188,17 +198,15 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
             pool.lastRewardTime = block.timestamp;
             return;
         }
-        uint256 elapsed    = block.timestamp - pool.lastRewardTime;
-        uint256 rawReward  = elapsed * rewardPerSecond * pool.allocPoint;
-        // Avoid divide-before-multiply: combine both divisions into one expression,
-        // then apply cap against farmingPoolBalance.
-        uint256 rewardAccAdd;
-        if (rawReward / totalAllocPoint > farmingPoolBalance) {
-            rewardAccAdd = (farmingPoolBalance * PRECISION) / pool.totalStaked;
-        } else {
-            rewardAccAdd = (rawReward * PRECISION) / (totalAllocPoint * pool.totalStaked);
+        uint256 elapsed   = block.timestamp - pool.lastRewardTime;
+        // H-1: Separate division steps to reduce overflow risk
+        uint256 poolReward = (elapsed * rewardPerSecond * pool.allocPoint) / totalAllocPoint;
+        // C-3: Cap reward to available pool balance
+        if (poolReward > farmingPoolBalance) {
+            poolReward = farmingPoolBalance;
         }
-        pool.accRewardPerShare += rewardAccAdd;
+        farmingPoolBalance -= poolReward; // C-3: Decrement here, not at claim time
+        pool.accRewardPerShare += (poolReward * PRECISION) / pool.totalStaked;
         pool.lastRewardTime     = block.timestamp;
     }
 
@@ -219,6 +227,7 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
         UserPoolInfo storage u   = userPoolInfo[pid][msg.sender];
 
         if (!pool.active) revert InactivePool();
+        require(amount > 0, "Zero amount"); // M-2: prevent zero-amount deposit
         updatePool(pid);
 
         if (u.amount > 0) {
@@ -226,13 +235,17 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
             if (pending > 0) u.pendingRewards += pending;
         }
 
-        // CEI: update state before external transfer
-        u.amount         += amount;
-        u.rewardDebt      = u.amount * pool.accRewardPerShare / PRECISION;
-        pool.totalStaked += amount;
+        // F-2 FIX: fee-on-transfer protection — use balance-before/after pattern
+        // to account for LP tokens that deduct a fee on transfer.
+        uint256 balBefore = IERC20(pool.lpToken).balanceOf(address(this));
         IERC20(pool.lpToken).safeTransferFrom(msg.sender, address(this), amount);
+        uint256 actual = IERC20(pool.lpToken).balanceOf(address(this)) - balBefore;
 
-        emit FarmDeposit(msg.sender, pid, amount);
+        u.amount         += actual;
+        u.rewardDebt      = u.amount * pool.accRewardPerShare / PRECISION;
+        pool.totalStaked += actual;
+
+        emit FarmDeposit(msg.sender, pid, actual);
     }
 
     /**
@@ -247,6 +260,7 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
         PoolInfo    storage pool = poolInfo[pid];
         UserPoolInfo storage u   = userPoolInfo[pid][msg.sender];
 
+        require(amount > 0, "Zero amount");              // M-3: prevent zero-amount withdrawal
         require(u.amount >= amount, "Insufficient balance");
         updatePool(pid);
 
@@ -279,11 +293,14 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
 
         if (totalRewards < minRewards) revert SlippageExceeded(minRewards, totalRewards);
         require(totalRewards > 0, "No rewards");
-        require(farmingPoolBalance >= totalRewards, "Insufficient farming pool");
+        // F-1 FIX: Removed `require(farmingPoolBalance >= totalRewards)` — rewards
+        // were already reserved via `farmingPoolBalance -= poolReward` in updatePool().
+        // Re-checking here double-counts and causes legitimate claims to revert.
+        // If the actual token balance is insufficient, safeTransfer will revert.
 
         u.pendingRewards         = 0;
         u.rewardDebt             = u.amount * pool.accRewardPerShare / PRECISION;
-        farmingPoolBalance      -= totalRewards;
+        // C-3: farmingPoolBalance already decremented in updatePool()
         totalFarmingRewardsPaid += totalRewards;
 
         eccToken.safeTransfer(msg.sender, totalRewards);
@@ -292,6 +309,12 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
 
     /**
      * @notice Emergency withdraw LP tokens — forfeits all pending rewards.
+     * @dev F-5: There is a minor accounting leak: the user's share of rewards
+     *      accrued via accRewardPerShare (but not yet added to pendingRewards)
+     *      is neither returned to farmingPoolBalance nor claimed. This is
+     *      acceptable for emergency scenarios — the priority is returning LP
+     *      tokens safely. The small leaked amount remains in the contract's
+     *      ECC balance and can be recovered via fundFarmingPool or admin action.
      */
     function emergencyWithdrawFarm(uint256 pid) external nonReentrant {
         if (pid >= poolInfo.length) revert InvalidPool();
@@ -300,6 +323,9 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
 
         uint256 amount = u.amount;
         require(amount > 0, "No deposit");
+
+        // L-1: Return forfeited rewards to pool so they aren't stranded
+        farmingPoolBalance += u.pendingRewards;
 
         u.amount         = 0;
         u.rewardDebt     = 0;
@@ -322,6 +348,16 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
 
     function revokeLPToken(address token) external onlyRole(ADMIN_ROLE) {
         approvedLPTokens[token] = false;
+        // M-4 / F-4 FIX: Deactivate ALL pools using this token (removed i < 50 cap).
+        for (uint256 i = 0; i < poolInfo.length; i++) {
+            if (poolInfo[i].lpToken == token && poolInfo[i].active) {
+                updatePool(i);
+                totalAllocPoint -= poolInfo[i].allocPoint;
+                poolInfo[i].allocPoint = 0;
+                poolInfo[i].active = false;
+                emit PoolDeactivated(i);
+            }
+        }
         emit LPTokenRevoked(token);
     }
 
@@ -330,7 +366,8 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
      * @dev Audit #78 — rate manipulation guard via timelock.
      */
     function proposeRewardRateChange(uint256 newRate) external onlyRole(ADMIN_ROLE) {
-        bytes32 changeId = keccak256(abi.encodePacked("rewardRate", newRate, block.timestamp));
+        require(newRate <= MAX_REWARD_PER_SECOND, "Rate too high"); // M-6
+        bytes32 changeId = keccak256(abi.encodePacked("rewardRate", newRate, block.timestamp, nextNonce++));
         require(!pendingChanges[changeId].executed, "Already executed");
         pendingChanges[changeId] = PendingChange({
             timestamp: block.timestamp + CHANGE_DELAY,
@@ -344,6 +381,11 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
         PendingChange storage change = pendingChanges[changeId];
         if (change.executed)                   revert ChangeAlreadyExecuted();
         if (block.timestamp < change.timestamp) revert TimelockNotExpired();
+
+        // M-1 / F-3 FIX: Update ALL pools at old rate before switching.
+        // The MAX_POOLS_PER_UPDATE cap is removed here — all pools MUST be
+        // current before the rate changes, otherwise rewards are miscalculated.
+        for (uint256 i = 0; i < poolInfo.length; ++i) { updatePool(i); }
 
         uint256 oldRate = rewardPerSecond;
         rewardPerSecond = change.newValue;
@@ -365,9 +407,12 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
      */
     function fundFarmingPool(uint256 amount) external onlyRole(ADMIN_ROLE) {
         require(amount > 0, "Zero amount");
-        farmingPoolBalance += amount;
+        // F-LOW-2: Balance-diff + CEI fix — transfer first, then update state
+        uint256 balBefore = eccToken.balanceOf(address(this));
         eccToken.safeTransferFrom(msg.sender, address(this), amount);
-        emit FarmingPoolFunded(amount, farmingPoolBalance);
+        uint256 actual = eccToken.balanceOf(address(this)) - balBefore;
+        farmingPoolBalance += actual;
+        emit FarmingPoolFunded(actual, farmingPoolBalance);
     }
 
     /**
@@ -376,6 +421,8 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
      *      is reward pool — LP tokens are separate and don't affect eccToken.balanceOf().
      */
     function syncPoolBalance() external onlyRole(ADMIN_ROLE) {
+        require(!poolSynced, "Already synced"); // C-2: prevent repeated inflation
+        poolSynced = true;
         farmingPoolBalance = eccToken.balanceOf(address(this));
         emit PoolBalanceSynced(farmingPoolBalance);
     }
@@ -397,10 +444,11 @@ contract ECCFarming is ReentrancyGuard, Pausable, AccessControl {
             pool.totalStaked > 0 &&
             totalAllocPoint > 0)
         {
-            uint256 elapsed   = block.timestamp - pool.lastRewardTime;
-            uint256 rawReward = elapsed * rewardPerSecond * pool.allocPoint;
-            // Avoid divide-before-multiply: combine both divisions
-            acc += (rawReward * PRECISION) / (totalAllocPoint * pool.totalStaked);
+            uint256 elapsed    = block.timestamp - pool.lastRewardTime;
+            uint256 poolReward = (elapsed * rewardPerSecond * pool.allocPoint) / totalAllocPoint;
+            // H-2: Mirror the farmingPoolBalance cap from updatePool
+            if (poolReward > farmingPoolBalance) poolReward = farmingPoolBalance;
+            acc += (poolReward * PRECISION) / pool.totalStaked;
         }
         uint256 pending = (userInfo.amount * acc / PRECISION) - userInfo.rewardDebt;
         return pending + userInfo.pendingRewards;

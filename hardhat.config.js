@@ -9,7 +9,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 1,   // low runs = smaller bytecode (deploy-optimized)
+        runs: 200,
       },
       evmVersion: "paris",
       viaIR: true,
@@ -19,6 +19,14 @@ module.exports = {
     hardhat: {
       chainId: 31337,
       allowUnlimitedContractSize: true,
+      blockGasLimit: 120_000_000,   // 4x default — needed for large contracts
+      gas: 5_000_000,               // fixed gas limit — ensures try/catch cert auto-mints succeed
+      gasPrice: 1_000_000_000,      // 1 gwei
+      timeout: 600_000,             // 10 min timeout per transaction
+      mining: {
+        auto: true,
+        interval: 0,
+      },
     },
     // Polygon Amoy Testnet (replaces Mumbai, ChainID: 80002)
     polygonAmoy: {

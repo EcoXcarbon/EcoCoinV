@@ -37,14 +37,10 @@ const DOMPurify = require('isomorphic-dompurify');
 const fs = require('fs');
 
 // ═══════════════════════════════════════════════════════════════
-// STRIPE CONFIGURATION
+// PAYMENT: ON-CHAIN ONLY
+// Users pay POL directly to smart contract via mintRetailOffset()
+// No third-party payment gateway required
 // ═══════════════════════════════════════════════════════════════
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
-
-// Platform fee percentage (5%)
-const PLATFORM_FEE_PERCENT = 5;
-// Escrow threshold in cents ($1000)
-const ESCROW_THRESHOLD_CENTS = 100000;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -2528,3 +2524,203 @@ process.on('SIGTERM', () => {
 });
 
 module.exports = app;
+
+// AuditForge FA2: CarbonCreditNFT.ApprovalForAll event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('ApprovalForAll', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:ApprovalForAll]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.BaseURIUpdated event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('BaseURIUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:BaseURIUpdated]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.CarbonCreditMinted event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('CarbonCreditMinted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:CarbonCreditMinted]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.CarbonCreditRetired event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('CarbonCreditRetired', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:CarbonCreditRetired]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.CarbonCreditVerified event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('CarbonCreditVerified', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:CarbonCreditVerified]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.CertificateNFTSet event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('CertificateNFTSet', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:CertificateNFTSet]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.LargeRetirementDetected event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('LargeRetirementDetected', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:LargeRetirementDetected]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.Paused event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('Paused', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:Paused]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.RateLimitExceeded event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('RateLimitExceeded', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:RateLimitExceeded]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.RetirementCertAutoIssued event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('RetirementCertAutoIssued', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:RetirementCertAutoIssued]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.RoleAdminChanged event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('RoleAdminChanged', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:RoleAdminChanged]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.RoleGranted event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('RoleGranted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:RoleGranted]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.RoleRevoked event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('RoleRevoked', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:RoleRevoked]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.TransferBatch event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('TransferBatch', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:TransferBatch]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.TransferSingle event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('TransferSingle', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:TransferSingle]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.TransferWhitelistUpdated event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('TransferWhitelistUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:TransferWhitelistUpdated]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.URI event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('URI', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:URI]', event);
+  });
+}
+
+// AuditForge FA2: CarbonCreditNFT.Unpaused event listener
+if (typeof carbonCreditNFTContract !== 'undefined' && carbonCreditNFTContract) {
+  carbonCreditNFTContract.on('Unpaused', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CarbonCreditNFT:Unpaused]', event);
+  });
+}
+
+// AuditForge FA2: CertificateNFT.Approval event listener
+if (typeof certificateNFTContract !== 'undefined' && certificateNFTContract) {
+  certificateNFTContract.on('Approval', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CertificateNFT:Approval]', event);
+  });
+}
+
+// AuditForge FA2: CertificateNFT.BatchMetadataUpdate event listener
+if (typeof certificateNFTContract !== 'undefined' && certificateNFTContract) {
+  certificateNFTContract.on('BatchMetadataUpdate', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CertificateNFT:BatchMetadataUpdate]', event);
+  });
+}
+
+// AuditForge FA2: CertificateNFT.CertificateMinted event listener
+if (typeof certificateNFTContract !== 'undefined' && certificateNFTContract) {
+  certificateNFTContract.on('CertificateMinted', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CertificateNFT:CertificateMinted]', event);
+  });
+}
+
+// AuditForge FA2: CertificateNFT.CertificateRevoked event listener
+if (typeof certificateNFTContract !== 'undefined' && certificateNFTContract) {
+  certificateNFTContract.on('CertificateRevoked', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CertificateNFT:CertificateRevoked]', event);
+  });
+}
+
+// AuditForge FA2: CertificateNFT.MetadataUpdate event listener
+if (typeof certificateNFTContract !== 'undefined' && certificateNFTContract) {
+  certificateNFTContract.on('MetadataUpdate', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CertificateNFT:MetadataUpdate]', event);
+  });
+}
+
+// AuditForge FA2: CertificateNFT.SoulboundStatusUpdated event listener
+if (typeof certificateNFTContract !== 'undefined' && certificateNFTContract) {
+  certificateNFTContract.on('SoulboundStatusUpdated', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CertificateNFT:SoulboundStatusUpdated]', event);
+  });
+}
+
+// AuditForge FA2: CertificateNFT.Transfer event listener
+if (typeof certificateNFTContract !== 'undefined' && certificateNFTContract) {
+  certificateNFTContract.on('Transfer', (...args) => {
+    const event = args[args.length - 1];
+    console.log('[CertificateNFT:Transfer]', event);
+  });
+}

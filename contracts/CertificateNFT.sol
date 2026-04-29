@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
@@ -104,9 +104,9 @@ contract CertificateNFT is
     mapping(address => uint256) public userTotalCarbonRetired;
     mapping(address => uint256) public userCertificateCount;
 
-    // Security: Rate limiting state (audit items #81-100)
-    uint256 public mintsThisPeriod;
-    uint256 public mintPeriodStart;
+    // Security: CERT-01 fix — per-minter rate limiting (audit items #81-100)
+    mapping(address => uint256) public mintsThisPeriod;
+    mapping(address => uint256) public mintPeriodStart;
 
     // ═══════════════════════════════════════════════════════════════
     // EVENTS
@@ -181,19 +181,35 @@ contract CertificateNFT is
      * @param metadataURI IPFS URI for metadata
      * @return tokenId Minted token ID
      */
+    /**
+     * @notice Mint retirement certificate (uint8 certType variant for interface compatibility).
+     * @dev ICertificateNFT in ECCToken declares certType as uint8; enums are uint8-encoded
+     *      in the ABI so the selector is identical — this signature is the canonical one.
+     */
     function mintCertificate(
+        address to,
+        uint8   certType,
+        uint256 carbonAmount,
+        string memory projectId,
+        string memory description,
+        string memory metadataURI
+    ) external onlyRole(MINTER_ROLE) nonReentrant whenNotPaused returns (uint256) {
+        return _mintCertificateInternal(to, CertificateType(certType), carbonAmount, projectId, description, metadataURI);
+    }
+
+    function _mintCertificateInternal(
         address to,
         CertificateType certType,
         uint256 carbonAmount,
         string memory projectId,
         string memory description,
         string memory metadataURI
-    ) external onlyRole(MINTER_ROLE) nonReentrant whenNotPaused returns (uint256) {
+    ) internal returns (uint256) {
         require(to != address(0), "Invalid recipient");
 
         // Security: Rate limiting check (audit items #81-100)
-        _checkRateLimit();
-        
+        _checkRateLimit(1);
+
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         
@@ -248,7 +264,10 @@ contract CertificateNFT is
         require(recipients.length == metadataURIs.length, "Length mismatch");
         // Security: Prevent DoS via unbounded loops (audit item #8 - SWC-113)
         require(recipients.length <= MAX_BATCH_SIZE, "Batch too large");
-        
+
+        // CERT-02 fix: Rate limit by batch size, not counted as single mint
+        _checkRateLimit(recipients.length);
+
         uint256[] memory tokenIds = new uint256[](recipients.length);
         
         for (uint256 i = 0; i < recipients.length; i++) {
@@ -410,18 +429,46 @@ contract CertificateNFT is
      * @param tokenId Token ID to revoke
      * @param reason Revocation reason
      */
-    function revokeCertificate(uint256 tokenId, string memory reason) 
-        external 
-        onlyRole(DEFAULT_ADMIN_ROLE) 
+    // CERT-03 fix: Also burn the token on revocation to remove it from holder's wallet
+    function revokeCertificate(uint256 tokenId, string memory reason)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         require(_exists(tokenId), "Token does not exist");
         require(!certificates[tokenId].revoked, "Already revoked");
-        
+
         certificates[tokenId].revoked = true;
-        
+        _burn(tokenId);
+
         emit CertificateRevoked(tokenId, msg.sender, reason);
     }
     
+    /**
+     * @notice Returns a collision-resistant hash of certificate parameters (interface compliance).
+     * @dev Uses abi.encode (not abi.encodePacked) to avoid hash collisions with multiple
+     *      dynamic-type arguments (strings).
+     */
+    function getCertificateHash(
+        address to,
+        uint8   certType,
+        uint256 carbonAmount,
+        string memory projectId,
+        string memory description,
+        string memory metadataURI
+    ) external pure returns (bytes32) {
+        return keccak256(abi.encode(to, certType, carbonAmount, projectId, description, metadataURI));
+    }
+
+    /**
+     * @notice Burn a soulbound certificate (admin only).
+     * @dev Required to remove soulbound tokens that cannot be transferred.
+     * @param tokenId Token ID to burn.
+     */
+    function burn(uint256 tokenId) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_exists(tokenId), "Token does not exist");
+        _burn(tokenId);
+    }
+
     /**
      * @notice Set base URI
      * @param baseURI New base URI
@@ -435,13 +482,16 @@ contract CertificateNFT is
     }
     
     /**
-     * @notice Update soulbound status
-     * @param soulbound New soulbound status
+     * @notice Enable soulbound status (one-way lock — cannot be disabled once enabled).
+     * @dev RT-8: Soulbound is a security guarantee for certificate holders. Once enabled,
+     *      disabling it would allow previously non-transferable certificates to be traded,
+     *      undermining the trust model. Only allows setting true.
      */
-    function setSoulbound(bool soulbound) 
-        external 
-        onlyRole(DEFAULT_ADMIN_ROLE) 
+    function setSoulbound(bool soulbound)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
+        require(soulbound, "Cannot disable soulbound");
         isSoulbound = soulbound;
         emit SoulboundStatusUpdated(soulbound);
     }
@@ -534,17 +584,19 @@ contract CertificateNFT is
 
     /**
      * @dev Internal rate limit check (audit items #81-100)
+     * CERT-01 fix: Per-minter tracking
+     * CERT-02 fix: Accepts count parameter for batch operations
      */
-    function _checkRateLimit() internal {
-        if (block.timestamp > mintPeriodStart + MINT_RATE_PERIOD) {
-            mintPeriodStart = block.timestamp;
-            mintsThisPeriod = 1;
+    function _checkRateLimit(uint256 count) internal {
+        if (block.timestamp > mintPeriodStart[msg.sender] + MINT_RATE_PERIOD) {
+            mintPeriodStart[msg.sender] = block.timestamp;
+            mintsThisPeriod[msg.sender] = count;
         } else {
-            mintsThisPeriod++;
-            if (mintsThisPeriod > MINT_RATE_LIMIT) {
-                emit RateLimitExceeded(msg.sender, mintsThisPeriod, block.timestamp);
-                revert("Rate limit exceeded");
-            }
+            mintsThisPeriod[msg.sender] += count;
+        }
+        if (mintsThisPeriod[msg.sender] > MINT_RATE_LIMIT) {
+            emit RateLimitExceeded(msg.sender, mintsThisPeriod[msg.sender], block.timestamp);
+            revert("Rate limit exceeded");
         }
     }
 }

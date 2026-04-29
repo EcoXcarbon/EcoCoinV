@@ -25,13 +25,15 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
-    bytes32 public constant POOL_ADMIN_ROLE = keccak256("POOL_ADMIN_ROLE");
-    uint256 public constant FEE_BASE        = 10000;
-    uint256 public constant MAX_PROTOCOL_FEE = 100;  // 1%
-    uint256 public constant LP_FEE          = 30;    // 0.3%
+    bytes32 public constant POOL_ADMIN_ROLE   = keccak256("POOL_ADMIN_ROLE");
+    uint256 public constant FEE_BASE          = 10000;
+    uint256 public constant MAX_PROTOCOL_FEE  = 100;  // 1%
+    uint256 public constant LP_FEE            = 30;   // 0.3%
+    uint256 public constant MINIMUM_LIQUIDITY = 1000;
 
     address public treasury;
-    uint256 public protocolFee = 10; // 0.1% default
+    uint256 public protocolFee       = 10;   // 0.1% default
+    uint256 public maxPriceImpactBps = 1000; // 10% default
 
     struct Pool {
         address tokenA;
@@ -39,13 +41,13 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
         uint256 reserveA;
         uint256 reserveB;
         uint256 totalLPShares;
-        uint256 kLast;        // reserveA * reserveB at last mint/burn
         bool    active;
     }
 
     uint256 public nextPoolId;
     mapping(uint256 => Pool) public pools;
-    mapping(bytes32 => uint256) public pairToPool;  // keccak(tokenA,tokenB) => poolId
+    mapping(bytes32 => uint256) public pairToPool;   // keccak(tokenA,tokenB) => poolId
+    mapping(bytes32 => bool)    public pairExists;   // S-3: separate existence check
     mapping(uint256 => mapping(address => uint256)) public lpShares;
 
     // ── Events ─────────────────────────────────────────────────────────────
@@ -54,6 +56,10 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
     event LiquidityRemoved(uint256 indexed poolId, address indexed provider, uint256 amountA, uint256 amountB, uint256 shares);
     event Swapped(uint256 indexed poolId, address indexed user, address tokenIn, uint256 amountIn, address tokenOut, uint256 amountOut);
     event ProtocolFeeUpdated(uint256 newFee);
+    event MaxPriceImpactUpdated(uint256 newMaxBps);
+    event PoolStatusChanged(uint256 indexed poolId, bool active);         // S-LOW-1
+    event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury); // S-LOW-2
+    event Sync(uint256 indexed poolId, uint256 reserve0, uint256 reserve1);
 
     constructor(address _treasury) {
         require(_treasury != address(0), "Zero treasury");
@@ -64,7 +70,9 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
 
     // ── Create pool ────────────────────────────────────────────────────────
     function createPool(address tokenA, address tokenB)
-        external onlyRole(POOL_ADMIN_ROLE) returns (uint256 poolId)
+        external
+        onlyRole(POOL_ADMIN_ROLE)
+        returns (uint256 poolId, address storedTokenA, address storedTokenB)
     {
         require(tokenA != address(0) && tokenB != address(0), "Zero token");
         require(tokenA != tokenB, "Same token");
@@ -73,19 +81,22 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
         if (tokenA > tokenB) (tokenA, tokenB) = (tokenB, tokenA);
 
         bytes32 pairKey = keccak256(abi.encodePacked(tokenA, tokenB));
-        require(pairToPool[pairKey] == 0, "Pool exists");
+        require(!pairExists[pairKey], "Pool exists");          // S-3
 
         poolId = ++nextPoolId;  // start from 1
         pools[poolId] = Pool({
-            tokenA:       tokenA,
-            tokenB:       tokenB,
-            reserveA:     0,
-            reserveB:     0,
+            tokenA:        tokenA,
+            tokenB:        tokenB,
+            reserveA:      0,
+            reserveB:      0,
             totalLPShares: 0,
-            kLast:        0,
-            active:       true
+            active:        true
         });
         pairToPool[pairKey] = poolId;
+        pairExists[pairKey] = true;                            // S-3
+
+        storedTokenA = tokenA;                                 // S-11
+        storedTokenB = tokenB;                                 // S-11
 
         emit PoolCreated(poolId, tokenA, tokenB);
     }
@@ -96,8 +107,11 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
         uint256 amountADesired,
         uint256 amountBDesired,
         uint256 amountAMin,
-        uint256 amountBMin
+        uint256 amountBMin,
+        uint256 deadline                                         // S-7
     ) external nonReentrant whenNotPaused returns (uint256 shares) {
+        require(block.timestamp <= deadline, "Expired");          // S-7
+
         Pool storage p = pools[poolId];
         require(p.active, "Pool not active");
         require(amountADesired > 0 && amountBDesired > 0, "Zero amounts");
@@ -118,27 +132,47 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
             }
         }
 
-        // Mint LP shares
+        // Mint LP shares — initial share calculation is preliminary;
+        // final shares are recalculated below using actual tokens received.
         if (p.totalLPShares == 0) {
-            shares = _sqrt(amountA * amountB);
+            // Burn MINIMUM_LIQUIDITY to dead address to prevent LP share inflation attack (S-HIGH-3)
+            lpShares[poolId][address(0xdead)] = MINIMUM_LIQUIDITY;
+            p.totalLPShares += MINIMUM_LIQUIDITY;
+            // shares will be recalculated after transfer using actualA/actualB
+            shares = 0; // placeholder
         } else {
-            uint256 sharesA = (amountA * p.totalLPShares) / p.reserveA;
-            uint256 sharesB = (amountB * p.totalLPShares) / p.reserveB;
+            // shares will be recalculated after transfer using actualA/actualB
+            shares = 0; // placeholder
+        }
+
+        // S-CRIT-1: Use balance-difference pattern for fee-on-transfer tokens
+        uint256 balBeforeA = IERC20(p.tokenA).balanceOf(address(this));
+        uint256 balBeforeB = IERC20(p.tokenB).balanceOf(address(this));
+        IERC20(p.tokenA).safeTransferFrom(msg.sender, address(this), amountA);
+        IERC20(p.tokenB).safeTransferFrom(msg.sender, address(this), amountB);
+        uint256 actualA = IERC20(p.tokenA).balanceOf(address(this)) - balBeforeA;
+        uint256 actualB = IERC20(p.tokenB).balanceOf(address(this)) - balBeforeB;
+        require(actualA > 0 && actualB > 0, "Zero received");
+
+        // Recalculate LP shares using actual amounts received (for fee-on-transfer tokens)
+        if (p.totalLPShares == MINIMUM_LIQUIDITY) {
+            // First liquidity addition — recalculate shares with actual amounts
+            shares = _sqrt(actualA * actualB) - MINIMUM_LIQUIDITY;
+            require(shares > MINIMUM_LIQUIDITY, "Initial liquidity too low");
+        } else if (p.totalLPShares > MINIMUM_LIQUIDITY) {
+            uint256 sharesA = (actualA * p.totalLPShares) / p.reserveA;
+            uint256 sharesB = (actualB * p.totalLPShares) / p.reserveB;
             shares = sharesA < sharesB ? sharesA : sharesB;
         }
         require(shares > 0, "Zero shares");
 
-        // CEI: update state before external transfers
-        p.reserveA       += amountA;
-        p.reserveB       += amountB;
-        p.totalLPShares  += shares;
-        p.kLast           = p.reserveA * p.reserveB;
+        // Update state after transfers using actual amounts received
+        p.reserveA      += actualA;
+        p.reserveB      += actualB;
+        p.totalLPShares += shares;
         lpShares[poolId][msg.sender] += shares;
 
-        emit LiquidityAdded(poolId, msg.sender, amountA, amountB, shares);
-
-        IERC20(p.tokenA).safeTransferFrom(msg.sender, address(this), amountA);
-        IERC20(p.tokenB).safeTransferFrom(msg.sender, address(this), amountB);
+        emit LiquidityAdded(poolId, msg.sender, actualA, actualB, shares);
     }
 
     // ── Remove liquidity ───────────────────────────────────────────────────
@@ -147,11 +181,24 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
         uint256 shares,
         uint256 amountAMin,
         uint256 amountBMin
-    ) external nonReentrant returns (uint256 amountA, uint256 amountB) {
+    ) external nonReentrant whenNotPaused returns (uint256 amountA, uint256 amountB) {
+        require(poolId > 0 && poolId <= nextPoolId, "Invalid pool"); // S-8
+
         Pool storage p = pools[poolId];
         require(lpShares[poolId][msg.sender] >= shares, "Insufficient shares");
         require(p.totalLPShares > 0, "Empty pool");
 
+        // S-MED-2: Ensure MINIMUM_LIQUIDITY shares remain permanently locked.
+        // The dead address holds MINIMUM_LIQUIDITY and can never call this function,
+        // so prevent any withdrawal that would reduce totalLPShares below MINIMUM_LIQUIDITY.
+        require(
+            p.totalLPShares - shares >= MINIMUM_LIQUIDITY || p.totalLPShares <= MINIMUM_LIQUIDITY,
+            "Must leave MINIMUM_LIQUIDITY locked"
+        );
+
+        // S-LOW-1: Simplified — proportional calculation covers all cases.
+        // The dead-address MINIMUM_LIQUIDITY shares can never call this function,
+        // so shares == totalLPShares is unreachable in practice.
         amountA = (shares * p.reserveA) / p.totalLPShares;
         amountB = (shares * p.reserveB) / p.totalLPShares;
         require(amountA >= amountAMin, "Slippage: A");
@@ -161,7 +208,6 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
         p.totalLPShares -= shares;
         p.reserveA      -= amountA;
         p.reserveB      -= amountB;
-        p.kLast          = p.reserveA * p.reserveB;
 
         IERC20(p.tokenA).safeTransfer(msg.sender, amountA);
         IERC20(p.tokenB).safeTransfer(msg.sender, amountB);
@@ -174,28 +220,32 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
         uint256 poolId,
         address tokenIn,
         uint256 amountIn,
-        uint256 amountOutMin
+        uint256 amountOutMin,
+        uint256 deadline                                          // S-6
     ) external nonReentrant whenNotPaused returns (uint256 amountOut) {
+        require(block.timestamp <= deadline, "Expired");           // S-6
+
         Pool storage p = pools[poolId];
         require(p.active, "Pool not active");
         require(tokenIn == p.tokenA || tokenIn == p.tokenB, "Invalid token");
         require(amountIn > 0, "Zero input");
+
+        // Snapshot pre-swap k for invariant check
+        uint256 kBefore = p.reserveA * p.reserveB;
+
+        // S-2: Transfer in first, measure actual amount received
+        uint256 balBefore = IERC20(tokenIn).balanceOf(address(this));
+        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+        uint256 actualIn = IERC20(tokenIn).balanceOf(address(this)) - balBefore;
 
         bool aToB = (tokenIn == p.tokenA);
         (uint256 reserveIn, uint256 reserveOut) = aToB
             ? (p.reserveA, p.reserveB)
             : (p.reserveB, p.reserveA);
 
-        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
-
-        // Protocol fee
-        uint256 fee = (amountIn * protocolFee) / FEE_BASE;
-        if (fee > 0) {
-            IERC20(tokenIn).safeTransfer(treasury, fee);
-        }
-
-        // LP fee stays in pool (amountIn for calculation includes LP fee)
-        uint256 amountInWithFee = amountIn - fee;
+        // Compute fees and output amount using actualIn
+        uint256 fee             = (actualIn * protocolFee) / FEE_BASE;
+        uint256 amountInWithFee = actualIn - fee;
         uint256 lpFeeAmount     = (amountInWithFee * LP_FEE) / FEE_BASE;
         uint256 amountInNet     = amountInWithFee - lpFeeAmount;
 
@@ -204,7 +254,11 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
         require(amountOut >= amountOutMin, "Slippage exceeded");
         require(amountOut < reserveOut,    "Insufficient liquidity");
 
-        // CEI: update reserves before outbound transfer
+        // S-5: Price impact protection
+        uint256 impact = (amountOut * FEE_BASE) / reserveOut;
+        require(impact <= maxPriceImpactBps, "Price impact too high");
+
+        // Update reserves after transfer verification
         address tokenOut = aToB ? p.tokenB : p.tokenA;
         if (aToB) {
             p.reserveA += amountInWithFee;  // includes LP fee
@@ -213,20 +267,37 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
             p.reserveB += amountInWithFee;
             p.reserveA -= amountOut;
         }
-        p.kLast = p.reserveA * p.reserveB;
 
+        // D3: Post-swap k-invariant check — k must never decrease
+        // LP fees grow k over time; protocol fee is extracted before reserve update
+        uint256 kAfter = p.reserveA * p.reserveB;
+        require(kAfter >= kBefore, "K invariant violated");
+
+        // Send protocol fee to treasury and output to user
+        if (fee > 0) {
+            IERC20(tokenIn).safeTransfer(treasury, fee);
+        }
         IERC20(tokenOut).safeTransfer(msg.sender, amountOut);
 
-        emit Swapped(poolId, msg.sender, tokenIn, amountIn, tokenOut, amountOut);
+        _update(poolId, p.reserveA, p.reserveB);
+        emit Swapped(poolId, msg.sender, tokenIn, actualIn, tokenOut, amountOut);
     }
 
     // ── Quote ──────────────────────────────────────────────────────────────
+    /**
+     * @notice Returns the estimated output amount for a given input.
+     * @dev WARNING (S-MED-4): This function uses instantaneous reserves and is
+     *      susceptible to flash-loan and sandwich manipulation. It MUST NOT be
+     *      used as a price oracle by external protocols. Use a TWAP oracle or
+     *      Chainlink price feeds instead for any on-chain price reference.
+     */
     function getAmountOut(
         uint256 poolId,
         address tokenIn,
         uint256 amountIn
     ) external view returns (uint256 amountOut) {
         Pool storage p = pools[poolId];
+        require(tokenIn == p.tokenA || tokenIn == p.tokenB, "Invalid token"); // S-14
         bool aToB = (tokenIn == p.tokenA);
         (uint256 reserveIn, uint256 reserveOut) = aToB
             ? (p.reserveA, p.reserveB)
@@ -247,17 +318,36 @@ contract ECCSwap is AccessControl, ReentrancyGuard, Pausable {
 
     function setTreasury(address _treasury) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_treasury != address(0), "Zero address");
+        address old = treasury;
         treasury = _treasury;
+        emit TreasuryUpdated(old, _treasury);                             // S-LOW-2
+    }
+
+    function setMaxPriceImpact(uint256 _maxBps) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_maxBps > 0 && _maxBps <= FEE_BASE, "Invalid bps");
+        maxPriceImpactBps = _maxBps;
+        emit MaxPriceImpactUpdated(_maxBps);
     }
 
     function setPoolActive(uint256 poolId, bool active) external onlyRole(POOL_ADMIN_ROLE) {
         pools[poolId].active = active;
+        emit PoolStatusChanged(poolId, active);                           // S-LOW-1
     }
 
     function pause()   external onlyRole(DEFAULT_ADMIN_ROLE) { _pause(); }
     function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) { _unpause(); }
 
+    // ── Views ──────────────────────────────────────────────────────────────
+    function getReserves(uint256 poolId) external view returns (uint256 reserve0, uint256 reserve1) {
+        Pool storage p = pools[poolId];
+        return (p.reserveA, p.reserveB);
+    }
+
     // ── Internal ───────────────────────────────────────────────────────────
+    function _update(uint256 poolId, uint256 reserve0, uint256 reserve1) private {
+        emit Sync(poolId, reserve0, reserve1);
+    }
+
     function _sqrt(uint256 y) internal pure returns (uint256 z) {
         if (y > 3) {
             z = y;
