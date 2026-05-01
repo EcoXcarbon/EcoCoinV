@@ -15500,6 +15500,19 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
         isAdmin: async function(identifier) {
             const role = await this.getRole(identifier);
             return role === 'ADMIN';
+        },
+
+        // Check if current authenticated user has a given permission
+        // permissions: canVerifyProjects | canModerate | canViewAllUsers | canBanUsers | canViewFinance | canManageRoles
+        hasPermission: function(permission) {
+            const ROLE_PERMS = {
+                ADMIN:     { canManageRoles: true, canVerifyProjects: true, canModerate: true, canViewAllUsers: true, canBanUsers: true, canViewFinance: true },
+                VERIFIER:  { canManageRoles: false, canVerifyProjects: true, canModerate: false, canViewAllUsers: false, canBanUsers: false, canViewFinance: false },
+                MODERATOR: { canManageRoles: false, canVerifyProjects: false, canModerate: true, canViewAllUsers: false, canBanUsers: false, canViewFinance: false },
+                USER:      { canManageRoles: false, canVerifyProjects: false, canModerate: false, canViewAllUsers: false, canBanUsers: false, canViewFinance: false }
+            };
+            const role = (window.AUTH_STATE && window.AUTH_STATE.role) || 'USER';
+            return !!(ROLE_PERMS[role] && ROLE_PERMS[role][permission]);
         }
     };
 
@@ -16731,15 +16744,11 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
         }
     };
     
-    // Update AUTH_STATE when user logs in
+    // Role is always set from Firestore (RoleManager) in completeAuthentication.
+    // This function only ensures defaults so the state is never undefined.
     function setUserRole(address) {
-        if (AdminHelper.isAdmin(address)) {
-            window.AUTH_STATE.isAdmin = true;
-            window.AUTH_STATE.role = 'ADMIN';
-        } else {
-            window.AUTH_STATE.isAdmin = false;
-            window.AUTH_STATE.role = 'USER';
-        }
+        if (!window.AUTH_STATE.role) window.AUTH_STATE.role = 'USER';
+        if (window.AUTH_STATE.isAdmin === undefined) window.AUTH_STATE.isAdmin = false;
     }
     
     // Initialize user in database
@@ -16759,7 +16768,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
     }
     
     // Google OAuth Configuration
-    const GOOGLE_CLIENT_ID = '328982136913-2gjqt2d1m2vbne39i2e3je7fg2gjl91k.apps.googleusercontent.com';
+    const GOOGLE_CLIENT_ID = '1080223811681-8l83v419332c0vd9h3u77lq6eiaf30na.apps.googleusercontent.com';
 
     // Initialize Google Sign-In
     function initGoogleAuth() {
@@ -17195,8 +17204,8 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             }, 500);
         }
 
-        // Show admin UI elements if admin
-        if (window.AUTH_STATE.isAdmin) {
+        // Show role-based panel for ADMIN, VERIFIER, MODERATOR
+        if (['ADMIN', 'VERIFIER', 'MODERATOR'].includes(window.AUTH_STATE.role)) {
             setTimeout(() => {
                 if (typeof checkAdminAccess === 'function') checkAdminAccess();
             }, 200);
@@ -20804,6 +20813,376 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                     </div>
                 </div>
             </div>
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- SECTION 5: USER MANAGEMENT (NEW) -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <div id="adminSectionUsers" class="admin-section" style="display: none;">
+                
+                <!-- Platform Statistics -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div class="card" style="background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%); color: white;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 40px; margin-bottom: 8px;">👥</div>
+                            <div style="font-size: 14px; opacity: 0.9;">Total Users</div>
+                            <div style="font-size: 32px; font-weight: 700;" id="adminTotalUsers">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="background: linear-gradient(135deg, #2196F3 0%, #42A5F5 100%); color: white;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 40px; margin-bottom: 8px;">⚡</div>
+                            <div style="font-size: 14px; opacity: 0.9;">Active (24h)</div>
+                            <div style="font-size: 32px; font-weight: 700;" id="adminActiveUsers">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="background: linear-gradient(135deg, #9C27B0 0%, #BA68C8 100%); color: white;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 40px; margin-bottom: 8px;">📊</div>
+                            <div style="font-size: 14px; opacity: 0.9;">Total Staked</div>
+                            <div style="font-size: 32px; font-weight: 700;" id="adminTotalStaked">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="background: linear-gradient(135deg, #FF9800 0%, #FFB74D 100%); color: white;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 40px; margin-bottom: 8px;">🌍</div>
+                            <div style="font-size: 14px; opacity: 0.9;">CO₂ Offset (tons)</div>
+                            <div style="font-size: 32px; font-weight: 700;" id="adminTotalCarbon">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Search & Filters -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <h3 style="margin-bottom: 16px; color: var(--primary);">🔍 Search & Filter Users</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Search:</label>
+                            <input 
+                                type="text" 
+                                id="userSearchInput" 
+                                placeholder="Address, email, name..." 
+                                oninput="filterUsers()"
+                                style="width: 100%; padding: 10px; border: 2px solid #E0E0E0; border-radius: 8px;"
+                            />
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Filter by Role:</label>
+                            <select id="userRoleFilter" onchange="filterUsers()" style="width: 100%; padding: 10px; border: 2px solid #E0E0E0; border-radius: 8px;">
+                                <option value="all">All Roles</option>
+                                <option value="ADMIN">👑 Admin</option>
+                                <option value="VERIFIER">✅ Verifier</option>
+                                <option value="USER">👤 User</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Filter by Status:</label>
+                            <select id="userStatusFilter" onchange="filterUsers()" style="width: 100%; padding: 10px; border: 2px solid #E0E0E0; border-radius: 8px;">
+                                <option value="all">All Status</option>
+                                <option value="active">⚡ Active</option>
+                                <option value="inactive">💤 Inactive</option>
+                                <option value="banned">🚫 Banned</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button onclick="refreshUserList()" class="btn btn-primary" style="width: 100%;">
+                                🔄 Refresh List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Table -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="margin: 0; color: var(--primary);">👥 All Users</h3>
+                        <div style="font-size: 14px; color: #666;">
+                            Showing: <span id="userDisplayCount">0</span> users
+                        </div>
+                    </div>
+                    
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #F5F5F5; text-align: left;">
+                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">User</th>
+                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">Role</th>
+                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">Wallet</th>
+                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">Stats</th>
+                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">Joined</th>
+                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">Last Active</th>
+                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0; text-align: center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px; color: #616161;">
+                                        <div style="font-size: 48px; margin-bottom: 16px;">👥</div>
+                                        Loading users...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- User Details Modal (will be shown via JavaScript) -->
+                <div id="userDetailsModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; padding: 20px; overflow-y: auto;">
+                    <div style="max-width: 800px; margin: 50px auto; background: white; border-radius: 12px; padding: 0; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                        <!-- Header -->
+                        <div style="background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%); color: white; padding: 24px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h2 style="margin: 0 0 8px 0; color: white;">👤 User Details</h2>
+                                <div id="userDetailsName" style="font-size: 14px; opacity: 0.9;"></div>
+                            </div>
+                            <button onclick="closeUserDetails()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer;">×</button>
+                        </div>
+                        
+                        <!-- Content -->
+                        <div id="userDetailsContent" style="padding: 24px;">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Users Leaderboard -->
+                <div class="card" style="margin-top: 24px;">
+                    <h3 style="margin-bottom: 16px; color: var(--primary);">🏆 Top Users Leaderboard</h3>
+                    <div style="display: grid; gap: 12px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                            <button onclick="loadLeaderboard('totalStaked')" id="leaderboardStaked" class="btn btn-secondary" style="background: #4CAF50; color: white; border: none;">
+                                🔒 By Staking
+                            </button>
+                            <button onclick="loadLeaderboard('carbonOffsetTons')" id="leaderboardCarbon" class="btn btn-secondary">
+                                🌍 By Carbon Offset
+                            </button>
+                            <button onclick="loadLeaderboard('totalReferrals')" id="leaderboardReferrals" class="btn btn-secondary">
+                                👥 By Referrals
+                            </button>
+                            <button onclick="loadLeaderboard('totalRewardsEarned')" id="leaderboardRewards" class="btn btn-secondary">
+                                💰 By Rewards
+                            </button>
+                        </div>
+                        <div id="leaderboardContent" style="min-height: 200px;">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Feed -->
+                <div class="card" style="margin-top: 24px;">
+                    <h3 style="margin-bottom: 16px; color: var(--primary);">📊 Recent Platform Activity</h3>
+                    <div id="adminActivityFeed" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- SECTION 6: HOME NEWS FEED MANAGEMENT -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <div id="adminSectionNews-management" class="admin-section" style="display: none;">
+                <div class="card" style="margin-bottom: 24px;">
+                    <h2 class="card-title">📢 Home Page News Feed Management</h2>
+                    <p style="color: #616161; margin-bottom: 24px; font-size: 14px;">
+                        Manage news articles that appear in the News Feed section on the home page. These articles will be visible to all users.
+                    </p>
+
+                    <div style="display: grid; gap: 16px; margin-bottom: 24px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">News Title:</label>
+                            <input type="text" id="homeNewsTitle" placeholder="e.g., EcoCoin Launches New Staking Program" style="
+                                width: 100%;
+                                padding: 12px;
+                                border: 2px solid #E0E0E0;
+                                border-radius: 8px;
+                                font-size: 14px;
+                            ">
+                        </div>
+
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">News Content:</label>
+                            <textarea id="homeNewsContent" placeholder="Enter the full news article content..." rows="4" style="
+                                width: 100%;
+                                padding: 12px;
+                                border: 2px solid #E0E0E0;
+                                border-radius: 8px;
+                                font-size: 14px;
+                                resize: vertical;
+                            "></textarea>
+                        </div>
+
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Image URL (optional):</label>
+                            <input type="text" id="homeNewsImage" placeholder="https://example.com/image.jpg" style="
+                                width: 100%;
+                                padding: 12px;
+                                border: 2px solid #E0E0E0;
+                                border-radius: 8px;
+                                font-size: 14px;
+                            ">
+                        </div>
+
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Category:</label>
+                            <select id="homeNewsCategory" style="
+                                width: 200px;
+                                padding: 12px;
+                                border: 2px solid #E0E0E0;
+                                border-radius: 8px;
+                                font-size: 14px;
+                            ">
+                                <option value="announcement">📢 Announcement</option>
+                                <option value="update">🔄 Update</option>
+                                <option value="partnership">🤝 Partnership</option>
+                                <option value="event">🎉 Event</option>
+                                <option value="milestone">🏆 Milestone</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+                        <button onclick="addHomeNews()" class="btn btn-primary">
+                            ➕ Add News Article
+                        </button>
+                        <button onclick="clearAllHomeNews()" class="btn" style="background: #E53935; color: white;">
+                            🗑️ Clear All News
+                        </button>
+                    </div>
+
+                    <div id="homeNewsListAdmin" style="margin-top: 24px;">
+                        <h3 style="color: var(--primary); margin-bottom: 16px;">Current News Articles:</h3>
+                        <div id="homeNewsListContent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- SECTION 7: PARTNERS MANAGEMENT -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <div id="adminSectionPartners-management" class="admin-section" style="display: none;">
+                <div class="card" style="margin-bottom: 24px;">
+                    <h2 class="card-title">🤝 Partners Management</h2>
+                    <p style="color: #616161; margin-bottom: 24px; font-size: 14px;">
+                        Manage partner logos and information that appear in the Partners section on the home page.
+                    </p>
+
+                    <div style="display: grid; gap: 16px; margin-bottom: 24px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Partner Name:</label>
+                            <input type="text" id="partnerName" placeholder="e.g., Green Energy Corp" style="
+                                width: 100%;
+                                padding: 12px;
+                                border: 2px solid #E0E0E0;
+                                border-radius: 8px;
+                                font-size: 14px;
+                            ">
+                        </div>
+
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Partner Logo URL:</label>
+                            <input type="text" id="partnerLogo" placeholder="https://example.com/logo.png" style="
+                                width: 100%;
+                                padding: 12px;
+                                border: 2px solid #E0E0E0;
+                                border-radius: 8px;
+                                font-size: 14px;
+                            ">
+                        </div>
+
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Partner Website (optional):</label>
+                            <input type="text" id="partnerWebsite" placeholder="https://partner-website.com" style="
+                                width: 100%;
+                                padding: 12px;
+                                border: 2px solid #E0E0E0;
+                                border-radius: 8px;
+                                font-size: 14px;
+                            ">
+                        </div>
+
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Description (optional):</label>
+                            <input type="text" id="partnerDescription" placeholder="Brief description of the partnership" style="
+                                width: 100%;
+                                padding: 12px;
+                                border: 2px solid #E0E0E0;
+                                border-radius: 8px;
+                                font-size: 14px;
+                            ">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+                        <button onclick="addPartner()" class="btn btn-primary">
+                            ➕ Add Partner
+                        </button>
+                        <button onclick="clearAllPartners()" class="btn" style="background: #E53935; color: white;">
+                            🗑️ Clear All Partners
+                        </button>
+                    </div>
+
+                    <div id="partnersListAdmin" style="margin-top: 24px;">
+                        <h3 style="color: var(--primary); margin-bottom: 16px;">Current Partners:</h3>
+                        <div id="partnersListContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION: ROLE MANAGEMENT -->
+            <div id="adminSectionRoles" class="admin-section" style="display: none;">
+                <div class="card" style="margin-bottom: 24px;">
+                    <h2 class="card-title">🔐 Role Management</h2>
+                    <p style="color: #616161; margin-bottom: 16px; font-size: 14px;">
+                        Assign roles to users. Roles are stored in Firestore and verified server-side.
+                        Only ADMIN can change roles. Changes take effect immediately.
+                    </p>
+
+                    <div style="background: #FFF8E1; border: 1px solid #FFE082; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                        <strong style="color: #F57F17;">Available Roles:</strong>
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px;">
+                            <span style="background: #9C27B0; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">ADMIN — Full platform access</span>
+                            <span style="background: #FF9800; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">VERIFIER — Carbon project verification</span>
+                            <span style="background: #00BCD4; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">MODERATOR — Content moderation</span>
+                            <span style="background: #2196F3; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">USER — Standard access</span>
+                        </div>
+                    </div>
+
+                    <!-- Quick assign by email -->
+                    <div style="background: #F5F5F5; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+                        <h3 style="margin-bottom: 12px; color: var(--primary);">Quick Assign Role</h3>
+                        <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end;">
+                            <div>
+                                <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px;">Email or Wallet Address:</label>
+                                <input type="text" id="quickRoleTarget" placeholder="user@example.com or 0x..." style="width: 100%; padding: 10px; border: 2px solid #E0E0E0; border-radius: 8px; font-size: 14px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px;">Role:</label>
+                                <select id="quickRoleSelect" style="width: 100%; padding: 10px; border: 2px solid #E0E0E0; border-radius: 8px; font-size: 14px;">
+                                    <option value="USER">USER</option>
+                                    <option value="VERIFIER">VERIFIER</option>
+                                    <option value="MODERATOR">MODERATOR</option>
+                                    <option value="ADMIN">ADMIN</option>
+                                </select>
+                            </div>
+                            <button onclick="quickAssignRole()" class="btn btn-primary" style="padding: 10px 20px; white-space: nowrap;">Assign Role</button>
+                        </div>
+                    </div>
+
+                    <!-- Current role assignments from Firestore -->
+                    <h3 style="margin-bottom: 12px; color: var(--primary);">Current Role Assignments (Firestore)</h3>
+                    <div id="roleAssignmentsList" style="margin-top: 8px;">
+                        <p style="text-align: center; color: #666; padding: 20px;">Loading roles from Firestore...</p>
+                    </div>
+                    <button onclick="loadFirestoreRoles()" class="btn btn-primary" style="margin-top: 12px;">Refresh Roles</button>
+                </div>
+            </div>
+
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- VESTING TAB                                             -->
 
             <!-- TOKENOMICS TAB -->
             <div id="tokenomics" class="tab-content">
@@ -23968,376 +24347,6 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
                 </div>
             </div>
 
-            <!-- ═══════════════════════════════════════════════════════════════ -->
-            <!-- SECTION 5: USER MANAGEMENT (NEW) -->
-            <!-- ═══════════════════════════════════════════════════════════════ -->
-            <div id="adminSectionUsers" class="admin-section" style="display: none;">
-                
-                <!-- Platform Statistics -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-                    <div class="card" style="background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%); color: white;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 40px; margin-bottom: 8px;">👥</div>
-                            <div style="font-size: 14px; opacity: 0.9;">Total Users</div>
-                            <div style="font-size: 32px; font-weight: 700;" id="adminTotalUsers">0</div>
-                        </div>
-                    </div>
-                    
-                    <div class="card" style="background: linear-gradient(135deg, #2196F3 0%, #42A5F5 100%); color: white;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 40px; margin-bottom: 8px;">⚡</div>
-                            <div style="font-size: 14px; opacity: 0.9;">Active (24h)</div>
-                            <div style="font-size: 32px; font-weight: 700;" id="adminActiveUsers">0</div>
-                        </div>
-                    </div>
-                    
-                    <div class="card" style="background: linear-gradient(135deg, #9C27B0 0%, #BA68C8 100%); color: white;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 40px; margin-bottom: 8px;">📊</div>
-                            <div style="font-size: 14px; opacity: 0.9;">Total Staked</div>
-                            <div style="font-size: 32px; font-weight: 700;" id="adminTotalStaked">0</div>
-                        </div>
-                    </div>
-                    
-                    <div class="card" style="background: linear-gradient(135deg, #FF9800 0%, #FFB74D 100%); color: white;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 40px; margin-bottom: 8px;">🌍</div>
-                            <div style="font-size: 14px; opacity: 0.9;">CO₂ Offset (tons)</div>
-                            <div style="font-size: 32px; font-weight: 700;" id="adminTotalCarbon">0</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- User Search & Filters -->
-                <div class="card" style="margin-bottom: 24px;">
-                    <h3 style="margin-bottom: 16px; color: var(--primary);">🔍 Search & Filter Users</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Search:</label>
-                            <input 
-                                type="text" 
-                                id="userSearchInput" 
-                                placeholder="Address, email, name..." 
-                                oninput="filterUsers()"
-                                style="width: 100%; padding: 10px; border: 2px solid #E0E0E0; border-radius: 8px;"
-                            />
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Filter by Role:</label>
-                            <select id="userRoleFilter" onchange="filterUsers()" style="width: 100%; padding: 10px; border: 2px solid #E0E0E0; border-radius: 8px;">
-                                <option value="all">All Roles</option>
-                                <option value="ADMIN">👑 Admin</option>
-                                <option value="VERIFIER">✅ Verifier</option>
-                                <option value="USER">👤 User</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Filter by Status:</label>
-                            <select id="userStatusFilter" onchange="filterUsers()" style="width: 100%; padding: 10px; border: 2px solid #E0E0E0; border-radius: 8px;">
-                                <option value="all">All Status</option>
-                                <option value="active">⚡ Active</option>
-                                <option value="inactive">💤 Inactive</option>
-                                <option value="banned">🚫 Banned</option>
-                            </select>
-                        </div>
-                        <div style="display: flex; align-items: flex-end;">
-                            <button onclick="refreshUserList()" class="btn btn-primary" style="width: 100%;">
-                                🔄 Refresh List
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Users Table -->
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <h3 style="margin: 0; color: var(--primary);">👥 All Users</h3>
-                        <div style="font-size: 14px; color: #666;">
-                            Showing: <span id="userDisplayCount">0</span> users
-                        </div>
-                    </div>
-                    
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: #F5F5F5; text-align: left;">
-                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">User</th>
-                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">Role</th>
-                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">Wallet</th>
-                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">Stats</th>
-                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">Joined</th>
-                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0;">Last Active</th>
-                                    <th style="padding: 12px; border-bottom: 2px solid #E0E0E0; text-align: center;">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="usersTableBody">
-                                <tr>
-                                    <td colspan="7" style="text-align: center; padding: 40px; color: #616161;">
-                                        <div style="font-size: 48px; margin-bottom: 16px;">👥</div>
-                                        Loading users...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- User Details Modal (will be shown via JavaScript) -->
-                <div id="userDetailsModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; padding: 20px; overflow-y: auto;">
-                    <div style="max-width: 800px; margin: 50px auto; background: white; border-radius: 12px; padding: 0; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-                        <!-- Header -->
-                        <div style="background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%); color: white; padding: 24px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <h2 style="margin: 0 0 8px 0; color: white;">👤 User Details</h2>
-                                <div id="userDetailsName" style="font-size: 14px; opacity: 0.9;"></div>
-                            </div>
-                            <button onclick="closeUserDetails()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer;">×</button>
-                        </div>
-                        
-                        <!-- Content -->
-                        <div id="userDetailsContent" style="padding: 24px;">
-                            <!-- Will be populated by JavaScript -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Top Users Leaderboard -->
-                <div class="card" style="margin-top: 24px;">
-                    <h3 style="margin-bottom: 16px; color: var(--primary);">🏆 Top Users Leaderboard</h3>
-                    <div style="display: grid; gap: 12px;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-                            <button onclick="loadLeaderboard('totalStaked')" id="leaderboardStaked" class="btn btn-secondary" style="background: #4CAF50; color: white; border: none;">
-                                🔒 By Staking
-                            </button>
-                            <button onclick="loadLeaderboard('carbonOffsetTons')" id="leaderboardCarbon" class="btn btn-secondary">
-                                🌍 By Carbon Offset
-                            </button>
-                            <button onclick="loadLeaderboard('totalReferrals')" id="leaderboardReferrals" class="btn btn-secondary">
-                                👥 By Referrals
-                            </button>
-                            <button onclick="loadLeaderboard('totalRewardsEarned')" id="leaderboardRewards" class="btn btn-secondary">
-                                💰 By Rewards
-                            </button>
-                        </div>
-                        <div id="leaderboardContent" style="min-height: 200px;">
-                            <!-- Will be populated by JavaScript -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Activity Feed -->
-                <div class="card" style="margin-top: 24px;">
-                    <h3 style="margin-bottom: 16px; color: var(--primary);">📊 Recent Platform Activity</h3>
-                    <div id="adminActivityFeed" style="max-height: 400px; overflow-y: auto;">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- ═══════════════════════════════════════════════════════════════ -->
-            <!-- SECTION 6: HOME NEWS FEED MANAGEMENT -->
-            <!-- ═══════════════════════════════════════════════════════════════ -->
-            <div id="adminSectionNews-management" class="admin-section" style="display: none;">
-                <div class="card" style="margin-bottom: 24px;">
-                    <h2 class="card-title">📢 Home Page News Feed Management</h2>
-                    <p style="color: #616161; margin-bottom: 24px; font-size: 14px;">
-                        Manage news articles that appear in the News Feed section on the home page. These articles will be visible to all users.
-                    </p>
-
-                    <div style="display: grid; gap: 16px; margin-bottom: 24px;">
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">News Title:</label>
-                            <input type="text" id="homeNewsTitle" placeholder="e.g., EcoCoin Launches New Staking Program" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #E0E0E0;
-                                border-radius: 8px;
-                                font-size: 14px;
-                            ">
-                        </div>
-
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">News Content:</label>
-                            <textarea id="homeNewsContent" placeholder="Enter the full news article content..." rows="4" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #E0E0E0;
-                                border-radius: 8px;
-                                font-size: 14px;
-                                resize: vertical;
-                            "></textarea>
-                        </div>
-
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Image URL (optional):</label>
-                            <input type="text" id="homeNewsImage" placeholder="https://example.com/image.jpg" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #E0E0E0;
-                                border-radius: 8px;
-                                font-size: 14px;
-                            ">
-                        </div>
-
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Category:</label>
-                            <select id="homeNewsCategory" style="
-                                width: 200px;
-                                padding: 12px;
-                                border: 2px solid #E0E0E0;
-                                border-radius: 8px;
-                                font-size: 14px;
-                            ">
-                                <option value="announcement">📢 Announcement</option>
-                                <option value="update">🔄 Update</option>
-                                <option value="partnership">🤝 Partnership</option>
-                                <option value="event">🎉 Event</option>
-                                <option value="milestone">🏆 Milestone</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; gap: 12px; margin-bottom: 24px;">
-                        <button onclick="addHomeNews()" class="btn btn-primary">
-                            ➕ Add News Article
-                        </button>
-                        <button onclick="clearAllHomeNews()" class="btn" style="background: #E53935; color: white;">
-                            🗑️ Clear All News
-                        </button>
-                    </div>
-
-                    <div id="homeNewsListAdmin" style="margin-top: 24px;">
-                        <h3 style="color: var(--primary); margin-bottom: 16px;">Current News Articles:</h3>
-                        <div id="homeNewsListContent"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ═══════════════════════════════════════════════════════════════ -->
-            <!-- SECTION 7: PARTNERS MANAGEMENT -->
-            <!-- ═══════════════════════════════════════════════════════════════ -->
-            <div id="adminSectionPartners-management" class="admin-section" style="display: none;">
-                <div class="card" style="margin-bottom: 24px;">
-                    <h2 class="card-title">🤝 Partners Management</h2>
-                    <p style="color: #616161; margin-bottom: 24px; font-size: 14px;">
-                        Manage partner logos and information that appear in the Partners section on the home page.
-                    </p>
-
-                    <div style="display: grid; gap: 16px; margin-bottom: 24px;">
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Partner Name:</label>
-                            <input type="text" id="partnerName" placeholder="e.g., Green Energy Corp" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #E0E0E0;
-                                border-radius: 8px;
-                                font-size: 14px;
-                            ">
-                        </div>
-
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Partner Logo URL:</label>
-                            <input type="text" id="partnerLogo" placeholder="https://example.com/logo.png" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #E0E0E0;
-                                border-radius: 8px;
-                                font-size: 14px;
-                            ">
-                        </div>
-
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Partner Website (optional):</label>
-                            <input type="text" id="partnerWebsite" placeholder="https://partner-website.com" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #E0E0E0;
-                                border-radius: 8px;
-                                font-size: 14px;
-                            ">
-                        </div>
-
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #212121;">Description (optional):</label>
-                            <input type="text" id="partnerDescription" placeholder="Brief description of the partnership" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #E0E0E0;
-                                border-radius: 8px;
-                                font-size: 14px;
-                            ">
-                        </div>
-                    </div>
-
-                    <div style="display: flex; gap: 12px; margin-bottom: 24px;">
-                        <button onclick="addPartner()" class="btn btn-primary">
-                            ➕ Add Partner
-                        </button>
-                        <button onclick="clearAllPartners()" class="btn" style="background: #E53935; color: white;">
-                            🗑️ Clear All Partners
-                        </button>
-                    </div>
-
-                    <div id="partnersListAdmin" style="margin-top: 24px;">
-                        <h3 style="color: var(--primary); margin-bottom: 16px;">Current Partners:</h3>
-                        <div id="partnersListContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SECTION: ROLE MANAGEMENT -->
-            <div id="adminSectionRoles" class="admin-section" style="display: none;">
-                <div class="card" style="margin-bottom: 24px;">
-                    <h2 class="card-title">🔐 Role Management</h2>
-                    <p style="color: #616161; margin-bottom: 16px; font-size: 14px;">
-                        Assign roles to users. Roles are stored in Firestore and verified server-side.
-                        Only ADMIN can change roles. Changes take effect immediately.
-                    </p>
-
-                    <div style="background: #FFF8E1; border: 1px solid #FFE082; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
-                        <strong style="color: #F57F17;">Available Roles:</strong>
-                        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px;">
-                            <span style="background: #9C27B0; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">ADMIN — Full platform access</span>
-                            <span style="background: #FF9800; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">VERIFIER — Carbon project verification</span>
-                            <span style="background: #00BCD4; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">MODERATOR — Content moderation</span>
-                            <span style="background: #2196F3; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">USER — Standard access</span>
-                        </div>
-                    </div>
-
-                    <!-- Quick assign by email -->
-                    <div style="background: #F5F5F5; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
-                        <h3 style="margin-bottom: 12px; color: var(--primary);">Quick Assign Role</h3>
-                        <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end;">
-                            <div>
-                                <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px;">Email or Wallet Address:</label>
-                                <input type="text" id="quickRoleTarget" placeholder="user@example.com or 0x..." style="width: 100%; padding: 10px; border: 2px solid #E0E0E0; border-radius: 8px; font-size: 14px;">
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px;">Role:</label>
-                                <select id="quickRoleSelect" style="width: 100%; padding: 10px; border: 2px solid #E0E0E0; border-radius: 8px; font-size: 14px;">
-                                    <option value="USER">USER</option>
-                                    <option value="VERIFIER">VERIFIER</option>
-                                    <option value="MODERATOR">MODERATOR</option>
-                                    <option value="ADMIN">ADMIN</option>
-                                </select>
-                            </div>
-                            <button onclick="quickAssignRole()" class="btn btn-primary" style="padding: 10px 20px; white-space: nowrap;">Assign Role</button>
-                        </div>
-                    </div>
-
-                    <!-- Current role assignments from Firestore -->
-                    <h3 style="margin-bottom: 12px; color: var(--primary);">Current Role Assignments (Firestore)</h3>
-                    <div id="roleAssignmentsList" style="margin-top: 8px;">
-                        <p style="text-align: center; color: #666; padding: 20px;">Loading roles from Firestore...</p>
-                    </div>
-                    <button onclick="loadFirestoreRoles()" class="btn btn-primary" style="margin-top: 12px;">Refresh Roles</button>
-                </div>
-            </div>
-
-
-            <!-- ═══════════════════════════════════════════════════════ -->
-            <!-- VESTING TAB                                             -->
             <!-- ═══════════════════════════════════════════════════════ -->
             <div id="vesting" class="tab-content" style="display:none;">
                 <div style="max-width: 900px; margin: 0 auto;">
@@ -26660,16 +26669,24 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             currentAdminSection = section;
             const sections = ['news', 'verification', 'transfer', 'aggregation', 'users', 'news-management', 'partners-management', 'roles'];
 
+            // Build element ID: only capitalize first word, keep rest lowercase (matches actual DOM IDs)
+            function sectionId(s) {
+                const parts = s.split('-');
+                return 'adminSection' + parts[0].charAt(0).toUpperCase() + parts[0].slice(1) + (parts.length > 1 ? '-' + parts.slice(1).join('-') : '');
+            }
+            function navId(s) {
+                const parts = s.split('-');
+                return 'adminNav' + parts[0].charAt(0).toUpperCase() + parts[0].slice(1) + (parts.length > 1 ? '-' + parts.slice(1).join('-') : '');
+            }
+
             // Hide all sections
             sections.forEach(s => {
-                // Try both ID formats: adminSection{Name} and admin-{name}-section
-                const capitalizedName = s.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('-');
-                const sectionEl = document.getElementById(`adminSection${capitalizedName}`) ||
+                const sectionEl = document.getElementById(sectionId(s)) ||
                                   document.getElementById(`admin-${s}-section`);
                 if (sectionEl) sectionEl.style.display = 'none';
 
                 // Update nav button styles
-                const navBtn = document.getElementById(`adminNav${capitalizedName}`);
+                const navBtn = document.getElementById(navId(s));
                 if (navBtn) {
                     navBtn.style.background = '#E0E0E0';
                     navBtn.style.color = '#212121';
@@ -26677,8 +26694,7 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
             });
 
             // Show selected section
-            const capitalizedSection = section.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('-');
-            const activeSection = document.getElementById(`adminSection${capitalizedSection}`) ||
+            const activeSection = document.getElementById(sectionId(section)) ||
                                   document.getElementById(`admin-${section}-section`);
             if (activeSection) activeSection.style.display = 'block';
 
@@ -26758,6 +26774,9 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
         }
 
         function adminVerifyProject() {
+            if (!window.RoleManager.hasPermission('canVerifyProjects')) {
+                showNotification('❌ Access denied: canVerifyProjects permission required', 'error'); return;
+            }
             const projectId = document.getElementById('verifyProjectId')?.value?.trim();
             const verificationStatus = document.getElementById('verificationStatus')?.value || 'approved';
 
@@ -26792,6 +26811,9 @@ const BACKEND_URL = 'https://us-central1-ecocoin-f32d8.cloudfunctions.net';
         }
 
         function adminTransferCredits() {
+            if (!window.RoleManager.hasPermission('canViewFinance')) {
+                showNotification('❌ Access denied: Admin only — credit transfers require canViewFinance permission', 'error'); return;
+            }
             const toAddress = (document.getElementById('adminTransferTo') || document.getElementById('transferToAddress'))?.value?.trim();
             const amount = parseFloat((document.getElementById('adminTransferAmount') || document.getElementById('transferAmount'))?.value) || 0;
 
@@ -53016,13 +53038,11 @@ async function assignUserRole(userKey) {
 
     if (result.success) {
         showNotification('✅ Role updated: ' + userKey + ' → ' + newRole, 'success');
-        // Update the badge color in-place
         const roleColors = { 'ADMIN': '#9C27B0', 'VERIFIER': '#FF9800', 'MODERATOR': '#00BCD4', 'USER': '#2196F3' };
         const badge = document.getElementById('roleBadge_' + userKey);
-        if (badge) {
-            badge.textContent = newRole;
-            badge.style.background = roleColors[newRole] || '#2196F3';
-        }
+        if (badge) { badge.textContent = newRole; badge.style.background = roleColors[newRole] || '#2196F3'; }
+        // Sync to backend RBAC store
+        syncRoleToBackend(userKey, newRole);
     } else {
         showNotification('❌ Role assignment failed: ' + result.error, 'error');
     }
@@ -53048,7 +53068,8 @@ async function quickAssignRole() {
     if (result.success) {
         showNotification('✅ Role assigned: ' + target + ' → ' + role, 'success');
         targetInput.value = '';
-        loadFirestoreRoles(); // Refresh the list
+        syncRoleToBackend(target, role);
+        loadFirestoreRoles();
     } else {
         showNotification('❌ Failed: ' + result.error, 'error');
     }
@@ -53118,9 +53139,25 @@ async function revokeUserRole(targetKey) {
     const result = await window.RoleManager.revokeRole(targetKey, adminEmail);
     if (result.success) {
         showNotification('✅ Role revoked: ' + targetKey + ' → USER', 'success');
+        syncRoleToBackend(targetKey, 'USER');
         loadFirestoreRoles();
     } else {
         showNotification('❌ Failed: ' + result.error, 'error');
+    }
+}
+
+// Sync a role assignment to the backend RBAC store (fire-and-forget)
+async function syncRoleToBackend(identifier, role) {
+    try {
+        const token = window.AUTH_STATE && window.AUTH_STATE.token;
+        if (!token) return;
+        await fetch('/api/admin/roles/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ identifier, role })
+        });
+    } catch (e) {
+        console.warn('⚠️ Backend role sync failed (non-critical):', e.message);
     }
 }
 
@@ -53140,35 +53177,57 @@ function saveAdminSettings() {
 }
 
 // Initialize admin dashboard when user connects wallet
+// Role → which admin nav buttons are visible
+const ROLE_NAV_PERMISSIONS = {
+    ADMIN:     ['news', 'verification', 'transfer', 'aggregation', 'users', 'news-management', 'partners-management', 'roles'],
+    VERIFIER:  ['verification'],
+    MODERATOR: ['news', 'users'],
+    USER:      []
+};
+
 async function checkAdminAccess() {
     const adminNavSection = document.getElementById('adminNavSection');
     const adminTab = document.getElementById('admin-tab');
 
-    // Verify role from Firestore — not from client-side config
+    // Always verify from Firestore — never trust client-side state alone
     const identifier = (window.AUTH_STATE.user && window.AUTH_STATE.user.email)
-        || (web3UserAddress ? web3UserAddress.toLowerCase() : null);
+        || (typeof web3UserAddress !== 'undefined' && web3UserAddress ? web3UserAddress.toLowerCase() : null);
 
-    let isVerifiedAdmin = false;
+    let role = 'USER';
     if (identifier && window.RoleManager) {
         try {
-            const role = await window.RoleManager.getRole(identifier);
-            isVerifiedAdmin = (role === 'ADMIN');
+            role = await window.RoleManager.getRole(identifier);
         } catch (e) {
             console.warn('⚠️ checkAdminAccess Firestore check failed:', e.message);
         }
     }
 
-    if (isVerifiedAdmin) {
-        if (adminTab) adminTab.style.display = 'block';
-        if (adminNavSection) adminNavSection.style.display = 'block';
-        window.AUTH_STATE.isAdmin = true;
-        window.AUTH_STATE.role = 'ADMIN';
-        console.log('👑 Admin access granted (Firestore verified)');
+    // Sync verified role back into AUTH_STATE
+    window.AUTH_STATE.role = role;
+    window.AUTH_STATE.isAdmin = (role === 'ADMIN');
+
+    const allowedSections = ROLE_NAV_PERMISSIONS[role] || [];
+    const hasAnyAccess = allowedSections.length > 0;
+
+    // Show/hide the admin tab and nav wrapper
+    if (adminTab) adminTab.style.display = hasAnyAccess ? 'block' : 'none';
+    if (adminNavSection) adminNavSection.style.display = hasAnyAccess ? 'block' : 'none';
+
+    // Show only the nav buttons this role is allowed to see
+    const allSections = ['news', 'verification', 'transfer', 'aggregation', 'users', 'news-management', 'partners-management', 'roles'];
+    allSections.forEach(s => {
+        const parts = s.split('-');
+        const navId = 'adminNav' + parts[0].charAt(0).toUpperCase() + parts[0].slice(1) + (parts.length > 1 ? '-' + parts.slice(1).join('-') : '');
+        const btn = document.getElementById(navId);
+        if (btn) btn.style.display = allowedSections.includes(s) ? '' : 'none';
+    });
+
+    if (hasAnyAccess) {
+        // Auto-navigate to the first permitted section
+        if (typeof showAdminSection === 'function') showAdminSection(allowedSections[0]);
+        console.log('🔐 Panel access granted:', identifier, '→', role, '| sections:', allowedSections.join(', '));
     } else {
-        if (adminTab) adminTab.style.display = 'none';
-        if (adminNavSection) adminNavSection.style.display = 'none';
-        window.AUTH_STATE.isAdmin = false;
-        window.AUTH_STATE.role = 'USER';
+        console.log('🔒 No panel access for role:', role);
     }
 }
 

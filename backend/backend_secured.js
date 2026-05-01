@@ -98,9 +98,13 @@ app.use(helmet({
 // 2. CORS Restrictions
 const allowedOrigins = [
     process.env.FRONTEND_URL,
+    'https://eco.ppmc.pk',
+    'https://www.eco.ppmc.pk',
     'http://localhost:5173',
+    'http://localhost:3000',
     'http://localhost:3001',
     'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
     'http://127.0.0.1:3001',
     'https://ecocoin2.netlify.app',
     'https://ecocoin.netlify.app',
@@ -108,9 +112,13 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Reject requests with no origin or 'null' origin (file:// protocol)
-        if (!origin || origin === 'null') {
-            console.warn('⚠️  CORS blocked: missing or null origin');
+        // Allow same-server requests (nginx proxy, health checks) — no Origin header
+        if (!origin) {
+            return callback(null, true);
+        }
+        // Block null origin (file:// protocol or untrusted)
+        if (origin === 'null') {
+            console.warn('⚠️  CORS blocked: null origin');
             return callback(new Error('Not allowed by CORS'));
         }
 
@@ -224,6 +232,14 @@ app.use('/uploads', express.static(uploadsDir, {
 // IN-MEMORY DATABASE
 // ═══════════════════════════════════════════════════════════════
 
+// Valid roles and their permitted backend actions
+const ROLES = {
+    ADMIN:     { canManageRoles: true, canVerifyProjects: true, canModerate: true, canViewAllUsers: true, canBanUsers: true, canViewFinance: true },
+    VERIFIER:  { canManageRoles: false, canVerifyProjects: true, canModerate: false, canViewAllUsers: false, canBanUsers: false, canViewFinance: false },
+    MODERATOR: { canManageRoles: false, canVerifyProjects: false, canModerate: true, canViewAllUsers: false, canBanUsers: false, canViewFinance: false },
+    USER:      { canManageRoles: false, canVerifyProjects: false, canModerate: false, canViewAllUsers: false, canBanUsers: false, canViewFinance: false }
+};
+
 const DATABASE = {
     users: new Map(),
     activities: [],
@@ -236,6 +252,8 @@ const DATABASE = {
     escrowRecords: new Map(),
     // Payment history
     payments: new Map(),
+    // Role assignments: identifier (email or lowercase address) → { role, assignedBy, assignedAt }
+    roles: new Map(),
     stats: {
         totalUsers: 0,
         totalStaked: 0,
@@ -1000,10 +1018,10 @@ app.get('/api/carbon/project/:projectId', authenticate, (req, res) => {
     }
 });
 
-// PUT /api/carbon/project/:projectId/review (Admin only)
-app.put('/api/carbon/project/:projectId/review', 
-    authenticate, 
-    requireAdmin, 
+// PUT /api/carbon/project/:projectId/review (Admin or Verifier)
+app.put('/api/carbon/project/:projectId/review',
+    authenticate,
+    requirePermission('canVerifyProjects'),
     (req, res) => {
     try {
         const { projectId } = req.params;
@@ -1195,8 +1213,8 @@ app.get('/api/stats/platform', (req, res) => {
     }
 });
 
-// POST /api/stats/update
-app.post('/api/stats/update', authenticate, (req, res) => {
+// POST /api/stats/update - Admin only: stats are updated by blockchain events, not by users
+app.post('/api/stats/update', authenticate, requireAdmin, (req, res) => {
     try {
         const { type, value } = req.body;
         const userId = req.user.userId;
@@ -1551,8 +1569,22 @@ app.post('/api/seller/update-payout-method', authenticate, (req, res) => {
 // PAYMENT PROCESSING WITH STRIPE CONNECT
 // ═══════════════════════════════════════════════════════════════
 
+// Payment constants (set via env or defaults)
+const PLATFORM_FEE_PERCENT = parseFloat(process.env.PLATFORM_FEE_PERCENT || '2.5');
+const ESCROW_THRESHOLD_CENTS = parseInt(process.env.ESCROW_THRESHOLD_CENTS || '100000', 10); // $1000
+
+// Stripe SDK (optional — payment routes degrade gracefully without it)
+let stripe = null;
+try {
+    if (process.env.STRIPE_SECRET_KEY) {
+        stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    }
+} catch (e) {
+    console.warn('⚠️  Stripe SDK not available — payment intents will be simulated');
+}
+
 // POST /api/payment/create-intent - Create payment intent with optional seller transfer
-app.post('/api/payment/create-intent', async (req, res) => {
+app.post('/api/payment/create-intent', authenticate, async (req, res) => {
     try {
         const { amount, credits, userId, currency = 'usd', sellerId } = req.body;
 
@@ -1657,7 +1689,7 @@ app.post('/api/payment/create-intent', async (req, res) => {
 });
 
 // POST /api/payment/confirm - Confirm payment and process transfer
-app.post('/api/payment/confirm', async (req, res) => {
+app.post('/api/payment/confirm', authenticate, async (req, res) => {
     try {
         const { paymentIntentId, userId, credits, amount } = req.body;
 
@@ -1739,7 +1771,7 @@ if (!DATABASE.pendingTransfers) {
 }
 
 // POST /api/payment/bank-transfer-pending - Log pending bank transfer
-app.post('/api/payment/bank-transfer-pending', async (req, res) => {
+app.post('/api/payment/bank-transfer-pending', authenticate, async (req, res) => {
     try {
         const { referenceId, amount, credits, userId, status } = req.body;
 
@@ -1784,7 +1816,7 @@ app.post('/api/payment/bank-transfer-pending', async (req, res) => {
 });
 
 // POST /api/payment/mobile-money-pending - Log pending mobile money transfer
-app.post('/api/payment/mobile-money-pending', async (req, res) => {
+app.post('/api/payment/mobile-money-pending', authenticate, async (req, res) => {
     try {
         const { referenceId, provider, amount, amountLocal, credits, userId, status } = req.body;
 
@@ -2241,6 +2273,128 @@ app.get('/api/admin/financial-overview', authenticate, requireAdmin, (req, res) 
     } catch (error) {
         console.error('Financial overview error:', error);
         res.status(500).json({ error: 'Failed to get financial overview' });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN - ROLE MANAGEMENT (RBAC)
+// ═══════════════════════════════════════════════════════════════
+
+// Helper: resolve role for an identifier (email or wallet address)
+function getBackendRole(identifier) {
+    if (!identifier) return 'USER';
+    const key = identifier.toLowerCase();
+    // Seed admin always ADMIN
+    if (ADMIN_ADDRESSES.includes(key)) return 'ADMIN';
+    const entry = DATABASE.roles.get(key);
+    return entry ? entry.role : 'USER';
+}
+
+// Middleware: require a specific role permission
+function requirePermission(permission) {
+    return (req, res, next) => {
+        const identifier = (req.user.email || req.user.walletAddress || '').toLowerCase();
+        const role = getBackendRole(identifier);
+        const perms = ROLES[role] || ROLES.USER;
+        if (!perms[permission]) {
+            console.warn(`⚠️  Permission denied: ${identifier} (${role}) attempted action requiring ${permission}`);
+            return res.status(403).json({ error: `Permission denied. Required: ${permission}` });
+        }
+        req.userRole = role;
+        next();
+    };
+}
+
+// GET /api/admin/roles - List all role assignments
+app.get('/api/admin/roles', authenticate, requireAdmin, (req, res) => {
+    try {
+        const roles = [];
+        DATABASE.roles.forEach((entry, identifier) => {
+            roles.push({ identifier, ...entry });
+        });
+        // Also surface seed admins
+        ADMIN_ADDRESSES.forEach(addr => {
+            if (!DATABASE.roles.has(addr)) {
+                roles.push({ identifier: addr, role: 'ADMIN', assignedBy: 'system_seed', assignedAt: null });
+            }
+        });
+        res.json({ success: true, roles, validRoles: Object.keys(ROLES) });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to list roles' });
+    }
+});
+
+// POST /api/admin/roles/assign - Assign role to a user (admin only)
+app.post('/api/admin/roles/assign', authenticate, requireAdmin, (req, res) => {
+    try {
+        const { identifier, role } = req.body;
+        if (!identifier || !role) return res.status(400).json({ error: 'identifier and role are required' });
+        if (!ROLES[role]) return res.status(400).json({ error: `Invalid role. Valid roles: ${Object.keys(ROLES).join(', ')}` });
+
+        const key = identifier.toLowerCase();
+        // Prevent demoting seed admin via this endpoint
+        if (ADMIN_ADDRESSES.includes(key) && role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Cannot change role of seed admin wallet' });
+        }
+
+        DATABASE.roles.set(key, {
+            role,
+            assignedBy: req.user.email || req.user.userId,
+            assignedAt: new Date().toISOString()
+        });
+
+        logActivity(req.user.userId, 'role_assign', { target: key, role });
+        console.log(`👑 Role assigned: ${key} → ${role} by ${req.user.userId}`);
+        res.json({ success: true, identifier: key, role, permissions: ROLES[role] });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to assign role' });
+    }
+});
+
+// POST /api/admin/roles/revoke - Revoke role (reset to USER)
+app.post('/api/admin/roles/revoke', authenticate, requireAdmin, (req, res) => {
+    try {
+        const { identifier } = req.body;
+        if (!identifier) return res.status(400).json({ error: 'identifier is required' });
+
+        const key = identifier.toLowerCase();
+        if (ADMIN_ADDRESSES.includes(key)) {
+            return res.status(403).json({ error: 'Cannot revoke seed admin role' });
+        }
+
+        DATABASE.roles.set(key, {
+            role: 'USER',
+            assignedBy: req.user.email || req.user.userId,
+            assignedAt: new Date().toISOString()
+        });
+
+        logActivity(req.user.userId, 'role_revoke', { target: key });
+        console.log(`🔒 Role revoked: ${key} → USER by ${req.user.userId}`);
+        res.json({ success: true, identifier: key, role: 'USER' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to revoke role' });
+    }
+});
+
+// GET /api/admin/roles/check/:identifier - Check role for any identifier
+app.get('/api/admin/roles/check/:identifier', authenticate, requireAdmin, (req, res) => {
+    try {
+        const key = req.params.identifier.toLowerCase();
+        const role = getBackendRole(key);
+        res.json({ success: true, identifier: key, role, permissions: ROLES[role] });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to check role' });
+    }
+});
+
+// GET /api/user/me/role - Any authenticated user can check their own role
+app.get('/api/user/me/role', authenticate, (req, res) => {
+    try {
+        const identifier = (req.user.email || req.user.walletAddress || '').toLowerCase();
+        const role = getBackendRole(identifier);
+        res.json({ success: true, role, permissions: ROLES[role] });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get role' });
     }
 });
 
