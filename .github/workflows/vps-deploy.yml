@@ -1,0 +1,81 @@
+name: VPS Deploy & Firewall
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          ssh-keyscan -H 157.173.97.213 >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Unban Claude IP, deploy eco fix, harden firewall
+        run: |
+          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@157.173.97.213 << 'ENDSSH'
+
+          echo "=== Step 1: Unban Claude IP and whitelist ==="
+          cscli decisions delete --ip 103.102.158.124 2>/dev/null || true
+          cscli whitelists add --value 103.102.158.124 --comment "Claude-Code-admin" 2>/dev/null || true
+          echo "IP unbanned and whitelisted"
+
+          echo "=== Step 2: Deploy eco.ppmc.pk admin panel fix ==="
+          cd /opt/ecocoinv
+          git pull
+          cp frontend/index.html index.html
+          echo "Deployed OK"
+
+          echo "=== Step 3: Configure UFW firewall ==="
+          apt-get install -y ufw > /dev/null 2>&1
+
+          # Reset to clean state
+          ufw --force reset
+
+          # Default: deny all inbound, allow all outbound
+          ufw default deny incoming
+          ufw default allow outgoing
+
+          # Allow SSH (port 22)
+          ufw allow 22/tcp comment 'SSH'
+
+          # Allow HTTP and HTTPS
+          ufw allow 80/tcp comment 'HTTP'
+          ufw allow 443/tcp comment 'HTTPS'
+
+          # Allow ICMP (ping/monitoring) - via before.rules
+          # UFW allows ICMP by default via /etc/ufw/before.rules
+
+          # Block direct app port access from internet
+          # (These ports should only be accessible via nginx proxy on localhost)
+          ufw deny 3000/tcp comment 'EcoCoin backend - internal only'
+          ufw deny 5000/tcp comment 'Quest - internal only'
+          ufw deny 5001/tcp comment 'AcademiQ - internal only'
+          ufw deny 5003/tcp comment 'Meridian - internal only'
+          ufw deny 5175/tcp comment 'Dev ports - internal only'
+          ufw deny 27017/tcp comment 'MongoDB - internal only'
+          ufw deny 6379/tcp comment 'Redis - internal only'
+          ufw deny 8080/tcp comment 'Alt HTTP - blocked'
+          ufw deny 8443/tcp comment 'Alt HTTPS - blocked'
+          ufw deny 9200/tcp comment 'Elasticsearch - blocked'
+
+          # Enable UFW
+          ufw --force enable
+          ufw status verbose
+
+          echo "=== Step 4: Add CrowdSec whitelist for admin IPs ==="
+          # Prevent CrowdSec from auto-banning the admin working IP again
+          cscli whitelists list 2>/dev/null || true
+
+          echo "=== Step 5: Verify all sites ==="
+          sleep 3
+          for domain in eco.ppmc.pk academiq.ppmc.pk quest.ppmc.pk; do
+            code=$(curl -sk --max-time 10 -o /dev/null -w '%{http_code}' https://$domain/)
+            echo "$domain: $code"
+          done
+
+          echo "=== All done ==="
+          ENDSSH
