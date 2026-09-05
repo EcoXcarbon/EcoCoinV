@@ -50,17 +50,48 @@ curl -fsS http://127.0.0.1:4100/api/v1/health && echo
 
 echo "== nginx =="
 apt-get install -y nginx >/dev/null
-cp deploy/nsp.ppmc.pk.conf /etc/nginx/sites-available/$DOMAIN
-sed -i "s/nsp.ppmc.pk/$DOMAIN/g" /etc/nginx/sites-available/$DOMAIN
-ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/$DOMAIN
-nginx -t && systemctl reload nginx
+mkdir -p /var/www/certbot
+CONF=/etc/nginx/sites-available/$DOMAIN
+CERT=/etc/letsencrypt/live/$DOMAIN/fullchain.pem
 
-echo "== TLS (Let's Encrypt) =="
-if getent hosts "$DOMAIN" >/dev/null; then
-  apt-get install -y certbot python3-certbot-nginx >/dev/null
-  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect || echo "certbot failed — check that $DOMAIN points to this server, then rerun: certbot --nginx -d $DOMAIN"
+install_conf() {   # $1 = filename under deploy/
+  cp "deploy/$1" "$CONF"
+  sed -i "s/nsp\.ppmc\.pk/$DOMAIN/g" "$CONF"
+  # The TLS vhost assumes the SNI multiplexer used on the ppmc.pk VPS
+  # (nginx.conf stream block -> 127.0.0.1:8443, proxy_protocol). On a host
+  # without one, terminate TLS on :443 directly instead.
+  if ! grep -q ssl_preread /etc/nginx/nginx.conf 2>/dev/null; then
+    sed -i 's|listen 127.0.0.1:8443 ssl proxy_protocol;|listen 443 ssl;\n    listen [::]:443 ssl;|' "$CONF"
+  fi
+  ln -sf "$CONF" /etc/nginx/sites-enabled/$DOMAIN
+  nginx -t && systemctl reload nginx
+}
+
+if [ -f "$CERT" ]; then
+  install_conf nsp.ppmc.pk.conf
 else
-  echo "DNS for $DOMAIN does not resolve yet. Add an A record -> $(curl -s ifconfig.me), then run: certbot --nginx -d $DOMAIN"
+  # No certificate yet: the TLS vhost would fail nginx -t, so start on HTTP
+  # only. This also keeps /.well-known/acme-challenge/ served from disk rather
+  # than proxied to the app, which is what certbot needs to validate.
+  install_conf nsp.ppmc.pk.bootstrap.conf
 fi
 
-echo "== Done: http://$DOMAIN  (registry desk key is in $APP/.env) =="
+echo "== TLS (Let's Encrypt) =="
+if [ -f "$CERT" ]; then
+  echo "certificate already present for $DOMAIN — expires $(openssl x509 -enddate -noout -in "$CERT" | cut -d= -f2)"
+elif getent hosts "$DOMAIN" >/dev/null; then
+  apt-get install -y certbot >/dev/null
+  # webroot, not --nginx: the nginx plugin would write its own "listen 443 ssl"
+  # block, which the SNI multiplexer never routes to.
+  if certbot certonly --webroot -w /var/www/certbot -d "$DOMAIN" \
+       --non-interactive --agree-tos --register-unsafely-without-email; then
+    install_conf nsp.ppmc.pk.conf
+    echo "TLS enabled for https://$DOMAIN"
+  else
+    echo "certbot failed — site is serving over HTTP. Check $DOMAIN resolves to this server, then rerun this script."
+  fi
+else
+  echo "DNS for $DOMAIN does not resolve yet. Add an A record -> $(curl -s -4 ifconfig.me), then rerun this script to obtain the certificate."
+fi
+
+echo "== Done: $DOMAIN  (registry desk key is in $APP/.env) =="
