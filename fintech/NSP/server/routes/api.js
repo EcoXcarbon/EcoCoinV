@@ -3,6 +3,8 @@ const express = require('express');
 const crypto = require('node:crypto');
 const { RegistryError, TRANSITIONS } = require('../lib/registry');
 const { normaliseNspId } = require('../lib/nspId');
+const { Gate, GateError } = require('../lib/gate');
+const { Otp, OtpError, createSmsProvider } = require('../lib/otp');
 
 function timingSafeEqual(a, b) {
   const ab = Buffer.from(String(a)); const bb = Buffer.from(String(b));
@@ -36,7 +38,19 @@ function buildApi(registry, config) {
     next();
   }
 
+  // ── registration gate ─────────────────────────────────────────────
+  const gate = new Gate(store, {
+    ...config.pow, ...config.velocity,
+    enabled: config.gateEnabled, secret: config.gateSecret
+  });
+  const otp = new Otp(store, {
+    ...config.otp, secret: config.gateSecret,
+    sms: createSmsProvider(config.otp.provider, config.otp)
+  });
+  const clientIp = req => (req.ip || req.socket.remoteAddress || '').replace(/^::ffff:/, '') || null;
+
   const wrap = fn => (req, res, next) => { try { fn(req, res, next); } catch (e) { next(e); } };
+  const wrapAsync = fn => (req, res, next) => { Promise.resolve(fn(req, res, next)).catch(next); };
   const idParam = (req, res, next) => {
     const id = normaliseNspId(req.params.nspId);
     if (!id) return res.status(400).json({ error: 'malformed NSP ID (check character failed)' });
@@ -53,8 +67,59 @@ function buildApi(registry, config) {
   });
   router.get('/issuer', (req, res) => res.json(registry.issuerDocument()));
 
+  // ── gate: proof of work ──────────────────────────────────────────
+  // Issued to the registration form, solved in the browser, submitted back
+  // with the application. Costs a human a moment and a scripted bulk
+  // submitter real CPU, without depending on a third-party CAPTCHA service
+  // that a rural centre may not be able to reach.
+  router.get('/gate/challenge', rateLimit, wrap((req, res) => res.json(gate.challenge())));
+
+  // ── gate: mobile OTP ─────────────────────────────────────────────
+  router.post('/otp/request', rateLimit, wrapAsync(async (req, res) => {
+    const out = await otp.request(String((req.body || {}).phone || '').replace(/[\s()-]/g, ''), { ip: clientIp(req) });
+    store.audit('applicant', 'OTP_REQUEST', null, { challengeId: out.challengeId, ip: clientIp(req) });
+    res.status(201).json(out);
+  }));
+
+  router.post('/otp/verify', rateLimit, wrap((req, res) => {
+    const { challengeId, code } = req.body || {};
+    const out = otp.verify(String(challengeId || ''), String(code || ''));
+    store.audit('applicant', 'OTP_VERIFIED', null, { phone: out.phone, ip: clientIp(req) });
+    res.json(out);
+  }));
+
   router.post('/registrations', rateLimit, wrap((req, res) => {
-    const reg = registry.register(req.body, 'applicant');
+    const body = req.body || {};
+    const ip = clientIp(req);
+    let phoneVerified = false;
+    let tokenSignature = null;
+
+    if (config.gateEnabled) {
+      // Honeypot: a field hidden from humans by CSS. Anything in it is a bot.
+      if (String(body.website || '').trim()) {
+        store.audit('system', 'GATE_REJECT', null, { reason: 'honeypot', ip });
+        throw new GateError('registration rejected');
+      }
+      gate.verifyChallenge(body.gateChallenge, body.gateNonce);
+
+      const token = req.get('X-Registration-Token') || body.registrationToken;
+      const opened = otp.openToken(token);
+      const submitted = String(((body.contact || {}).phone) || '').replace(/[\s()-]/g, '');
+      if (opened.phone !== submitted) {
+        throw new OtpError('the mobile number on the form does not match the number you verified', 400);
+      }
+      phoneVerified = true;
+      tokenSignature = opened.signature;
+
+      gate.checkVelocity({
+        ip, phone: submitted,
+        district: ((body.contact || {}).address || {}).region || null
+      });
+    }
+
+    const reg = registry.register(body, 'applicant', { ip, phoneVerified });
+    if (tokenSignature) otp.consumeToken(tokenSignature);
+    store.pruneGate();
     res.status(201).json({
       nspId: reg.nspId, status: reg.status, submittedAt: reg.registry.submittedAt,
       receipt: { message: 'Registration received. Keep your NSP ID; you will need it with your date of birth to track status.', trackUrl: `${config.publicUrl}/track/${reg.nspId}` }
@@ -87,6 +152,9 @@ function buildApi(registry, config) {
   router.get('/me', (req, res) => res.json({ actor: req.actor }));
   router.get('/stats', wrap((req, res) => res.json(store.stats())));
   router.get('/registrations', wrap((req, res) => res.json(store.listRegistrants(req.query))));
+  // Full audit trail across the registry, newest first. Every state change,
+  // registration, OTP event and gate rejection is here.
+  router.get('/audit', wrap((req, res) => res.json(store.auditRecent(req.query))));
   router.get('/registrations/:nspId', idParam, wrap((req, res) => {
     const reg = registry.getFresh(req.nspId);
     res.json({ ...reg, credentials: store.listCredentials(req.nspId), audit: store.auditFor(req.nspId) });
@@ -110,6 +178,7 @@ function buildApi(registry, config) {
 
   router.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     if (err instanceof RegistryError) return res.status(err.status).json({ error: err.message, details: err.details || null });
+    if (err instanceof GateError || err instanceof OtpError) return res.status(err.status || 400).json({ error: err.message });
     if (err.type === 'entity.too.large') return res.status(413).json({ error: 'payload too large' });
     if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'invalid JSON' });
     console.error(err);

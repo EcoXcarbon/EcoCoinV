@@ -68,11 +68,51 @@ Default dev registry key is `dev-registrar-key` (a warning is logged). Set
 | QR / offline check | Ed25519 (RFC 8032) signed compact token — name, NSP ID, serial, expiry, occupation; **no** date of birth or ID number inside the QR |
 | Privacy | Public verification exposes name, photo, nationality, birth year, skills and status only; consent captured per purpose (processing, employer verification, cross-border sharing) |
 
+## The registration gate
+
+Anyone can reach the public form, so five controls stand between it and a
+registry record. They are configured in `.env` (see `.env.example`) and covered
+by `tests/gate.test.js` and `tests/gate-http.test.js`.
+
+| # | Control | What it stops | Notes |
+|---|---------|---------------|-------|
+| 1 | **Mobile OTP** before the form is accepted | Registrations for people who do not exist | PTA rules require biometric verification against NADRA before a SIM is issued, so a live Pakistani number is already weakly bound to a CNIC. This proves *control of a number*, not identity. |
+| 2 | **Proof of work + honeypot + velocity caps** | Scripted bulk submission | SHA-256 leading-zero-bits puzzle solved in the browser: ~1s for one applicant at the default 16 bits, 65,536 hashes each for ten thousand. No third-party CAPTCHA, so a rural centre with a poor route to a vendor is not locked out. Caps run per IP, per phone and per district. |
+| 3 | **Fuzzy duplicate detection** on name + date of birth + father's name | The same person enrolling twice under two documents | Normalises Pakistani name variants (Muhammad/Mohammad/Md, honorifics, initials, token order) and scores candidates 0–100. **Flags for review; never refuses** — genuine namesakes sharing a birthday exist, and refusing them would exclude real applicants. |
+| 4 | **Four eyes on issuance** | A single corrupt or careless officer minting credentials | The officer who ran `VERIFY` cannot run `ISSUE`. Disable only for a genuinely single-registrar deployment, via `NSP_FOUR_EYES=0` — an explicit, recorded choice. |
+| 5 | **Full audit trail** | Undetectable tampering | Every OTP request, verification, gate rejection, registration, duplicate flag and state change is written to `audit_log` and readable at `GET /api/v1/audit`. Always on; not configurable. |
+
+### Assurance tiers
+
+A record carries the level of proof actually behind it, so a verifier can judge it:
+
+| Tier | Reached by | Meaning |
+|------|-----------|---------|
+| `NSP-1` | verified mobile + gate | Self-declared identity, contactable person |
+| `NSP-2` | registrar sights the CNIC/B-Form at the desk (`VERIFY`) | Document-verified |
+| `NSP-3` | *reserved* — NADRA Verisys or biometric match | Not implemented: no NADRA access |
+
+Only `NSP-2` and above may be issued a card.
+
+### Applicant flow
+
+```
+GET  /api/v1/gate/challenge          → { challenge, difficulty }   solve in the browser
+POST /api/v1/otp/request  { phone }  → { challengeId }             SMS sent
+POST /api/v1/otp/verify   { challengeId, code } → { registrationToken }
+POST /api/v1/registrations { ...application, registrationToken, gateChallenge, gateNonce }
+```
+
+Each challenge and each token is single use, and the phone on the form must be
+the number that was verified.
+
 ## API v1 (summary)
 
 Public
 - `GET  /api/v1/reference` · `/reference/{countries|occupations|iscedLevels|…}`
-- `POST /api/v1/registrations` → `201 { nspId, status: SUBMITTED }`
+- `GET  /api/v1/gate/challenge` → `{ challenge, difficulty, algorithm }`
+- `POST /api/v1/otp/request { phone }` · `POST /api/v1/otp/verify { challengeId, code }`
+- `POST /api/v1/registrations` → `201 { nspId, status: SUBMITTED }` (gate evidence required)
 - `GET  /api/v1/registrations/{nspId}/status?dob=YYYY-MM-DD`
 - `GET  /api/v1/verify/{nspId}[?t=token]` · `GET /api/v1/verify/serial/{serial}`
 - `GET  /api/v1/issuer` · `GET /.well-known/did.json`
@@ -85,6 +125,7 @@ Registry desk (`X-Registry-Key`)
 - `POST /api/v1/registrations/{nspId}/credentials/card` · `/credentials/certificate`
 - `GET  /api/v1/registrations/{nspId}/credential.json` (Verifiable Credential)
 - `GET  /api/v1/credentials/{serial}`
+- `GET  /api/v1/audit?limit=&offset=&actor=&action=` (registry-wide trail, newest first)
 
 Full field list and lifecycle: [docs/REGISTRY-SPEC.md](docs/REGISTRY-SPEC.md).
 Card artwork rules: [docs/CARD-SPEC.md](docs/CARD-SPEC.md). Certificate: [docs/CERTIFICATE-SPEC.md](docs/CERTIFICATE-SPEC.md).
@@ -97,6 +138,11 @@ Card artwork rules: [docs/CARD-SPEC.md](docs/CARD-SPEC.md). Certificate: [docs/C
   losing it invalidates every printed QR.
 - For PostgreSQL, apply `server/db/schema.sql` and replace `server/lib/store.js` —
   the rest of the service is store-agnostic.
+- Set `NSP_GATE_SECRET` explicitly. It signs OTP hashes, mobile-verification tokens and
+  proof-of-work challenges; without it each process generates its own, and a second
+  instance rejects the first one's tokens.
+- Wire a real SMS gateway (`NSP_SMS_PROVIDER=webhook`) before going live. The default
+  `log` provider only writes codes to the service journal.
 - Document binaries are **not** stored by this service; the registration keeps type,
   file name, size and SHA-256 so uploads can be matched to object storage.
 

@@ -74,6 +74,19 @@
           <div class="field"><label>Mobile (international format) <span class="req">*</span></label><input name="contact.phone" type="tel" required placeholder="+92 300 1234567"><span class="hint">E.164: country code first</span></div>
           <div class="field"><label>Alternative phone</label><input name="contact.altPhone" type="tel"></div>
         </div>
+
+        <div class="otp-box" id="otpBox">
+          <p class="hint" id="otpIntro">Your mobile number must be verified before the application can be submitted. We will send a six-digit code by SMS.</p>
+          <div class="row">
+            <div class="field"><button type="button" class="btn" id="otpSend">Send code</button></div>
+            <div class="field" id="otpCodeField" hidden><label>Six-digit code</label><input id="otpCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></div>
+            <div class="field" id="otpVerifyField" hidden><button type="button" class="btn" id="otpVerify">Verify</button></div>
+          </div>
+          <p class="hint" id="otpMsg" hidden></p>
+        </div>
+
+        <!-- Anti-automation: hidden from people, filled in by naive bots. -->
+        <div class="hp" aria-hidden="true"><label>Leave this field empty<input name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
       </fieldset>
       <fieldset><legend>Residential address</legend>
         <div class="field"><label>Address line 1 <span class="req">*</span></label><input name="contact.address.line1" type="text" required autocomplete="address-line1"></div>

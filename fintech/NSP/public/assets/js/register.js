@@ -189,12 +189,109 @@
     document.getElementById('review').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${NSP.esc(v)}</dd>`).join('');
   }
 
+  // ── registration gate ────────────────────────────────────────────
+  // Mobile OTP proves control of a number that was itself issued against a
+  // biometric CNIC check by the operator, which is the strongest identity
+  // signal available without a NADRA integration. Proof of work makes bulk
+  // scripted submission expensive without depending on a hosted CAPTCHA.
+  const gate = { token: null, phone: null };
+  const otpMsg = document.getElementById('otpMsg');
+  const otpCodeField = document.getElementById('otpCodeField');
+  const otpVerifyField = document.getElementById('otpVerifyField');
+
+  function otpSay(msg, cls) {
+    otpMsg.hidden = false; otpMsg.textContent = msg;
+    otpMsg.className = 'hint' + (cls ? ' ' + cls : '');
+  }
+
+  document.getElementById('otpSend').addEventListener('click', async () => {
+    const phone = (form.elements['contact.phone'].value || '').replace(/[\s()-]/g, '');
+    if (!/^\+\d{8,15}$/.test(phone)) { otpSay('Enter your mobile in international format first, e.g. +923001234567.', 'bad'); return; }
+    const btn = document.getElementById('otpSend');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      const r = await NSP.call('/otp/request', { method: 'POST', body: { phone } });
+      gate.challengeId = r.challengeId; gate.phone = phone; gate.token = null;
+      otpCodeField.hidden = false; otpVerifyField.hidden = false;
+      otpSay(r.devCode
+        ? `Development mode — your code is ${r.devCode}`
+        : `Code sent to ${phone}. It expires in ${Math.round(r.expiresIn / 60)} minutes.`);
+      btn.textContent = 'Resend code';
+    } catch (err) { otpSay(err.message, 'bad'); btn.textContent = 'Send code'; }
+    finally { btn.disabled = false; }
+  });
+
+  document.getElementById('otpVerify').addEventListener('click', async () => {
+    const code = (document.getElementById('otpCode').value || '').trim();
+    if (!gate.challengeId) { otpSay('Request a code first.', 'bad'); return; }
+    try {
+      const r = await NSP.call('/otp/verify', { method: 'POST', body: { challengeId: gate.challengeId, code } });
+      gate.token = r.registrationToken; gate.phone = r.phone;
+      otpSay('Mobile number verified.', 'ok');
+      otpCodeField.hidden = true; otpVerifyField.hidden = true;
+      document.getElementById('otpSend').hidden = true;
+    } catch (err) { otpSay(err.message, 'bad'); }
+  });
+
+  // Any edit to the number invalidates the verification: the token is bound
+  // to the phone the server sent the code to.
+  form.elements['contact.phone'].addEventListener('input', () => {
+    if (!gate.token) return;
+    const now = (form.elements['contact.phone'].value || '').replace(/[\s()-]/g, '');
+    if (now !== gate.phone) {
+      gate.token = null; gate.challengeId = null;
+      document.getElementById('otpSend').hidden = false;
+      document.getElementById('otpSend').textContent = 'Send code';
+      otpSay('The number changed — verify it again.', 'bad');
+    }
+  });
+
+  /**
+   * Solve the server's proof-of-work challenge: sha256(challenge.nonce) with N
+   * leading zero bits.
+   *
+   * Digests are issued in batches rather than one at a time. Almost all of the
+   * cost of crypto.subtle.digest on a short input is per-call overhead, not
+   * hashing, so batching is roughly four times faster — which matters on the
+   * low-end handsets this form is actually filled in on.
+   */
+  async function solvePow(onProgress) {
+    const c = await NSP.call('/gate/challenge');
+    const enc = new TextEncoder();
+    const need = c.difficulty;
+    const BATCH = 512;
+    for (let base = 0; base < 5e7; base += BATCH) {
+      const digests = await Promise.all(
+        Array.from({ length: BATCH }, (_, k) => crypto.subtle.digest('SHA-256', enc.encode(`${c.challenge}.${base + k}`)))
+      );
+      for (let k = 0; k < BATCH; k++) {
+        const buf = new Uint8Array(digests[k]);
+        let bits = 0;
+        for (const b of buf) { if (b === 0) { bits += 8; continue; } bits += Math.clz32(b) - 24; break; }
+        if (bits >= need) return { gateChallenge: c.challenge, gateNonce: String(base + k) };
+      }
+      if (onProgress) onProgress(base);
+      await new Promise(r => setTimeout(r));   // let the browser paint
+    }
+    throw new Error('Could not complete the security check. Please try again.');
+  }
+
   form.addEventListener('submit', async e => {
     e.preventDefault();
     if (!validatePanel(panels.length)) return;
-    submitBtn.disabled = true; submitBtn.textContent = 'Submitting…';
+    if (!gate.token) {
+      showError('Your mobile number has not been verified. Go back to the Contact step and verify it.');
+      show(2); return;
+    }
+    submitBtn.disabled = true; submitBtn.textContent = 'Security check…';
     try {
-      const r = await NSP.call('/registrations', { method: 'POST', body: payload() });
+      const pow = await solvePow(() => { submitBtn.textContent = 'Security check…'; });
+      submitBtn.textContent = 'Submitting…';
+      const body = Object.assign(payload(), pow, {
+        registrationToken: gate.token,
+        website: form.elements['website'] ? form.elements['website'].value : ''
+      });
+      const r = await NSP.call('/registrations', { method: 'POST', body });
       form.hidden = true; document.getElementById('stepper').hidden = true;
       const rc = document.getElementById('receipt'); rc.hidden = false;
       document.getElementById('receiptId').textContent = r.nspId;

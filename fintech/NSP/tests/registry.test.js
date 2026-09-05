@@ -7,6 +7,12 @@ const os = require('node:os');
 
 process.env.NSP_REGISTRY_KEYS = 'tester:test-key';
 process.env.NSP_PUBLIC_URL = 'https://nsp.example.org';
+// These tests exercise the registry lifecycle, not the registration gate: they
+// post applications directly and drive verify/issue as a single officer. The
+// gate and the four-eyes control have their own coverage in gate.test.js and
+// gate-http.test.js.
+process.env.NSP_GATE_ENABLED = '0';
+process.env.NSP_FOUR_EYES = '0';
 const config = require('../server/config');
 config.dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nsp-test-'));
 const { createApp } = require('../server/app');

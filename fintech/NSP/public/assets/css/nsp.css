@@ -120,3 +120,17 @@ footer { border-top: 1px solid var(--nsp-line); padding: 24px 0; font-size: .8re
 .drawer .close { position: absolute; top: 14px; right: 14px; }
 @media (max-width: 640px) { .hero { padding: 26px; } .hero h1 { font-size: 1.7rem; } .kv { grid-template-columns: 1fr; } }
 @media print { .nsp-header, footer, .no-print { display: none !important; } body { background: #fff; } }
+
+/* ── registration gate ─────────────────────────────────────────────── */
+/* Honeypot: kept in the accessibility tree only for bots, never shown and
+   never focusable by keyboard users. */
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.otp-box { margin-top: .75rem; padding: .75rem 1rem; border: 1px solid var(--line, #d8dee9); border-radius: 8px; background: var(--surface-2, #f7f9fc); }
+.otp-box .row { align-items: end; }
+.otp-box .ok { color: #0a7d3f; font-weight: 600; }
+.otp-box .bad { color: #b00020; font-weight: 600; }
+.tier { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .75rem; font-weight: 700; letter-spacing: .02em; }
+.tier-1 { background: #fff4e5; color: #8a4b00; }
+.tier-2 { background: #e6f4ea; color: #0a7d3f; }
+.tier-3 { background: #e7edff; color: #1f365d; }
+.dedup-flag { background: #fff4e5; border: 1px solid #f0c48a; border-radius: 6px; padding: .5rem .75rem; margin: .5rem 0; font-size: .9rem; }

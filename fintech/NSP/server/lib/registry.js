@@ -18,6 +18,7 @@ const { formatNspId } = require('./nspId');
 const { buildMrz } = require('./mrz');
 const signer = require('./signer');
 const { validateRegistration } = require('./validation');
+const dedup = require('./dedup');
 
 const A3 = Object.fromEntries(countries.map(c => [c.alpha2, c.alpha3]));
 const NAME = Object.fromEntries(countries.map(c => [c.alpha2, c.name]));
@@ -47,17 +48,64 @@ class Registry {
   }
 
   // ── registration ─────────────────────────────────────────────────
-  register(input, actor = 'applicant') {
+  register(input, actor = 'applicant', context = {}) {
     const { ok, errors, value } = validateRegistration(input);
     if (!ok) throw new RegistryError(422, 'Validation failed', errors);
+
+    // Hard block: the same identity document twice.
     const dup = this.store.findByIdentity(value.identity.nationality, value.identity.idDocumentType, value.identity.idDocumentNumber);
     if (dup) throw new RegistryError(409, `An NSP record already exists for this identity document (${dup.nspId})`, { nspId: dup.nspId, status: dup.status });
+
+    // Soft signal: the same PERSON under a different document. Recorded on the
+    // record for the registrar rather than refused, because genuine namesakes
+    // sharing a date of birth do exist and refusing them would exclude real
+    // applicants. See lib/dedup.js.
+    const applicant = {
+      nameKey: dedup.nameKey(value.identity.givenNames, value.identity.familyName),
+      fatherKey: dedup.nameKey(value.identity.fatherOrGuardianName),
+      dateOfBirth: value.identity.dateOfBirth,
+      phone: value.contact.phone,
+      email: value.contact.email
+    };
+    const flags = this.duplicateFlags(applicant);
+
     const year = new Date().getUTCFullYear();
     const seq = this.store.nextSequence(this.config.issuer.country, year);
     const nspId = formatNspId(this.config.issuer.country, year, seq);
     const reg = this.store.insertRegistrant(nspId, value, 'SUBMITTED');
-    this.store.audit(actor, 'REGISTER', nspId, { type: value.type, channel: value.channel });
-    return reg;
+
+    // A verified mobile establishes assurance tier NSP-1 (proof of control of
+    // a biometrically-issued SIM). NSP-2 is only reached when a registrar
+    // sights the identity document — see the VERIFY transition.
+    this.store.setGateColumns(nspId, {
+      nameKey: applicant.nameKey,
+      fatherKey: applicant.fatherKey,
+      assuranceTier: 'NSP-1',
+      phoneVerified: !!context.phoneVerified,
+      dedupFlags: flags,
+      registeredIp: context.ip
+    });
+    this.store.recordRegistrationEvent({
+      nspId, ip: context.ip, phone: value.contact.phone, district: value.contact.address.region || null
+    });
+    this.store.audit(actor, 'REGISTER', nspId, {
+      type: value.type, channel: value.channel,
+      phoneVerified: !!context.phoneVerified, ip: context.ip || null,
+      duplicateFlags: flags.length || undefined
+    });
+    if (flags.length) this.store.audit('system', 'DEDUP_FLAG', nspId, { candidates: flags });
+    return this.store.getRegistrant(nspId);
+  }
+
+  /** Scored possible-duplicate candidates above the review threshold. */
+  duplicateFlags(applicant, excludeNspId) {
+    const threshold = this.config.dedupThreshold ?? 50;
+    return this.store
+      .findDuplicateCandidates({ ...applicant, excludeNspId })
+      .map(c => ({ ...dedup.scoreCandidate(applicant, c), nspId: c.nspId, status: c.status }))
+      .filter(c => c.score >= threshold)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
   }
 
   update(nspId, input, actor) {
@@ -82,10 +130,26 @@ class Registry {
     if (!t.from.includes(reg.status)) throw new RegistryError(409, `Cannot ${action} a record in status ${reg.status}`, { allowed: t.from });
     const now = new Date().toISOString();
     const extra = {};
-    if (action === 'VERIFY') { extra.verified_at = now; extra.verified_by = actor; }
+    if (action === 'VERIFY') {
+      extra.verified_at = now; extra.verified_by = actor;
+      // The registrar has sighted the identity document in person: this is
+      // what lifts the record from self-declared (NSP-1) to verified (NSP-2).
+      extra.assurance_tier = 'NSP-2';
+    }
     if (action === 'REJECT') { if (!reason) throw new RegistryError(400, 'reason is required'); extra.rejected_reason = reason; }
     if (action === 'ISSUE') {
+      // Four eyes: whoever verified a record may not also issue it. Issuance
+      // is the point at which a credential becomes trusted by third parties,
+      // so it must involve a second person. Deployments with a single
+      // registrar can disable this deliberately via NSP_FOUR_EYES=0 — an
+      // explicit choice, recorded here rather than an accident.
+      if (this.config.fourEyes && reg.registry.verifiedBy && reg.registry.verifiedBy === actor) {
+        throw new RegistryError(409,
+          'Four-eyes control: this record was verified by you and must be issued by a different registry officer',
+          { verifiedBy: reg.registry.verifiedBy });
+      }
       extra.issued_at = now;
+      extra.issued_by = actor;
       extra.expires_at = this.expiryFrom(now);
       extra.suspended_at = null;
     }

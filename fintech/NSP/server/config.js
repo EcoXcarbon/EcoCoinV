@@ -13,6 +13,10 @@ const root = path.join(__dirname, '..');
 // replace production configuration.
 require('dotenv').config({ path: path.join(root, '.env'), quiet: true });
 
+// Number from the environment with a fallback, preserving an explicit 0 —
+// which `Number(x) || default` would silently discard.
+function num(v, d) { const n = Number(v); return Number.isFinite(n) && String(v ?? '').trim() !== '' ? n : d; }
+
 function parseKeys(s) {
   // "registrar:abc123,printer:def456"  ->  Map(key -> actor)
   const m = new Map();
@@ -24,7 +28,7 @@ function parseKeys(s) {
 }
 
 const config = {
-  port: Number(process.env.PORT) || 4100,
+  port: num(process.env.PORT, 4100),
   host: process.env.HOST || '0.0.0.0',
   publicUrl: (process.env.NSP_PUBLIC_URL || 'http://localhost:4100').replace(/\/$/, ''),
   dbFile: process.env.NSP_DB_FILE || path.join(root, 'data', 'nsp-registry.db'),
@@ -37,10 +41,46 @@ const config = {
     did: process.env.NSP_ISSUER_DID || 'did:web:tl.ppmc.pk',
     registrar: process.env.NSP_REGISTRAR_TITLE || 'Registrar, National Skill Passport'
   },
-  cardValidityYears: Number(process.env.NSP_CARD_VALIDITY_YEARS) || 5,
+  cardValidityYears: num(process.env.NSP_CARD_VALIDITY_YEARS, 5),
   registryKeys: parseKeys(process.env.NSP_REGISTRY_KEYS || 'registrar:dev-registrar-key'),
   corsOrigins: (process.env.NSP_CORS_ORIGINS || '*').split(',').map(s => s.trim()),
-  rateLimit: { windowMs: 60_000, max: Number(process.env.NSP_RATE_LIMIT) || 60 }
+  rateLimit: { windowMs: 60_000, max: num(process.env.NSP_RATE_LIMIT, 60) },
+
+  // ── registration gate ────────────────────────────────────────────
+  // Secret for OTP code hashing, mobile-verification tokens and proof-of-work
+  // signatures. Falls back to a per-process random value, which is fine for a
+  // single instance but must be set explicitly before running more than one.
+  gateSecret: process.env.NSP_GATE_SECRET || require('node:crypto').randomBytes(32).toString('hex'),
+  // Master switch. Turning this off leaves registration wide open; intended
+  // only for local development.
+  gateEnabled: process.env.NSP_GATE_ENABLED !== '0',
+  // Four-eyes: the officer who verifies a record cannot also issue it.
+  fourEyes: process.env.NSP_FOUR_EYES !== '0',
+  // Possible-duplicate score (0-100) at or above which a record is flagged
+  // for registrar review. Flagging never blocks registration.
+  dedupThreshold: num(process.env.NSP_DEDUP_THRESHOLD, 50),
+  pow: {
+    difficulty: num(process.env.NSP_POW_DIFFICULTY, 16),   // leading zero bits
+    ttlMs: num(process.env.NSP_POW_TTL_MIN, 15) * 60_000
+  },
+  velocity: {
+    perIpHour: num(process.env.NSP_MAX_REG_PER_IP_HOUR, 10),
+    perPhoneDay: num(process.env.NSP_MAX_REG_PER_PHONE_DAY, 3),
+    perDistrictHour: num(process.env.NSP_MAX_REG_PER_DISTRICT_HOUR, 200)
+  },
+  otp: {
+    ttlMs: num(process.env.NSP_OTP_TTL_MIN, 10) * 60_000,
+    tokenTtlMs: num(process.env.NSP_OTP_TOKEN_TTL_MIN, 30) * 60_000,
+    maxAttempts: num(process.env.NSP_OTP_MAX_ATTEMPTS, 5),
+    resendCooldownMs: num(process.env.NSP_OTP_RESEND_COOLDOWN_SEC, 60) * 1000,
+    perPhoneHour: num(process.env.NSP_OTP_PER_PHONE_HOUR, 3),
+    provider: process.env.NSP_SMS_PROVIDER || 'log',
+    webhookUrl: process.env.NSP_SMS_WEBHOOK_URL || '',
+    webhookAuth: process.env.NSP_SMS_WEBHOOK_AUTH || '',
+    // Returns the OTP in the API response. Development only; refuses to take
+    // effect when a real gateway is configured.
+    devEcho: process.env.NSP_OTP_DEV_ECHO === '1' && (process.env.NSP_SMS_PROVIDER || 'log') === 'log'
+  }
 };
 
 module.exports = config;

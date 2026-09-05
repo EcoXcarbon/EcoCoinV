@@ -51,7 +51,41 @@ CREATE TABLE IF NOT EXISTS verification_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   at TEXT NOT NULL, nsp_id TEXT, result TEXT NOT NULL, ip TEXT, user_agent TEXT
 );
+-- ── registration gate ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS otp_challenges (
+  id TEXT PRIMARY KEY,
+  phone TEXT NOT NULL, salt TEXT NOT NULL, code_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL, expires_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0, consumed INTEGER NOT NULL DEFAULT 0,
+  ip TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_otp_phone ON otp_challenges (phone, created_at);
+CREATE TABLE IF NOT EXISTS used_reg_tokens (
+  signature TEXT PRIMARY KEY, used_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS gate_challenges (
+  challenge TEXT PRIMARY KEY, used_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS registration_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at TEXT NOT NULL, nsp_id TEXT, ip TEXT, phone TEXT, district TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_regevents_ip ON registration_events (ip, at);
+CREATE INDEX IF NOT EXISTS ix_regevents_phone ON registration_events (phone, at);
+CREATE INDEX IF NOT EXISTS ix_regevents_district ON registration_events (district, at);
 `;
+
+// Columns added after the first release. SQLite has no "ADD COLUMN IF NOT
+// EXISTS", so they are applied defensively against the live table.
+const ADDED_COLUMNS = [
+  ['registrants', 'assurance_tier', "TEXT NOT NULL DEFAULT 'NSP-1'"],
+  ['registrants', 'phone_verified', 'INTEGER NOT NULL DEFAULT 0'],
+  ['registrants', 'issued_by', 'TEXT'],
+  ['registrants', 'name_key', 'TEXT'],
+  ['registrants', 'father_key', 'TEXT'],
+  ['registrants', 'dedup_flags', 'TEXT'],
+  ['registrants', 'registered_ip', 'TEXT']
+];
 
 class Store {
   constructor(file) {
@@ -59,6 +93,17 @@ class Store {
     this.db = new DatabaseSync(file);
     this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
     this.db.exec(SCHEMA);
+    this.migrate();
+  }
+
+  /** Idempotent column additions for databases created before the gate. */
+  migrate() {
+    for (const [table, column, decl] of ADDED_COLUMNS) {
+      const cols = this.db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+      if (!cols.includes(column)) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+    }
+    this.db.exec('CREATE INDEX IF NOT EXISTS ix_registrants_namekey ON registrants (name_key, date_of_birth)');
+    this.db.exec('CREATE INDEX IF NOT EXISTS ix_registrants_phone ON registrants (phone)');
   }
 
   nextSequence(country, year) {
@@ -122,8 +167,14 @@ class Store {
       nspId: row.nsp_id, status: row.status, ...reg,
       registry: {
         createdAt: row.created_at, updatedAt: row.updated_at, submittedAt: row.submitted_at,
-        verifiedAt: row.verified_at, verifiedBy: row.verified_by, issuedAt: row.issued_at, expiresAt: row.expires_at,
+        verifiedAt: row.verified_at, verifiedBy: row.verified_by, issuedAt: row.issued_at, issuedBy: row.issued_by,
+        expiresAt: row.expires_at,
         suspendedAt: row.suspended_at, revokedAt: row.revoked_at, revokeReason: row.revoke_reason, rejectedReason: row.rejected_reason
+      },
+      assurance: {
+        tier: row.assurance_tier || 'NSP-1',
+        phoneVerified: !!row.phone_verified,
+        dedupFlags: row.dedup_flags ? JSON.parse(row.dedup_flags) : []
       }
     };
   }
@@ -196,6 +247,98 @@ class Store {
     this.db.prepare('INSERT INTO verification_log (at, nsp_id, result, ip, user_agent) VALUES (?,?,?,?,?)')
       .run(new Date().toISOString(), nspId || null, result, ip || null, (ua || '').slice(0, 200));
   }
+
+  /** Newest-first audit trail across all records, for the registry desk. */
+  auditRecent({ limit = 100, offset = 0, actor, action } = {}) {
+    const where = []; const vals = [];
+    if (actor) { where.push('actor = ?'); vals.push(actor); }
+    if (action) { where.push('action = ?'); vals.push(action); }
+    const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const rows = this.db.prepare(`SELECT at, actor, action, nsp_id, detail FROM audit_log ${w} ORDER BY id DESC LIMIT ? OFFSET ?`)
+      .all(...vals, Math.min(Number(limit) || 100, 500), Number(offset) || 0);
+    const total = this.db.prepare(`SELECT COUNT(*) AS n FROM audit_log ${w}`).get(...vals).n;
+    return { total, items: rows.map(r => ({ at: r.at, actor: r.actor, action: r.action, nspId: r.nsp_id, detail: r.detail ? JSON.parse(r.detail) : null })) };
+  }
+
+  // ── OTP ──────────────────────────────────────────────────────────
+  insertOtp({ id, phone, salt, codeHash, expiresAt, ip }) {
+    this.db.prepare('INSERT INTO otp_challenges (id, phone, salt, code_hash, created_at, expires_at, ip) VALUES (?,?,?,?,?,?,?)')
+      .run(id, phone, salt, codeHash, new Date().toISOString(), expiresAt, ip || null);
+  }
+  getOtp(id) {
+    const r = this.db.prepare('SELECT * FROM otp_challenges WHERE id = ?').get(id);
+    return r ? { id: r.id, phone: r.phone, salt: r.salt, codeHash: r.code_hash, expiresAt: r.expires_at, attempts: r.attempts, consumed: !!r.consumed } : null;
+  }
+  bumpOtpAttempts(id) { this.db.prepare('UPDATE otp_challenges SET attempts = attempts + 1 WHERE id = ?').run(id); }
+  consumeOtp(id) { this.db.prepare('UPDATE otp_challenges SET consumed = 1 WHERE id = ?').run(id); }
+  countOtpRequests(phone, sinceMs) {
+    const since = new Date(Date.now() - sinceMs).toISOString();
+    return this.db.prepare('SELECT COUNT(*) AS n FROM otp_challenges WHERE phone = ? AND created_at >= ?').get(phone, since).n;
+  }
+  lastOtpRequestAt(phone) {
+    const r = this.db.prepare('SELECT created_at FROM otp_challenges WHERE phone = ? ORDER BY created_at DESC LIMIT 1').get(phone);
+    return r ? r.created_at : null;
+  }
+  registrationTokenUsed(sig) { return !!this.db.prepare('SELECT 1 FROM used_reg_tokens WHERE signature = ?').get(sig); }
+  useRegistrationToken(sig) {
+    this.db.prepare('INSERT OR IGNORE INTO used_reg_tokens (signature, used_at) VALUES (?,?)').run(sig, new Date().toISOString());
+  }
+
+  // ── gate ─────────────────────────────────────────────────────────
+  gateChallengeSeen(c) { return !!this.db.prepare('SELECT 1 FROM gate_challenges WHERE challenge = ?').get(c); }
+  recordGateChallenge(c) {
+    this.db.prepare('INSERT OR IGNORE INTO gate_challenges (challenge, used_at) VALUES (?,?)').run(c, new Date().toISOString());
+  }
+  recordRegistrationEvent({ nspId, ip, phone, district }) {
+    this.db.prepare('INSERT INTO registration_events (at, nsp_id, ip, phone, district) VALUES (?,?,?,?,?)')
+      .run(new Date().toISOString(), nspId || null, ip || null, phone || null, district || null);
+  }
+  countRecentRegistrations({ ip, phone, district, sinceMs }) {
+    const since = new Date(Date.now() - sinceMs).toISOString();
+    if (ip) return this.db.prepare('SELECT COUNT(*) AS n FROM registration_events WHERE ip = ? AND at >= ?').get(ip, since).n;
+    if (phone) return this.db.prepare('SELECT COUNT(*) AS n FROM registration_events WHERE phone = ? AND at >= ?').get(phone, since).n;
+    if (district) return this.db.prepare('SELECT COUNT(*) AS n FROM registration_events WHERE district = ? AND at >= ?').get(district, since).n;
+    return 0;
+  }
+
+  /** Purge spent gate state. Called opportunistically; safe to run any time. */
+  pruneGate(olderThanMs = 7 * 24 * 60 * 60 * 1000) {
+    const cut = new Date(Date.now() - olderThanMs).toISOString();
+    this.db.prepare('DELETE FROM otp_challenges WHERE created_at < ?').run(cut);
+    this.db.prepare('DELETE FROM gate_challenges WHERE used_at < ?').run(cut);
+    this.db.prepare('DELETE FROM used_reg_tokens WHERE used_at < ?').run(cut);
+  }
+
+  // ── fuzzy duplicate search ───────────────────────────────────────
+  /**
+   * Candidate records that share a distinguishing attribute with the
+   * applicant. Deliberately a narrow indexed pre-filter; scoring happens in
+   * dedup.js against this small set.
+   */
+  findDuplicateCandidates({ nameKey, dateOfBirth, fatherKey, phone, email, excludeNspId }) {
+    const where = []; const vals = [];
+    if (nameKey) { where.push('name_key = ?'); vals.push(nameKey); }
+    if (dateOfBirth) { where.push('date_of_birth = ?'); vals.push(dateOfBirth); }
+    if (fatherKey) { where.push('father_key = ?'); vals.push(fatherKey); }
+    if (phone) { where.push('phone = ?'); vals.push(phone); }
+    if (email) { where.push('email = ?'); vals.push(email); }
+    if (!where.length) return [];
+    let sql = `SELECT nsp_id, status, given_names, family_name, date_of_birth, name_key, father_key, phone, email
+               FROM registrants WHERE (${where.join(' OR ')})`;
+    if (excludeNspId) { sql += ' AND nsp_id != ?'; vals.push(excludeNspId); }
+    return this.db.prepare(sql + ' LIMIT 50').all(...vals).map(r => ({
+      nspId: r.nsp_id, status: r.status, givenNames: r.given_names, familyName: r.family_name,
+      dateOfBirth: r.date_of_birth, nameKey: r.name_key, fatherKey: r.father_key, phone: r.phone, email: r.email
+    }));
+  }
+
+  setGateColumns(nspId, { nameKey, fatherKey, assuranceTier, phoneVerified, dedupFlags, registeredIp }) {
+    this.db.prepare(`UPDATE registrants SET name_key = ?, father_key = ?, assurance_tier = ?, phone_verified = ?,
+      dedup_flags = ?, registered_ip = ? WHERE nsp_id = ?`).run(
+      nameKey || null, fatherKey || null, assuranceTier || 'NSP-1', phoneVerified ? 1 : 0,
+      dedupFlags ? JSON.stringify(dedupFlags) : null, registeredIp || null, nspId);
+  }
+
   close() { this.db.close(); }
 }
 
