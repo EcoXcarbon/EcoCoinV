@@ -1,7 +1,7 @@
 {
   "name": "nsp-registry",
   "version": "1.0.0",
-  "description": "National Skill Passport (NSP) \u2014 Registry service: registration, verification, PVC card and certificate issuance",
+  "description": "National Skill Passport (NSP) — Registry service: registration, verification, PVC card and certificate issuance",
   "private": true,
   "type": "commonjs",
   "main": "server/index.js",
@@ -26,6 +26,7 @@
   "author": "PPMC / EcoXcarbon",
   "license": "MIT",
   "dependencies": {
+    "dotenv": "^17.4.2",
     "express": "^4.19.2"
   },
   "devDependencies": {

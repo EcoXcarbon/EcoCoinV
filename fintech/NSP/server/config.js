@@ -2,6 +2,17 @@
 const path = require('node:path');
 const root = path.join(__dirname, '..');
 
+// Load <NSP root>/.env before any process.env read below. The path is resolved
+// from __dirname rather than the working directory so `npm start`, `npm run
+// seed` and the scripts in scripts/ all behave the same wherever they are run
+// from. Nothing happens if the file is absent.
+//
+// override is left off (the default) on purpose: values already present in the
+// environment win. On the VPS systemd injects /opt/nsp/.env via EnvironmentFile
+// before node starts, so this call is a harmless no-op there and cannot quietly
+// replace production configuration.
+require('dotenv').config({ path: path.join(root, '.env'), quiet: true });
+
 function parseKeys(s) {
   // "registrar:abc123,printer:def456"  ->  Map(key -> actor)
   const m = new Map();
