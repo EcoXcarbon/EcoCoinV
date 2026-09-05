@@ -1,0 +1,118 @@
+{
+  "iscedLevels": {
+    "classification": "ISCED 2011 (UNESCO)",
+    "levels": [
+      { "code": "0", "title": "Early childhood education" },
+      { "code": "1", "title": "Primary education" },
+      { "code": "2", "title": "Lower secondary education (Middle / Grade 8)" },
+      { "code": "3", "title": "Upper secondary education (Matric / Intermediate / A-Level)" },
+      { "code": "4", "title": "Post-secondary non-tertiary education (Diploma / DAE)" },
+      { "code": "5", "title": "Short-cycle tertiary education (Associate degree / HND)" },
+      { "code": "6", "title": "Bachelor's or equivalent level" },
+      { "code": "7", "title": "Master's or equivalent level" },
+      { "code": "8", "title": "Doctoral or equivalent level" }
+    ]
+  },
+  "iscedFields": {
+    "classification": "ISCED-F 2013 broad fields",
+    "fields": [
+      { "code": "00", "title": "Generic programmes and qualifications" },
+      { "code": "01", "title": "Education" },
+      { "code": "02", "title": "Arts and humanities" },
+      { "code": "03", "title": "Social sciences, journalism and information" },
+      { "code": "04", "title": "Business, administration and law" },
+      { "code": "05", "title": "Natural sciences, mathematics and statistics" },
+      { "code": "06", "title": "Information and Communication Technologies (ICTs)" },
+      { "code": "07", "title": "Engineering, manufacturing and construction" },
+      { "code": "08", "title": "Agriculture, forestry, fisheries and veterinary" },
+      { "code": "09", "title": "Health and welfare" },
+      { "code": "10", "title": "Services" }
+    ]
+  },
+  "qualificationLevels": {
+    "classification": "Pakistan NVQF (NAVTTC) mapped to EQF and ISCED",
+    "levels": [
+      { "nvqf": 1, "eqf": 1, "isced": "1", "title": "Level 1 — Basic skills (semi-skilled)" },
+      { "nvqf": 2, "eqf": 2, "isced": "2", "title": "Level 2 — Skilled worker (certificate)" },
+      { "nvqf": 3, "eqf": 3, "isced": "3", "title": "Level 3 — Skilled worker / craftsperson (national certificate)" },
+      { "nvqf": 4, "eqf": 4, "isced": "3", "title": "Level 4 — Supervisor / senior technician (certificate)" },
+      { "nvqf": 5, "eqf": 5, "isced": "5", "title": "Level 5 — Diploma / advanced technician" },
+      { "nvqf": 6, "eqf": 6, "isced": "6", "title": "Level 6 — Bachelor / professional" },
+      { "nvqf": 7, "eqf": 7, "isced": "7", "title": "Level 7 — Master / specialist" },
+      { "nvqf": 8, "eqf": 8, "isced": "8", "title": "Level 8 — Doctoral / expert" }
+    ]
+  },
+  "cefr": [
+    { "code": "A1", "title": "A1 — Beginner" },
+    { "code": "A2", "title": "A2 — Elementary" },
+    { "code": "B1", "title": "B1 — Intermediate" },
+    { "code": "B2", "title": "B2 — Upper intermediate" },
+    { "code": "C1", "title": "C1 — Advanced" },
+    { "code": "C2", "title": "C2 — Proficient" },
+    { "code": "NATIVE", "title": "Native / mother tongue" }
+  ],
+  "languages": [
+    { "code": "ur", "name": "Urdu" }, { "code": "en", "name": "English" }, { "code": "ar", "name": "Arabic" },
+    { "code": "pa", "name": "Punjabi" }, { "code": "ps", "name": "Pashto" }, { "code": "sd", "name": "Sindhi" },
+    { "code": "bal", "name": "Balochi" }, { "code": "skr", "name": "Saraiki" }, { "code": "fa", "name": "Persian / Dari" },
+    { "code": "hi", "name": "Hindi" }, { "code": "bn", "name": "Bengali" }, { "code": "tr", "name": "Turkish" },
+    { "code": "zh", "name": "Chinese (Mandarin)" }, { "code": "ja", "name": "Japanese" }, { "code": "ko", "name": "Korean" },
+    { "code": "ms", "name": "Malay" }, { "code": "id", "name": "Indonesian" }, { "code": "de", "name": "German" },
+    { "code": "fr", "name": "French" }, { "code": "es", "name": "Spanish" }, { "code": "it", "name": "Italian" },
+    { "code": "pt", "name": "Portuguese" }, { "code": "ru", "name": "Russian" }, { "code": "nl", "name": "Dutch" },
+    { "code": "sv", "name": "Swedish" }, { "code": "no", "name": "Norwegian" }, { "code": "da", "name": "Danish" },
+    { "code": "fi", "name": "Finnish" }, { "code": "pl", "name": "Polish" }, { "code": "el", "name": "Greek" },
+    { "code": "ro", "name": "Romanian" }, { "code": "cs", "name": "Czech" }, { "code": "hu", "name": "Hungarian" },
+    { "code": "th", "name": "Thai" }, { "code": "vi", "name": "Vietnamese" }, { "code": "tl", "name": "Filipino / Tagalog" },
+    { "code": "sw", "name": "Swahili" }, { "code": "ha", "name": "Hausa" }, { "code": "am", "name": "Amharic" }, { "code": "he", "name": "Hebrew" }
+  ],
+  "sectors": [
+    { "code": "construction", "title": "Construction & Built Environment" },
+    { "code": "engineering", "title": "Engineering" },
+    { "code": "energy", "title": "Energy, Power & Utilities" },
+    { "code": "ict", "title": "ICT & Digital" },
+    { "code": "health", "title": "Health & Care" },
+    { "code": "education", "title": "Education & Training" },
+    { "code": "hospitality", "title": "Hospitality & Tourism" },
+    { "code": "manufacturing", "title": "Manufacturing" },
+    { "code": "automotive", "title": "Automotive" },
+    { "code": "aviation", "title": "Aviation & Maritime" },
+    { "code": "logistics", "title": "Logistics & Supply Chain" },
+    { "code": "transport", "title": "Transport" },
+    { "code": "agriculture", "title": "Agriculture & Agri-tech" },
+    { "code": "textile", "title": "Textile & Garments" },
+    { "code": "mining", "title": "Mining & Minerals" },
+    { "code": "business", "title": "Business, Finance & Administration" },
+    { "code": "services", "title": "Personal & Community Services" }
+  ],
+  "registrantTypes": [
+    { "code": "STUDENT", "title": "Student / Trainee — currently enrolled in an institution or TVET programme" },
+    { "code": "APPRENTICE", "title": "Apprentice — in a registered apprenticeship" },
+    { "code": "WORKER", "title": "Skilled Worker — employed or self-employed in a trade" },
+    { "code": "PROFESSIONAL", "title": "Professional — degree-level occupation" }
+  ],
+  "identityDocumentTypes": [
+    { "code": "CNIC", "title": "National Identity Card (CNIC / NICOP)", "pattern": "^\\d{5}-\\d{7}-\\d$", "countries": ["PK"] },
+    { "code": "PASSPORT", "title": "Passport (ICAO 9303)", "pattern": "^[A-Z0-9]{6,9}$" },
+    { "code": "NATIONAL_ID", "title": "National ID (other country)", "pattern": "^[A-Z0-9-]{4,30}$" },
+    { "code": "B_FORM", "title": "Child Registration Certificate (B-Form)", "pattern": "^\\d{5}-\\d{7}-\\d$", "countries": ["PK"] }
+  ],
+  "evidenceTypes": [
+    { "code": "CERTIFICATE", "title": "Training / qualification certificate" },
+    { "code": "ASSESSMENT", "title": "Competency assessment (RPL / trade test)" },
+    { "code": "LICENCE", "title": "Professional licence / registration" },
+    { "code": "EXPERIENCE", "title": "Employer-attested experience" },
+    { "code": "PORTFOLIO", "title": "Portfolio of work" }
+  ],
+  "documentTypes": [
+    { "code": "PHOTO", "title": "Passport-style photograph" },
+    { "code": "ID_FRONT", "title": "Identity document — front" },
+    { "code": "ID_BACK", "title": "Identity document — back" },
+    { "code": "PASSPORT", "title": "Passport bio page" },
+    { "code": "EDUCATION", "title": "Education certificate / transcript" },
+    { "code": "SKILL_CERT", "title": "Skill / trade certificate" },
+    { "code": "EXPERIENCE", "title": "Experience letter" },
+    { "code": "ENROLLMENT", "title": "Enrollment / bona-fide letter (students)" },
+    { "code": "OTHER", "title": "Other supporting document" }
+  ]
+}

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Register — National Skill Passport</title>
+<link rel="stylesheet" href="/assets/css/fonts.css">
+<link rel="stylesheet" href="/assets/css/nsp.css">
+</head>
+<body>
+<header class="nsp-header"><div class="container">
+  <a class="brand" href="/"><span class="emblem">NSP</span><span>National Skill Passport<small>Registration</small></span></a>
+  <nav class="nav"><a href="/">Home</a><a href="/register" class="active">Register</a><a href="/verify">Verify</a><a href="/track">Track</a><a href="/desk">Registry Desk</a></nav>
+</div></header>
+<main class="container">
+  <h1>Apply for a National Skill Passport</h1>
+  <p class="muted">For students, apprentices, skilled workers and professionals. Fields marked <span style="color:var(--nsp-red)">*</span> are required. Enter names exactly as they appear on your identity document (Latin script).</p>
+
+  <div class="stepper" id="stepper">
+    <div class="step" data-step="1"><b>1</b>Type &amp; identity</div>
+    <div class="step" data-step="2"><b>2</b>Contact</div>
+    <div class="step" data-step="3"><b>3</b>Education</div>
+    <div class="step" data-step="4"><b>4</b>Skills &amp; languages</div>
+    <div class="step" data-step="5"><b>5</b>Experience &amp; documents</div>
+    <div class="step" data-step="6"><b>6</b>Consent &amp; review</div>
+  </div>
+
+  <form id="regForm" class="card" novalidate>
+    <div id="formError" class="notice err" hidden></div>
+
+    <!-- STEP 1 -->
+    <section class="step-panel" data-panel="1">
+      <fieldset><legend>Registrant type</legend>
+        <div class="row" id="typeChoices"></div>
+      </fieldset>
+      <fieldset><legend>Identity (as on ID document)</legend>
+        <div class="row">
+          <div class="field"><label>Given names <span class="req">*</span></label><input name="identity.givenNames" type="text" autocomplete="given-name" required></div>
+          <div class="field"><label>Family name <span class="req">*</span></label><input name="identity.familyName" type="text" autocomplete="family-name" required></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Name in native script</label><input name="identity.nameNative" type="text" placeholder="e.g. محمد علی خان"><span class="hint">Optional — printed on the certificate</span></div>
+          <div class="field"><label>Father's / guardian's name</label><input name="identity.fatherOrGuardianName" type="text"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Date of birth <span class="req">*</span></label><input name="identity.dateOfBirth" type="date" required><span class="hint">Minimum age 14 (ILO C138)</span></div>
+          <div class="field"><label>Sex <span class="req">*</span></label><select name="identity.sex" required><option value="">Select</option><option value="M">Male</option><option value="F">Female</option><option value="X">X / unspecified</option></select></div>
+          <div class="field"><label>Nationality <span class="req">*</span></label><select name="identity.nationality" data-ref="countries" required></select></div>
+          <div class="field"><label>Country of birth</label><select name="identity.countryOfBirth" data-ref="countries" data-optional></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Identity document type <span class="req">*</span></label><select name="identity.idDocumentType" data-ref="identityDocumentTypes" required></select></div>
+          <div class="field"><label>Identity document number <span class="req">*</span></label><input name="identity.idDocumentNumber" type="text" required placeholder="e.g. 17301-1234567-1"><span class="hint" id="idHint"></span></div>
+          <div class="field"><label>ID expiry date</label><input name="identity.idDocumentExpiry" type="date"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Passport number</label><input name="identity.passportNumber" type="text" placeholder="ICAO 9303 (6–9 chars)"><span class="hint">Recommended for overseas employment</span></div>
+          <div class="field"><label>Passport expiry</label><input name="identity.passportExpiry" type="date"></div>
+        </div>
+        <div class="field"><label>Passport-style photograph <span class="req">*</span></label>
+          <div class="photo-box">
+            <div class="preview" id="photoPreview">35 × 45 mm<br>plain background</div>
+            <div><input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp"><div class="hint">Neutral expression, plain light background, no glasses glare. Image is resized to 420 × 540 px and stored under 400 KB.</div></div>
+          </div>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="step-panel" data-panel="2" hidden>
+      <fieldset><legend>Contact</legend>
+        <div class="row">
+          <div class="field"><label>Email <span class="req">*</span></label><input name="contact.email" type="email" required autocomplete="email"></div>
+          <div class="field"><label>Mobile (international format) <span class="req">*</span></label><input name="contact.phone" type="tel" required placeholder="+92 300 1234567"><span class="hint">E.164: country code first</span></div>
+          <div class="field"><label>Alternative phone</label><input name="contact.altPhone" type="tel"></div>
+        </div>
+      </fieldset>
+      <fieldset><legend>Residential address</legend>
+        <div class="field"><label>Address line 1 <span class="req">*</span></label><input name="contact.address.line1" type="text" required autocomplete="address-line1"></div>
+        <div class="field"><label>Address line 2</label><input name="contact.address.line2" type="text" autocomplete="address-line2"></div>
+        <div class="row">
+          <div class="field"><label>City <span class="req">*</span></label><input name="contact.address.city" type="text" required></div>
+          <div class="field"><label>Province / State</label><input name="contact.address.region" type="text"></div>
+          <div class="field"><label>Postal code</label><input name="contact.address.postalCode" type="text"></div>
+          <div class="field"><label>Country <span class="req">*</span></label><select name="contact.address.country" data-ref="countries" required></select></div>
+        </div>
+      </fieldset>
+      <fieldset><legend>Emergency contact</legend>
+        <div class="row">
+          <div class="field"><label>Name</label><input name="contact.emergencyContact.name" type="text"></div>
+          <div class="field"><label>Relationship</label><input name="contact.emergencyContact.relationship" type="text"></div>
+          <div class="field"><label>Phone</label><input name="contact.emergencyContact.phone" type="tel" placeholder="+92 ..."></div>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="step-panel" data-panel="3" hidden>
+      <fieldset><legend>Highest education completed</legend>
+        <div class="row">
+          <div class="field"><label>Level (ISCED 2011) <span class="req">*</span></label><select name="education.highestLevel" data-ref="iscedLevels" required></select></div>
+          <div class="field"><label>Field of study (ISCED-F)</label><select name="education.field" data-ref="iscedFields" data-optional></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Institution</label><input name="education.institution" type="text"></div>
+          <div class="field"><label>Qualification title</label><input name="education.qualificationTitle" type="text" placeholder="e.g. DAE Civil, BSc Nursing"></div>
+          <div class="field"><label>Year completed</label><input name="education.yearCompleted" type="number" min="1950" max="2100"></div>
+        </div>
+      </fieldset>
+      <fieldset id="enrollmentBlock"><legend>Current enrollment (students &amp; apprentices)</legend>
+        <div class="row">
+          <div class="field"><label>Institution / training provider <span class="req">*</span></label><input name="education.currentInstitution" type="text"></div>
+          <div class="field"><label>Programme / trade <span class="req">*</span></label><input name="education.currentProgramme" type="text"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Enrollment / roll number <span class="req">*</span></label><input name="education.enrollmentNumber" type="text"></div>
+          <div class="field"><label>Expected completion</label><input name="education.expectedCompletion" type="date"></div>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="step-panel" data-panel="4" hidden>
+      <fieldset><legend>Skills &amp; occupations (ISCO-08)</legend>
+        <p class="hint">Add every skill you can evidence. Mark one as primary — it is printed on the card.</p>
+        <div class="list-editor" id="skillsList"></div>
+        <button type="button" class="btn btn-secondary btn-sm" id="addSkill">+ Add skill</button>
+      </fieldset>
+      <fieldset><legend>Languages (CEFR)</legend>
+        <div class="list-editor" id="langList"></div>
+        <button type="button" class="btn btn-secondary btn-sm" id="addLang">+ Add language</button>
+      </fieldset>
+    </section>
+
+    <!-- STEP 5 -->
+    <section class="step-panel" data-panel="5" hidden>
+      <fieldset><legend>Work experience</legend>
+        <div class="list-editor" id="expList"></div>
+        <button type="button" class="btn btn-secondary btn-sm" id="addExp">+ Add employment</button>
+      </fieldset>
+      <fieldset><legend>Supporting documents</legend>
+        <p class="hint">Upload scans (PDF/JPG/PNG, max 5 MB each). Files are hashed locally (SHA-256) so the registry can prove what you submitted; the originals are checked at verification.</p>
+        <div class="list-editor" id="docList"></div>
+        <input type="file" id="docInput" accept="application/pdf,image/jpeg,image/png" multiple>
+      </fieldset>
+    </section>
+
+    <!-- STEP 6 -->
+    <section class="step-panel" data-panel="6" hidden>
+      <fieldset><legend>Review</legend><div id="review" class="kv"></div></fieldset>
+      <fieldset><legend>Declarations &amp; consent</legend>
+        <label class="check"><input type="checkbox" name="consent.dataProcessing" required><span><b>Data processing.</b> I consent to the registry processing my personal data, including my photograph, for the purpose of registering, verifying and issuing my National Skill Passport, in line with the registry's privacy notice.</span></label>
+        <label class="check"><input type="checkbox" name="consent.employerVerification"><span><b>Verification by employers.</b> I agree that my name, photograph, skills and passport status may be shown to anyone who scans my card or enters my NSP ID.</span></label>
+        <label class="check"><input type="checkbox" name="consent.crossBorderSharing"><span><b>Cross-border sharing.</b> I agree that my verified record may be shared with foreign employers, embassies and recognition bodies at my request.</span></label>
+        <label class="check"><input type="checkbox" name="consent.declarationTruthful" required><span><b>Declaration.</b> I declare that the information and documents provided are true and complete. I understand that false information leads to refusal or revocation of the passport.</span></label>
+      </fieldset>
+    </section>
+
+    <div class="wizard-nav">
+      <button type="button" class="btn btn-secondary" id="prevBtn">← Back</button>
+      <button type="button" class="btn btn-primary" id="nextBtn">Continue →</button>
+      <button type="submit" class="btn btn-primary" id="submitBtn" hidden>Submit application</button>
+    </div>
+  </form>
+
+  <div class="card" id="receipt" hidden>
+    <div class="notice">Application received.</div>
+    <h2 style="margin-top:16px">Your NSP ID</h2>
+    <div class="mono" id="receiptId" style="font-size:1.8rem;font-weight:800;color:var(--nsp-navy)"></div>
+    <p class="muted">Keep this number. Use it with your date of birth to <a href="/track" id="trackLink">track your application</a>. Registry officers will review your documents; once verified, your passport card and certificate are issued.</p>
+    <div id="receiptQr"></div>
+  </div>
+</main>
+<footer><div class="container">National Skill Passport Registry</div></footer>
+<script src="/assets/js/qrcode.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/register.js"></script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NSP Card — Print</title>
+<link rel="stylesheet" href="/assets/css/fonts.css">
+<style>
+/* ── PVC card: ISO/IEC 7810 ID-1 — 85.60 × 53.98 mm, corner radius 3.18 mm ──
+   Print at 100% (no scaling) on a card printer or on a sheet with crop marks.
+   ?bleed=1  adds 3 mm bleed on every side (91.60 × 59.98 mm) for offset printing
+   ?chip=1   shows the ISO 7816-2 contact chip footprint (for hybrid smart cards)
+   ?side=front|back|both  (default both)
+   ?demo=1   renders a sample card without the registry API */
+:root {
+  --navy: #0B2545; --navy-2: #13315C; --emerald: #0E9F6E; --emerald-2: #057A55; --gold: #C9A227;
+  --ground: #F7F8F5; --ink: #14213D; --slate: #5B6B82; --line: #D4DBE6;
+  --card-w: 85.6mm; --card-h: 53.98mm; --bleed: 0mm; --radius: 3.18mm;
+  --sans: "IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
+  --ocr: "B612 Mono", "OCR-B", "OCRB", "Courier New", monospace;
+}
+body.opt-bleed { --bleed: 3mm; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #2A3442; font-family: var(--sans); color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.workbench { padding: 24px; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; justify-content: center; }
+.side-wrap { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.side-label { color: #B9C4D4; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.preview { --zoom: 2.2; width: calc((var(--card-w) + 2 * var(--bleed)) * var(--zoom)); height: calc((var(--card-h) + 2 * var(--bleed)) * var(--zoom)); }
+.preview .card { transform: scale(var(--zoom)); transform-origin: top left; }
+.toolbar { position: fixed; top: 0; left: 0; right: 0; background: #1B2330; color: #fff; padding: 10px 16px; display: flex; gap: 10px; align-items: center; font-size: 13px; z-index: 9; }
+.toolbar b { margin-right: auto; }
+.toolbar a, .toolbar button { color: #fff; background: #2F3B4D; border: 0; padding: 6px 12px; border-radius: 6px; font: inherit; text-decoration: none; cursor: pointer; }
+.toolbar .status { color: #9FB0C6; }
+.spacer { height: 46px; }
+
+.card { width: calc(var(--card-w) + 2 * var(--bleed)); height: calc(var(--card-h) + 2 * var(--bleed)); position: relative; overflow: hidden; background: var(--ground); border-radius: calc(var(--radius) + var(--bleed)); box-shadow: 0 8px 30px rgba(0,0,0,.45); }
+.card .safe { position: absolute; inset: var(--bleed); }
+/* security layers */
+.guilloche { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .55; }
+.microtext { position: absolute; font-size: 0.75mm; letter-spacing: .04em; color: var(--slate); white-space: nowrap; overflow: hidden; opacity: .8; }
+.ghost { position: absolute; width: 11mm; height: 14mm; background-size: cover; background-position: center; filter: grayscale(1) contrast(.9); opacity: .28; mix-blend-mode: multiply; }
+.seal { position: absolute; width: 12mm; height: 12mm; opacity: .9; }
+.cut-marks { display: none; position: absolute; inset: 0; pointer-events: none; }
+.cut-marks::before { content: ""; position: absolute; inset: var(--bleed); border: 0.1mm dashed rgba(11,37,69,.35); border-radius: var(--radius); }
+body.opt-bleed .cut-marks { display: block; }
+
+/* ── FRONT ── */
+.front .band { position: absolute; left: 0; top: 0; bottom: 0; width: 6.5mm; background: linear-gradient(180deg, var(--navy) 0%, var(--navy-2) 70%, var(--emerald-2) 100%); }
+.front .band .vert { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-90deg); transform-origin: center; white-space: nowrap; color: #fff; font-family: var(--cond); font-weight: 700; font-size: 2.5mm; letter-spacing: .22em; }
+.front .head { position: absolute; left: 9.5mm; top: 3mm; right: 3mm; height: 9mm; display: flex; align-items: flex-start; gap: 2mm; }
+.front .issuer { flex: 1; min-width: 0; font-size: 1.85mm; line-height: 1.25; color: var(--slate); text-transform: uppercase; letter-spacing: .08em; }
+.front .issuer b { display: block; color: var(--navy); font-size: 3.2mm; letter-spacing: .06em; font-family: var(--cond); font-weight: 700; }
+.front .seal { position: static; width: 9.5mm; height: 9.5mm; flex: none; }
+.front .flag { width: 7mm; height: 4.7mm; border-radius: .4mm; overflow: hidden; box-shadow: 0 0 0 .15mm rgba(0,0,0,.15); flex: none; }
+.front .photo { position: absolute; left: 9.5mm; top: 13.2mm; width: 21mm; height: 27mm; background: #E5E9F0 center/cover no-repeat; border-radius: .8mm; box-shadow: 0 0 0 .25mm #fff, 0 0 0 .45mm var(--line); }
+.front .fields { position: absolute; left: 33mm; display: grid; gap: 1mm 2mm; }
+.front .fields.top { top: 12.8mm; right: 13.5mm; grid-template-columns: 1fr; }
+.front .fields.mid { top: 32.4mm; right: 3mm; grid-template-columns: 1fr 1fr; }
+.front .fields.low { top: 38.2mm; right: 18.5mm; grid-template-columns: 1fr 1fr; }
+.front .f { min-width: 0; }
+.front .f .l { font-size: 1.5mm; letter-spacing: .12em; text-transform: uppercase; color: var(--slate); line-height: 1; margin-bottom: .4mm; white-space: nowrap; }
+.front .f .v { font-size: 2.5mm; font-weight: 600; line-height: 1.1; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.front .f .v.name { font-family: var(--cond); font-size: 4.4mm; font-weight: 700; letter-spacing: .01em; color: var(--navy); }
+.front .f .v.skill { color: var(--emerald-2); }
+.front .f .v.mono { font-family: var(--ocr); font-weight: 700; font-size: 2.6mm; letter-spacing: .03em; }
+.front .f .v.date { font-family: var(--ocr); font-weight: 700; font-size: 2.3mm; letter-spacing: 0; }
+.front .type-tag { position: absolute; left: 9.5mm; top: 41.2mm; width: 21mm; text-align: center; font-family: var(--cond); font-weight: 700; font-size: 1.9mm; letter-spacing: .18em; text-transform: uppercase; color: #fff; background: var(--emerald); padding: .6mm 0; border-radius: .5mm; }
+.front .qr { position: absolute; right: 3mm; bottom: 3mm; width: 14mm; height: 14mm; background: #fff; padding: .6mm; border-radius: .6mm; box-shadow: 0 0 0 .2mm var(--line); }
+.front .qr svg { width: 100%; height: 100%; display: block; }
+.front .ghost { right: 3mm; top: 12.8mm; width: 9mm; height: 11.5mm; }
+
+/* ── BACK ── */
+.back .top { position: absolute; left: 4mm; right: 4mm; top: 3.2mm; display: flex; justify-content: space-between; align-items: flex-start; gap: 3mm; }
+.back .terms { font-size: 1.75mm; line-height: 1.3; color: var(--slate); max-width: 50mm; }
+.back .terms b { color: var(--navy); }
+.back .verify { text-align: right; font-size: 1.7mm; color: var(--slate); line-height: 1.3; }
+.back .verify .url { font-family: var(--ocr); color: var(--navy); font-weight: 700; font-size: 2mm; }
+.back .skills { position: absolute; left: 4mm; top: 15.5mm; width: 50mm; }
+.back .skills .l { font-size: 1.55mm; letter-spacing: .12em; text-transform: uppercase; color: var(--slate); margin-bottom: .6mm; }
+.back .skills .row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2mm; line-height: 1.45; border-top: .12mm solid var(--line); padding: .25mm 0; }
+.back .skills .row span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.back .skills .row span:last-child { color: var(--emerald-2); font-weight: 600; white-space: nowrap; }
+.back .signature { position: absolute; right: 4mm; top: 15mm; width: 24mm; }
+.back .signature .strip { height: 7mm; background: repeating-linear-gradient(135deg, #fff 0 .4mm, #EEF1F5 .4mm .8mm); border: .15mm solid var(--line); border-radius: .5mm; }
+.back .signature .l { font-size: 1.5mm; letter-spacing: .1em; text-transform: uppercase; color: var(--slate); margin-top: .5mm; text-align: center; }
+.back .serial { position: absolute; right: 4mm; top: 26mm; width: 24mm; text-align: center; }
+.back .serial .l { font-size: 1.5mm; letter-spacing: .1em; text-transform: uppercase; color: var(--slate); }
+.back .serial .v { font-family: var(--ocr); font-weight: 700; font-size: 2.6mm; color: var(--navy); }
+.back .magstripe { display: none; position: absolute; left: 0; right: 0; top: 4mm; height: 12.7mm; background: #2B2B2B; } /* ISO 7811 track area, enable with ?mag=1 */
+body.opt-mag .back .magstripe { display: block; }
+.back .mrz { position: absolute; left: 0; right: 0; bottom: 0; height: 15.4mm; background: #fff; border-top: .15mm solid var(--line); padding: 1.4mm 0 0 4.6mm; font-family: var(--ocr); font-size: 4.2mm; line-height: 4.1mm; letter-spacing: 0; color: #111; white-space: pre; font-weight: 400; }
+.back .mrz div { width: 76.2mm; overflow: hidden; }
+.back .ghost { left: 55mm; top: 15mm; width: 9mm; height: 11.5mm; opacity: .2; }
+.chip { display: none; position: absolute; left: 10.25mm; top: 19.23mm; width: 9.62mm; height: 8.32mm; border-radius: .9mm; background: linear-gradient(135deg, #E8D28A, #C9A227 55%, #F1E3A5); box-shadow: inset 0 0 0 .2mm rgba(0,0,0,.25); }
+.chip::before, .chip::after { content: ""; position: absolute; background: rgba(0,0,0,.28); }
+.chip::before { left: 33%; top: 0; bottom: 0; width: .18mm; } .chip::after { top: 50%; left: 0; right: 0; height: .18mm; }
+body.opt-chip .chip { display: block; }
+
+@media print {
+  body { background: #fff; }
+  .toolbar, .spacer, .side-label { display: none; }
+  .workbench { padding: 0; gap: 0; display: block; }
+  .preview { width: auto; height: auto; }
+  .preview .card { transform: none; }
+  .card { box-shadow: none; page-break-after: always; break-after: page; }
+  @page { size: calc(85.6mm + 2 * var(--bleed)) calc(53.98mm + 2 * var(--bleed)); margin: 0; }
+}
+</style>
+</head>
+<body>
+<div class="toolbar"><b>NSP card print view</b><span class="status" id="status">Loading…</span><button onclick="window.print()">Print / PDF</button><a href="/desk">Registry desk</a></div>
+<div class="spacer"></div>
+<div class="workbench" id="bench"></div>
+<script src="/assets/js/qrcode.js"></script>
+<script src="/assets/js/api.js"></script>
+<script>
+(async function () {
+  const q = new URLSearchParams(location.search);
+  for (const flag of ['bleed', 'chip', 'mag']) if (q.get(flag) === '1') document.body.classList.add('opt-' + flag);
+  const side = q.get('side') || 'both';
+  const status = document.getElementById('status');
+  const serial = (location.pathname.match(/\/card\/([^/]+)/) || [])[1];
+  const e = NSP.esc, d = NSP.fmtDate;
+  const upper = s => String(s || '').toUpperCase();
+  window.addEventListener('error', ev => { status.textContent = 'Render error: ' + ev.message; });
+  window.addEventListener('unhandledrejection', ev => { status.textContent = 'Render error: ' + (ev.reason && ev.reason.message || ev.reason); });
+
+  let cred;
+  if (q.get('demo') === '1' || !serial) cred = demo();
+  else {
+    try { cred = await NSP.call(`/credentials/${encodeURIComponent(serial)}`, { auth: true }); }
+    catch (e) { status.textContent = `Could not load ${serial}: ${e.message} — sign in at the Registry Desk first.`; return; }
+  }
+  const p = cred.payload;
+  status.textContent = `${p.serial} · ${p.holder.fullName} · ${cred.status}`;
+  document.title = `NSP Card ${p.serial} — ${p.holder.fullName}`;
+
+  const bench = document.getElementById('bench');
+  if (side !== 'back') bench.insertAdjacentHTML('beforeend', wrap('Front', front(p)));
+  if (side !== 'front') bench.insertAdjacentHTML('beforeend', wrap('Back', back(p)));
+  document.querySelectorAll('.guilloche').forEach((svg, i) => svg.innerHTML = guilloche(i === 0 ? '#0E9F6E' : '#13315C'));
+
+  function wrap(label, html) { return `<div class="side-wrap"><div class="side-label">${label}</div><div class="preview">${html}</div></div>`; }
+  function fitName(h) { const n = (h.givenNames + ' ' + h.familyName).length; return n <= 14 ? 4.4 : Math.max(3.0, 4.4 * 14 / n).toFixed(2); }
+  function front(p) {
+    const skill = p.primarySkill || {};
+    const level = skill.nvqfLevel ? `NVQF ${skill.nvqfLevel} · EQF ${skill.eqfLevel}` : 'Registered';
+    return `<div class="card front">
+      <svg class="guilloche" viewBox="0 0 856 540" preserveAspectRatio="none"></svg>
+      <div class="safe">
+        <div class="band"><div class="vert">NATIONAL SKILL PASSPORT</div></div>
+        <div class="head">
+          <div class="issuer"><b>NATIONAL SKILL PASSPORT</b>${e(p.issuer.countryName)} · ${e(p.issuer.shortName)}</div>
+          ${seal('', p.issuer.countryAlpha3)}
+          <div class="flag">${flag(p.issuer.country)}</div>
+        </div>
+        <div class="photo" style="${p.holder.photo ? `background-image:url(${p.holder.photo})` : ''}"></div>
+        <div class="chip"></div>
+        <div class="type-tag">${e(p.holder.type)}</div>
+        <div class="ghost" style="${p.holder.photo ? `background-image:url(${p.holder.photo})` : ''}"></div>
+        <div class="fields top">
+          <div class="f"><div class="l">Name / نام</div><div class="v name" style="font-size:${fitName(p.holder)}mm">${e(upper(p.holder.givenNames))} ${e(upper(p.holder.familyName))}</div></div>
+          <div class="f"><div class="l">NSP ID</div><div class="v mono">${e(p.nspId)}</div></div>
+          <div class="f"><div class="l">Primary skill · ISCO-08 ${e(skill.iscoCode || '')}</div><div class="v skill">${e(skill.title || '—')}</div></div>
+        </div>
+        <div class="fields mid">
+          <div class="f"><div class="l">Level</div><div class="v">${e(level)}</div></div>
+          <div class="f"><div class="l">Nationality · Sex</div><div class="v">${e(p.holder.nationalityAlpha3)} · ${e(p.holder.sex)}</div></div>
+        </div>
+        <div class="fields low">
+          <div class="f"><div class="l">Date of birth</div><div class="v date">${e(p.holder.dateOfBirth)}</div></div>
+          <div class="f"><div class="l">Issued</div><div class="v date">${e(String(p.issuedAt).slice(0, 10))}</div></div>
+          <div class="f"><div class="l">Skills on record</div><div class="v">${p.skillCount}</div></div>
+          <div class="f"><div class="l">Valid until</div><div class="v date">${e(p.expiresAt)}</div></div>
+        </div>
+        <div class="qr">${NSP.qrSvg(p.verifyUrl, { size: 100, level: 'M' })}</div>
+        <div class="microtext" style="left:9.5mm;right:3mm;bottom:.9mm">${e(('NATIONAL SKILL PASSPORT · ' + p.nspId + ' · ').repeat(7))}</div>
+      </div><div class="cut-marks"></div></div>`;
+  }
+
+  function back(p) {
+    const rows = (p.skillsBack || []).slice(0, 4).map(s => `<div class="row"><span>${e(s.title)} <small>· ${s.iscoCode}</small></span><span>${s.nvqfLevel ? 'L' + s.nvqfLevel : '✓'}</span></div>`).join('');
+    const host = p.verifyUrl.replace(/^https?:\/\//, '').split('/verify')[0];
+    return `<div class="card back">
+      <svg class="guilloche" viewBox="0 0 856 540" preserveAspectRatio="none"></svg>
+      <div class="safe">
+        <div class="magstripe"></div>
+        <div class="top">
+          <div class="terms"><b>${e(p.issuer.name)}</b><br>This card is the property of the issuing registry and must be returned on request. It certifies registration of the holder's skills as recorded on the date of issue; it is not an identity or travel document. If found, return to ${e(p.issuer.authority)}.</div>
+          <div class="verify">Verify online / scan<br><span class="url">${e(host)}/verify</span><br>${e(p.nspId)}</div>
+        </div>
+        <div class="skills"><div class="l">Registered skills</div>${rows || '<div class="row"><span>See registry record</span><span></span></div>'}</div>
+        <div class="ghost" style="${p.holder.photo ? `background-image:url(${p.holder.photo})` : ''}"></div>
+        <div class="signature"><div class="strip"></div><div class="l">Holder's signature</div></div>
+        <div class="serial"><div class="l">Card serial</div><div class="v">${e(p.serial)}</div></div>
+        <div class="mrz"><div>${e(p.mrz.line1)}</div><div>${e(p.mrz.line2)}</div><div>${e(p.mrz.line3)}</div></div>
+      </div><div class="cut-marks"></div></div>`;
+  }
+
+  // Emblem seal: ring text + laurel-like ticks (SVG, gold)
+  function seal(style, cc) {
+    const id = 'r' + Math.random().toString(36).slice(2, 7);
+    return `<svg class="seal" style="${style || ''}" viewBox="0 0 100 100"><defs><path id="${id}" d="M50,50 m-36,0 a36,36 0 1,1 72,0 a36,36 0 1,1 -72,0"/></defs>
+      <circle cx="50" cy="50" r="47" fill="none" stroke="#C9A227" stroke-width="1.6"/><circle cx="50" cy="50" r="27" fill="none" stroke="#C9A227" stroke-width="1"/>
+      <text font-family="IBM Plex Sans Condensed, Arial Narrow, sans-serif" font-size="9.5" font-weight="700" fill="#0B2545" letter-spacing="1.5"><textPath href="#${id}">NATIONAL SKILL PASSPORT · ${cc} · REGISTRY ·</textPath></text>
+      <text x="50" y="56" text-anchor="middle" font-family="IBM Plex Sans Condensed, sans-serif" font-size="17" font-weight="700" fill="#0E9F6E">NSP</text>
+      ${Array.from({ length: 24 }, (_, i) => `<line x1="50" y1="8" x2="50" y2="12" stroke="#C9A227" stroke-width="1.2" transform="rotate(${i * 15} 50 50)"/>`).join('')}</svg>`;
+  }
+  // Flag: Pakistan drawn natively; other countries get a neutral emblem block with alpha-3
+  function flag(cc) {
+    if (cc === 'PK') return `<svg viewBox="0 0 90 60" width="100%" height="100%"><rect width="90" height="60" fill="#01411C"/><rect width="22.5" height="60" fill="#fff"/><circle cx="58" cy="30" r="15" fill="#fff"/><circle cx="62.5" cy="26.5" r="13.5" fill="#01411C"/><polygon points="66,20 68.2,26.6 75,26.6 69.5,30.6 71.6,37.2 66,33.2 60.4,37.2 62.5,30.6 57,26.6 63.8,26.6" fill="#fff" transform="rotate(-25 66 29)"/></svg>`;
+    return `<svg viewBox="0 0 90 60" width="100%" height="100%"><rect width="90" height="60" fill="#13315C"/><text x="45" y="38" text-anchor="middle" font-family="IBM Plex Sans Condensed" font-size="24" font-weight="700" fill="#fff">${cc}</text></svg>`;
+  }
+  // Guilloche: superposed rose curves (r = cos(kθ)) — thin, low-contrast lines behind the print
+  function guilloche(color) {
+    const cx = 428, cy = 270; let out = '';
+    const curves = [[7, 3, 250, 0], [9, 4, 230, 0.4], [5, 2, 270, 0.9], [11, 5, 210, 1.3]];
+    for (const [k, m, R, phase] of curves) {
+      let dpath = '';
+      for (let t = 0; t <= Math.PI * 2 * m + 0.01; t += 0.012) {
+        const r = R * (0.72 + 0.28 * Math.cos(k * t / m + phase));
+        const x = cx + r * Math.cos(t) * 1.55, y = cy + r * Math.sin(t) * 0.95;
+        dpath += (dpath ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+      }
+      out += `<path d="${dpath}" fill="none" stroke="${color}" stroke-width="0.55" opacity="0.35"/>`;
+    }
+    return out;
+  }
+
+  function demo() {
+    const photo = samplePhoto();
+    return { serial: 'C260000123', status: 'ACTIVE', payload: {
+      serial: 'C260000123', nspId: 'NSP-PK-26-0000123-Y', kind: 'CARD',
+      holder: { type: 'WORKER', givenNames: 'Muhammad Ali', familyName: 'Khan', fullName: 'Muhammad Ali Khan', dateOfBirth: '1998-04-12', sex: 'M', nationality: 'PK', nationalityAlpha3: 'PAK', nationalityName: 'Pakistan', photo },
+      primarySkill: { iscoCode: '7126', title: 'Plumber & Pipe Fitter', nvqfLevel: 3, eqfLevel: 3, sector: 'construction' }, skillCount: 3,
+      skillsBack: [{ iscoCode: '7126', title: 'Plumber & pipe fitter', nvqfLevel: 3 }, { iscoCode: '7212', title: 'Welder (SMAW)', nvqfLevel: 2 }, { iscoCode: '7127', title: 'HVAC mechanic', nvqfLevel: null }],
+      issuedAt: '2026-09-05', expiresAt: '2031-09-04',
+      issuer: { country: 'PK', countryAlpha3: 'PAK', countryName: 'Islamic Republic of Pakistan', name: 'National Skill Passport Registry', shortName: 'NSP Registry', authority: 'PPMC — TalentLedger', keyId: 'demo' },
+      mrz: { line1: 'NSPAK2600001233PKYC260000123<<', line2: '9804120M3109047PAK<<<<<<<<<<<6', line3: 'KHAN<<MUHAMMAD<ALI<<<<<<<<<<<<' },
+      verifyUrl: 'https://nsp.ppmc.pk/verify/NSP-PK-26-0000123-Y?t=eyJlIjoiMjAzMTA5MDQiLCJpIjoiTlNQLVBLLTI2LTAwMDAxMjMtWSIsIm4iOiJLSEFOLCBNVUhBTU1BRCBBTEkifQ.demo' } };
+  }
+  function samplePhoto() { // neutral silhouette placeholder (SVG) so the demo never shows a real face
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 270"><rect width="210" height="270" fill="#DCE3EC"/><circle cx="105" cy="100" r="46" fill="#8A9AB0"/><path d="M25 270c0-60 36-95 80-95s80 35 80 95z" fill="#8A9AB0"/></svg>`;
+    return 'data:image/svg+xml;base64,' + btoa(svg);
+  }
+})();
+</script>
+</body>
+</html>

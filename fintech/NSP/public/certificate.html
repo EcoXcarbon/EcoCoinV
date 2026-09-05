@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NSP Certificate — Print</title>
+<link rel="stylesheet" href="/assets/css/fonts.css">
+<style>
+/* ── Certificate of Registration: ISO 216 A4 portrait (210 × 297 mm) ──
+   Print at 100 %, no margins (the sheet carries its own 14 mm frame).
+   ?demo=1 renders a sample without the registry API. */
+:root {
+  --navy: #0B2545; --navy-2: #13315C; --emerald: #0E9F6E; --emerald-2: #057A55; --gold: #C9A227; --gold-2: #8C6F12;
+  --paper: #FCFBF7; --ink: #14213D; --slate: #5B6B82; --line: #D9DFE8;
+  --serif: "Spectral", "Georgia", "Times New Roman", serif;
+  --sans: "IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --ocr: "B612 Mono", "OCR-B", "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #2A3442; font-family: var(--sans); color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.toolbar { position: fixed; top: 0; left: 0; right: 0; background: #1B2330; color: #fff; padding: 10px 16px; display: flex; gap: 10px; align-items: center; font-size: 13px; z-index: 9; }
+.toolbar b { margin-right: auto; } .toolbar .status { color: #9FB0C6; }
+.toolbar a, .toolbar button { color: #fff; background: #2F3B4D; border: 0; padding: 6px 12px; border-radius: 6px; font: inherit; text-decoration: none; cursor: pointer; }
+.bench { padding: 70px 20px 40px; display: flex; justify-content: center; }
+
+.sheet { width: 210mm; height: 297mm; background: var(--paper); position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.frame { position: absolute; inset: 12mm; border: .5mm solid var(--navy); }
+.frame::after { content: ""; position: absolute; inset: 1.6mm; border: .2mm solid var(--gold); }
+.corner { position: absolute; width: 22mm; height: 22mm; opacity: .9; }
+.corner.tl { left: 13mm; top: 13mm; } .corner.tr { right: 13mm; top: 13mm; transform: scaleX(-1); }
+.corner.bl { left: 13mm; bottom: 13mm; transform: scaleY(-1); } .corner.br { right: 13mm; bottom: 13mm; transform: scale(-1); }
+.watermark { position: absolute; left: 50%; top: 52%; width: 150mm; height: 150mm; transform: translate(-50%, -50%); opacity: .5; }
+.content { position: absolute; inset: 20mm 22mm 18mm; display: flex; flex-direction: column; }
+
+.head { display: grid; grid-template-columns: 26mm 1fr 30mm; gap: 6mm; align-items: start; }
+.head .seal { width: 26mm; height: 26mm; }
+.head .titles { text-align: center; padding-top: 1mm; }
+.head .eyebrow { font-family: var(--cond); font-weight: 600; font-size: 3.4mm; letter-spacing: .32em; text-transform: uppercase; color: var(--navy-2); }
+.head .issuer { font-size: 2.6mm; color: var(--slate); letter-spacing: .08em; text-transform: uppercase; margin-top: 1mm; }
+.head h1 { font-family: var(--serif); font-weight: 600; font-size: 10.5mm; line-height: 1.05; margin: 4mm 0 0; color: var(--navy); letter-spacing: -.01em; text-wrap: balance; }
+.head .sub { font-family: var(--serif); font-style: italic; font-size: 3.8mm; color: var(--slate); margin-top: 1.5mm; }
+.head .photo { width: 30mm; height: 38mm; background: #E5E9F0 center/cover no-repeat; border: .3mm solid #fff; outline: .25mm solid var(--line); justify-self: end; }
+
+.rule { height: .25mm; background: linear-gradient(90deg, transparent, var(--gold) 20%, var(--gold) 80%, transparent); margin: 6mm 0 5mm; }
+.certify { text-align: center; }
+.certify .lead { font-family: var(--serif); font-style: italic; font-size: 4.2mm; color: var(--slate); }
+.certify .name { font-family: var(--serif); font-weight: 700; font-size: 11mm; line-height: 1.1; color: var(--navy); margin: 2mm 0 0; letter-spacing: -.005em; }
+.certify .native { font-size: 5mm; color: var(--slate); margin-top: .5mm; }
+.certify .bio { font-size: 3.3mm; color: var(--ink); line-height: 1.55; max-width: 150mm; margin: 3mm auto 0; }
+.certify .bio b { font-weight: 600; }
+.certify .id { display: inline-block; margin-top: 3.5mm; font-family: var(--ocr); font-weight: 700; font-size: 7mm; letter-spacing: .06em; color: var(--navy); padding: 1.5mm 6mm; border: .3mm solid var(--gold); border-radius: 1mm; background: #fff; }
+
+.skills { margin-top: 5mm; }
+.skills .cap { font-family: var(--cond); font-weight: 600; font-size: 3mm; letter-spacing: .2em; text-transform: uppercase; color: var(--emerald-2); margin-bottom: 1.5mm; }
+table { width: 100%; border-collapse: collapse; font-size: 3.05mm; }
+th { font-family: var(--cond); font-weight: 600; font-size: 2.6mm; letter-spacing: .12em; text-transform: uppercase; color: var(--slate); text-align: left; padding: 1.2mm 1.5mm; border-bottom: .3mm solid var(--navy); }
+td { padding: 1.5mm 1.5mm; border-bottom: .15mm solid var(--line); vertical-align: top; }
+td.n { font-family: var(--ocr); color: var(--slate); width: 8mm; }
+td.code { font-family: var(--ocr); font-size: 2.9mm; white-space: nowrap; }
+td .lvl { font-weight: 600; color: var(--emerald-2); white-space: nowrap; }
+td .sub { color: var(--slate); font-size: 2.6mm; }
+.meta { display: flex; gap: 6mm; margin-top: 3mm; font-size: 2.9mm; color: var(--slate); flex-wrap: wrap; }
+.meta b { color: var(--ink); font-weight: 600; }
+
+.bottom { margin-top: auto; display: grid; grid-template-columns: 34mm 1fr 1fr; gap: 6mm; align-items: end; }
+.qr { width: 30mm; }
+.qr svg { width: 30mm; height: 30mm; display: block; background: #fff; padding: 1mm; border: .2mm solid var(--line); }
+.qr .l { font-size: 2.4mm; color: var(--slate); margin-top: 1mm; line-height: 1.35; }
+.qr .l b { display: block; font-family: var(--ocr); color: var(--navy); font-size: 2.4mm; }
+.dates { font-size: 2.9mm; display: grid; grid-template-columns: auto 1fr; gap: 1.1mm 3mm; align-self: end; }
+.dates dt { color: var(--slate); } .dates dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dates dd.mono { font-family: var(--ocr); font-weight: 700; }
+.sign { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; position: relative; }
+.sign .block { text-align: center; }
+.sign .line { height: 12mm; border-bottom: .3mm solid var(--navy); position: relative; }
+.sign .who { font-family: var(--cond); font-weight: 600; font-size: 2.7mm; letter-spacing: .06em; text-transform: uppercase; color: var(--navy); margin-top: 1.2mm; }
+.sign .role { font-size: 2.5mm; color: var(--slate); }
+.sign .stamp { position: absolute; right: -4mm; top: -14mm; width: 24mm; height: 24mm; opacity: .85; transform: rotate(-8deg); }
+.foot { margin-top: 5mm; padding-top: 2.5mm; border-top: .2mm solid var(--line); display: flex; justify-content: space-between; gap: 6mm; font-size: 2.3mm; color: var(--slate); }
+.foot .mono { font-family: var(--ocr); color: var(--navy); }
+.microtext { position: absolute; left: 22mm; right: 22mm; bottom: 14.5mm; font-size: 1.1mm; letter-spacing: .06em; color: var(--slate); white-space: nowrap; overflow: hidden; opacity: .8; text-align: center; }
+
+@media print {
+  body { background: #fff; } .toolbar { display: none; } .bench { padding: 0; }
+  .sheet { box-shadow: none; }
+  @page { size: A4 portrait; margin: 0; }
+}
+</style>
+</head>
+<body>
+<div class="toolbar"><b>NSP certificate print view</b><span class="status" id="status">Loading…</span><button onclick="window.print()">Print / PDF</button><a href="/desk">Registry desk</a></div>
+<div class="bench" id="bench"></div>
+<script src="/assets/js/qrcode.js"></script>
+<script src="/assets/js/api.js"></script>
+<script>
+(async function () {
+  const q = new URLSearchParams(location.search);
+  const status = document.getElementById('status');
+  const serial = (location.pathname.match(/\/certificate\/([^/]+)/) || [])[1];
+  const e = NSP.esc, d = NSP.fmtDate;
+  window.addEventListener('error', ev => { status.textContent = 'Render error: ' + ev.message; });
+  window.addEventListener('unhandledrejection', ev => { status.textContent = 'Render error: ' + (ev.reason && ev.reason.message || ev.reason); });
+  const SECTORS = { construction: 'Construction & Built Environment', engineering: 'Engineering', energy: 'Energy, Power & Utilities', ict: 'ICT & Digital', health: 'Health & Care', education: 'Education & Training', hospitality: 'Hospitality & Tourism', manufacturing: 'Manufacturing', automotive: 'Automotive', aviation: 'Aviation & Maritime', logistics: 'Logistics & Supply Chain', transport: 'Transport', agriculture: 'Agriculture', textile: 'Textile & Garments', mining: 'Mining & Minerals', business: 'Business & Administration', services: 'Personal & Community Services' };
+  const EVIDENCE = { CERTIFICATE: 'Qualification certificate', ASSESSMENT: 'Competency assessment', LICENCE: 'Professional licence', EXPERIENCE: 'Employer-attested experience', PORTFOLIO: 'Portfolio of work' };
+  const LANGS = { ur: 'Urdu', en: 'English', ar: 'Arabic', pa: 'Punjabi', ps: 'Pashto', sd: 'Sindhi', bal: 'Balochi', skr: 'Saraiki', fa: 'Persian', hi: 'Hindi', bn: 'Bengali', tr: 'Turkish', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', ms: 'Malay', id: 'Indonesian', de: 'German', fr: 'French', es: 'Spanish', it: 'Italian', pt: 'Portuguese', ru: 'Russian', nl: 'Dutch' };
+  const IDS = { CNIC: 'national identity card', PASSPORT: 'passport', NATIONAL_ID: 'national ID', B_FORM: 'child registration certificate' };
+  const sectorName = s => SECTORS[s] || s || '';
+  const evidenceName = s => EVIDENCE[s] || s;
+  const langName = c => LANGS[c] || c.toUpperCase();
+  const idName = t => IDS[t] || t;
+
+  let cred;
+  if (q.get('demo') === '1' || !serial) cred = demo();
+  else {
+    try { cred = await NSP.call(`/credentials/${encodeURIComponent(serial)}`, { auth: true }); }
+    catch (err) { status.textContent = `Could not load ${serial}: ${err.message} — sign in at the Registry Desk first.`; return; }
+  }
+  const p = cred.payload;
+  status.textContent = `${p.serial} · ${p.holder.fullName} · ${cred.status}`;
+  document.title = `NSP Certificate ${p.serial} — ${p.holder.fullName}`;
+  document.getElementById('bench').innerHTML = sheet(p);
+  document.querySelector('.watermark').innerHTML = rose('#0E9F6E');
+  document.querySelectorAll('.corner').forEach(c => c.innerHTML = cornerOrnament());
+
+  function sheet(p) {
+    const h = p.holder;
+    const host = p.verifyUrl.replace(/^https?:\/\//, '').split('/verify')[0];
+    const typeWord = { STUDENT: 'a student', APPRENTICE: 'an apprentice', WORKER: 'a skilled worker', PROFESSIONAL: 'a professional' }[h.type] || 'a registrant';
+    const rows = p.skills.map((s, i) => `<tr>
+      <td class="n">${String(i + 1).padStart(2, '0')}</td>
+      <td><b>${e(s.title)}</b>${s.primary ? ' <span class="sub">· primary</span>' : ''}<div class="sub">${e(sectorName(s.sector))}</div></td>
+      <td class="code">${e(s.iscoCode)}</td>
+      <td>${s.nvqfLevel ? `<span class="lvl">NVQF ${s.nvqfLevel} · EQF ${s.eqfLevel}</span>` : '<span class="sub">Registered</span>'}</td>
+      <td>${e(evidenceName(s.evidenceType))}${s.certifyingBody ? `<div class="sub">${e(s.certifyingBody)}${s.certificateNumber ? ' · ' + e(s.certificateNumber) : ''}${s.issuedOn ? ' · ' + d(s.issuedOn) : ''}</div>` : ''}</td></tr>`).join('');
+    const langs = (p.languages || []).map(l => `${langName(l.code)} (${l.level === 'NATIVE' ? 'native' : 'CEFR ' + l.level})`).join(', ');
+    return `<div class="sheet">
+      <svg class="watermark" viewBox="0 0 400 400"></svg>
+      <div class="frame"></div>
+      <svg class="corner tl" viewBox="0 0 100 100"></svg><svg class="corner tr" viewBox="0 0 100 100"></svg><svg class="corner bl" viewBox="0 0 100 100"></svg><svg class="corner br" viewBox="0 0 100 100"></svg>
+      <div class="content">
+        <div class="head">
+          ${seal('seal', p.issuer.countryAlpha3)}
+          <div class="titles">
+            <div class="eyebrow">National Skill Passport</div>
+            <div class="issuer">${e(p.issuer.countryName)} · ${e(p.issuer.name)}</div>
+            <h1>Certificate of Registration</h1>
+            <div class="sub">Issued under the authority of ${e(p.issuer.authority)}</div>
+          </div>
+          <div class="photo" style="${h.photo ? `background-image:url(${h.photo})` : ''}"></div>
+        </div>
+        <div class="rule"></div>
+        <div class="certify">
+          <div class="lead">This is to certify that</div>
+          <div class="name">${e(h.fullName)}</div>
+          ${h.nameNative ? `<div class="native">${e(h.nameNative)}</div>` : ''}
+          <div class="bio">born <b>${d(h.dateOfBirth)}</b>, national of <b>${e(h.nationalityName)}</b>, holder of ${e(idName(h.idDocumentType))} <b>${e(h.idDocumentMasked)}</b>, is registered as ${typeWord} in the National Skill Passport Registry, and that the skills listed below have been verified against the evidence held on record.</div>
+          <div class="id">${e(p.nspId)}</div>
+        </div>
+        <div class="skills">
+          <div class="cap">Verified skills &amp; qualifications</div>
+          <table><thead><tr><th>#</th><th>Skill / occupation</th><th>ISCO-08</th><th>Level</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table>
+          <div class="meta">
+            ${p.education && p.education.highestLevelTitle ? `<span><b>Education:</b> ISCED ${e(p.education.highestLevel)} — ${e(p.education.highestLevelTitle)}${p.education.qualificationTitle ? ', ' + e(p.education.qualificationTitle) : ''}${p.education.institution ? ' · ' + e(p.education.institution) : ''}</span>` : ''}
+            ${langs ? `<span><b>Languages:</b> ${e(langs)}</span>` : ''}
+          </div>
+        </div>
+        <div class="bottom">
+          <div class="qr">${NSP.qrSvg(p.verifyUrl, { size: 120, level: 'M' })}<div class="l">Scan or visit to verify<b>${e(host)}/verify</b></div></div>
+          <dl class="dates">
+            <dt>Registered</dt><dd>${d(p.registrationDate)}</dd>
+            <dt>Verified</dt><dd>${d(p.verifiedAt)}${p.verifiedBy ? ` <span style="color:var(--slate);font-weight:400">· ${e(p.verifiedBy)}</span>` : ''}</dd>
+            <dt>Certificate issued</dt><dd>${d(p.issuedAt)}</dd>
+            <dt>Valid until</dt><dd>${d(p.expiresAt)}</dd>
+            <dt>Card serial</dt><dd class="mono">${e(p.cardSerial || '—')}</dd>
+          </dl>
+          <div class="sign">
+            <div class="block"><div class="line"></div><div class="who">Registrar</div><div class="role">${e(p.issuer.registrar || 'National Skill Passport Registry')}</div></div>
+            <div class="block"><div class="line"></div><div class="who">Authorised signatory</div><div class="role">${e(p.issuer.authority)}</div></div>
+            ${seal('stamp', p.issuer.countryAlpha3)}
+          </div>
+        </div>
+        <div class="foot">
+          <span>Certificate no. <span class="mono">${e(p.serial)}</span> · Record hash <span class="mono">${e((p.credentialHash || '').slice(0, 24))}</span> · Signing key <span class="mono">${e(p.issuer.keyId)}</span></span>
+          <span>Void if altered. Validity is subject to the live registry status.</span>
+        </div>
+      </div>
+      <div class="microtext">${e((p.nspId + ' · ' + p.serial + ' · NATIONAL SKILL PASSPORT · ').repeat(6))}</div>
+    </div>`;
+  }
+
+  function seal(cls, cc) {
+    const id = 'r' + Math.random().toString(36).slice(2, 7);
+    return `<svg class="${cls}" viewBox="0 0 100 100"><defs><path id="${id}" d="M50,50 m-37,0 a37,37 0 1,1 74,0 a37,37 0 1,1 -74,0"/></defs>
+      <circle cx="50" cy="50" r="47.5" fill="none" stroke="#C9A227" stroke-width="1.8"/><circle cx="50" cy="50" r="44" fill="none" stroke="#C9A227" stroke-width=".5"/><circle cx="50" cy="50" r="28" fill="none" stroke="#C9A227" stroke-width="1"/>
+      <text font-family="IBM Plex Sans Condensed, Arial Narrow, sans-serif" font-size="8.6" font-weight="700" fill="#0B2545" letter-spacing="1.4"><textPath href="#${id}">NATIONAL SKILL PASSPORT · ${cc} · REGISTRY ·</textPath></text>
+      <text x="50" y="57" text-anchor="middle" font-family="IBM Plex Sans Condensed, sans-serif" font-size="19" font-weight="700" fill="#0E9F6E">NSP</text>
+      ${Array.from({ length: 36 }, (_, i) => `<line x1="50" y1="19" x2="50" y2="22.5" stroke="#C9A227" stroke-width="1" transform="rotate(${i * 10} 50 50)"/>`).join('')}</svg>`;
+  }
+  function rose(color) {
+    let out = ''; const cx = 200, cy = 200;
+    for (const [k, m, R, ph] of [[7, 3, 190, 0], [9, 4, 175, .5], [5, 2, 200, 1]]) {
+      let dp = '';
+      for (let t = 0; t <= Math.PI * 2 * m + .01; t += .01) { const r = R * (.7 + .3 * Math.cos(k * t / m + ph)); dp += (dp ? 'L' : 'M') + (cx + r * Math.cos(t)).toFixed(1) + ' ' + (cy + r * Math.sin(t)).toFixed(1); }
+      out += `<path d="${dp}" fill="none" stroke="${color}" stroke-width=".45" opacity=".16"/>`;
+    }
+    return out;
+  }
+  function cornerOrnament() {
+    let out = '';
+    for (let i = 0; i < 9; i++) { const r = 12 + i * 9; out += `<path d="M0 ${r} A${r} ${r} 0 0 1 ${r} 0" fill="none" stroke="#C9A227" stroke-width=".7" opacity="${(1 - i / 12).toFixed(2)}"/>`; }
+    out += `<path d="M0 0 L26 0 L0 26 Z" fill="#0B2545"/><path d="M0 0 L14 0 L0 14 Z" fill="#0E9F6E"/>`;
+    return out;
+  }
+
+  function demo() {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 270"><rect width="210" height="270" fill="#DCE3EC"/><circle cx="105" cy="100" r="46" fill="#8A9AB0"/><path d="M25 270c0-60 36-95 80-95s80 35 80 95z" fill="#8A9AB0"/></svg>`;
+    return { serial: 'NSP-CERT-26-0000123', status: 'ACTIVE', payload: {
+      serial: 'NSP-CERT-26-0000123', nspId: 'NSP-PK-26-0000123-Y', kind: 'CERTIFICATE',
+      holder: { type: 'WORKER', givenNames: 'Muhammad Ali', familyName: 'Khan', fullName: 'Muhammad Ali Khan', nameNative: 'محمد علی خان', dateOfBirth: '1998-04-12', sex: 'M', nationality: 'PK', nationalityAlpha3: 'PAK', nationalityName: 'Pakistan', idDocumentType: 'CNIC', idDocumentMasked: '•••••••••••4567-1', photo: 'data:image/svg+xml;base64,' + btoa(svg) },
+      skills: [
+        { iscoCode: '7126', title: 'Plumber and pipe fitter', sector: 'construction', nvqfLevel: 3, eqfLevel: 3, evidenceType: 'CERTIFICATE', certifyingBody: 'NAVTTC', certificateNumber: 'NV-2021-00887', issuedOn: '2021-06-01', primary: true },
+        { iscoCode: '7212', title: 'Welder and flame cutter (SMAW)', sector: 'construction', nvqfLevel: 2, eqfLevel: 2, evidenceType: 'ASSESSMENT', certifyingBody: 'TEVTA Khyber Pakhtunkhwa', issuedOn: '2022-11-14' },
+        { iscoCode: '7127', title: 'Air conditioning and refrigeration mechanic', sector: 'construction', nvqfLevel: null, eqfLevel: null, evidenceType: 'EXPERIENCE', certifyingBody: 'Frontier Works Organization' }
+      ],
+      languages: [{ code: 'ur', level: 'NATIVE' }, { code: 'en', level: 'B1' }, { code: 'ar', level: 'A2' }],
+      education: { highestLevel: '4', highestLevelTitle: 'Post-secondary non-tertiary education', qualificationTitle: 'DAE Civil Technology', institution: 'Government College of Technology, Peshawar' },
+      cardSerial: 'C260000123', registrationDate: '2026-08-21T10:12:00Z', verifiedAt: '2026-09-02T14:40:00Z', verifiedBy: 'registrar', issuedAt: '2026-09-05T09:00:00Z', expiresAt: '2031-09-04',
+      issuer: { country: 'PK', countryAlpha3: 'PAK', countryName: 'Islamic Republic of Pakistan', name: 'National Skill Passport Registry', shortName: 'NSP Registry', authority: 'Power Planning & Monitoring Company (PPMC) — TalentLedger', registrar: 'Registrar, National Skill Passport', keyId: 'a91c4f0e22b7d310' },
+      verifyUrl: 'https://nsp.ppmc.pk/verify/NSP-PK-26-0000123-Y?t=eyJlIjoiMjAzMTA5MDQiLCJpIjoiTlNQLVBLLTI2LTAwMDAxMjMtWSIsIm4iOiJLSEFOLCBNVUhBTU1BRCBBTEkifQ.demo',
+      credentialHash: '3f1a9c2e7b5d4a6c8e0f1b2d3c4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f506' } };
+  }
+})();
+</script>
+</body>
+</html>

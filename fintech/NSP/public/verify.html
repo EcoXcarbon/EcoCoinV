@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verify — National Skill Passport</title>
+<link rel="stylesheet" href="/assets/css/fonts.css">
+<link rel="stylesheet" href="/assets/css/nsp.css">
+<style>
+.result-head { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.result-head .photo { width: 96px; height: 124px; border-radius: 8px; background: #E8EDF5 center/cover; border: 1px solid var(--nsp-line); }
+.verdict { font-size: 1.6rem; font-weight: 800; }
+.verdict.ok { color: var(--nsp-emerald-2); } .verdict.bad { color: var(--nsp-red); } .verdict.warn { color: var(--nsp-amber); }
+.skill-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--nsp-line); font-size: .92rem; }
+</style>
+</head>
+<body>
+<header class="nsp-header"><div class="container">
+  <a class="brand" href="/"><span class="emblem">NSP</span><span>National Skill Passport<small>Public verification</small></span></a>
+  <nav class="nav"><a href="/">Home</a><a href="/register">Register</a><a href="/verify" class="active">Verify</a><a href="/track">Track</a><a href="/desk">Registry Desk</a></nav>
+</div></header>
+<main class="container">
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>Verify a passport</h2>
+      <p class="muted">Enter the NSP ID printed on the card or certificate, or the card / certificate serial. Scanning the QR code opens this page with the signed token, which additionally proves the card was produced by this registry.</p>
+      <form id="vf">
+        <div class="field"><label>NSP ID or serial</label><input type="text" id="q" class="mono" placeholder="NSP-PK-26-0000123-Y  ·  C260000123  ·  NSP-CERT-26-0000123" autocomplete="off"></div>
+        <button class="btn btn-primary" type="submit">Verify</button>
+      </form>
+      <p class="small muted" style="margin-top:14px">Every check is logged. Verification shows only the holder's name, photo, nationality, skills and passport status — never identity numbers or contact details.</p>
+    </div>
+    <div class="card" id="result" hidden></div>
+  </div>
+</main>
+<footer><div class="container">National Skill Passport Registry · Issuer public key: <a href="/.well-known/did.json">did.json</a></div></footer>
+<script src="/assets/js/api.js"></script>
+<script>
+const box = document.getElementById('result');
+const VERDICT = { VALID: ['ok', 'Valid passport'], SUSPENDED: ['warn', 'Suspended'], EXPIRED: ['warn', 'Expired'], REVOKED: ['bad', 'Revoked'], NOT_ISSUED: ['warn', 'Registered — not yet issued'],
+  NOT_FOUND: ['bad', 'No record found'], INVALID_SIGNATURE: ['bad', 'Signature invalid — possible forgery'], TOKEN_MISMATCH: ['bad', 'QR does not match this record'], CREDENTIAL_REPLACED: ['warn', 'This card/certificate was replaced'], CREDENTIAL_REVOKED: ['bad', 'This card/certificate was revoked'], MALFORMED_ID: ['bad', 'Not a valid NSP ID (check character failed)'] };
+async function run(q, token) {
+  box.hidden = false; box.innerHTML = '<p class="muted">Checking…</p>';
+  q = q.trim().toUpperCase();
+  const isSerial = /^(C\d{9}|NSP-CERT-\d{2}-\d{7})$/.test(q.replace(/\s/g, ''));
+  let r;
+  try { r = await NSP.call(isSerial ? `/verify/serial/${encodeURIComponent(q)}` : `/verify/${encodeURIComponent(q)}${token ? '?t=' + encodeURIComponent(token) : ''}`); }
+  catch (e) { box.innerHTML = `<div class="notice err">${NSP.esc(e.message)}</div>`; return; }
+  const [cls, label] = VERDICT[r.result] || ['warn', r.result];
+  const rec = r.record;
+  let html = `<div class="verdict ${cls}">${cls === 'ok' ? '✔' : cls === 'bad' ? '✖' : '⚠'} ${label}</div><p class="small muted">Checked ${new Date(r.checkedAt).toLocaleString()} · Issuer ${NSP.esc(r.issuer.name)} (${r.issuer.countryAlpha3})${rec && rec.signatureChecked ? ' · <b>Ed25519 signature verified</b>' : ''}</p>`;
+  if (rec) {
+    html += `<div class="result-head"><div class="photo" style="${rec.holder.photo ? `background-image:url(${rec.holder.photo})` : ''}"></div><div>
+      <div style="font-size:1.25rem;font-weight:700">${NSP.esc(rec.holder.givenNames)} ${NSP.esc(rec.holder.familyName)}</div>
+      <div class="mono">${NSP.esc(rec.nspId)}</div>
+      <div class="small muted">${NSP.esc(rec.holder.nationalityName)} · born ${rec.holder.dateOfBirthYear} · <span class="pill ${rec.type}">${rec.type}</span> <span class="pill ${rec.status}">${rec.status.replace('_', ' ')}</span></div>
+      <div class="small muted">Issued ${NSP.fmtDate(rec.issuedAt)} · Valid until ${NSP.fmtDate(rec.expiresAt)}</div></div></div>`;
+    html += `<h3 style="margin-top:18px">Verified skills</h3>` + rec.skills.map(s => `<div class="skill-row"><span>${s.primary ? '★ ' : ''}<b>${NSP.esc(s.title)}</b> <span class="muted small">ISCO ${s.iscoCode}</span></span><span class="small">${s.nvqfLevel ? `NVQF ${s.nvqfLevel} / EQF ${s.eqfLevel}` : 'Level n/a'} · ${NSP.esc(s.evidenceType)}${s.certifyingBody ? ' · ' + NSP.esc(s.certifyingBody) : ''}</span></div>`).join('');
+    if (rec.languages.length) html += `<p class="small" style="margin-top:12px"><b>Languages:</b> ${rec.languages.map(l => l.code.toUpperCase() + ' ' + l.level).join(', ')}</p>`;
+    if (rec.credential) html += `<p class="small muted">Credential ${rec.credential.kind} ${rec.credential.serial} · ${rec.credential.status} · issued ${NSP.fmtDate(rec.credential.issuedAt)}</p>`;
+  }
+  box.innerHTML = html;
+}
+document.getElementById('vf').addEventListener('submit', e => { e.preventDefault(); run(document.getElementById('q').value); });
+const m = location.pathname.match(/\/verify\/([^/]+)/);
+if (m) { const id = decodeURIComponent(m[1]); document.getElementById('q').value = id; run(id, new URLSearchParams(location.search).get('t')); }
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>National Skill Passport — Registry</title>
+<link rel="stylesheet" href="/assets/css/fonts.css">
+<link rel="stylesheet" href="/assets/css/nsp.css">
+</head>
+<body>
+<header class="nsp-header">
+  <div class="container">
+    <a class="brand" href="/"><span class="emblem">NSP</span><span>National Skill Passport<small>Registry Portal</small></span></a>
+    <nav class="nav">
+      <a href="/" class="active">Home</a><a href="/register">Register</a><a href="/verify">Verify</a><a href="/track">Track</a><a href="/desk">Registry Desk</a>
+    </nav>
+  </div>
+</header>
+<main class="container">
+  <section class="hero">
+    <span class="pill" style="background:rgba(255,255,255,.15);color:#fff">Skills Registry · ISO / ILO aligned</span>
+    <h1>One verified passport for every student and skilled worker.</h1>
+    <p>The National Skill Passport (NSP) registers students, apprentices, skilled workers and professionals, assigns a globally unique NSP ID, and issues a tamper-evident PVC card and certificate that any employer or authority can verify in seconds.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="/register">Start registration</a>
+      <a class="btn btn-ghost" href="/verify">Verify a passport</a>
+      <a class="btn btn-ghost" href="/track">Track my application</a>
+    </div>
+  </section>
+
+  <section class="grid grid-3" style="margin-top:24px" id="stats">
+    <div class="card stat"><div class="n" data-stat="total">—</div><div class="l">Registered</div></div>
+    <div class="card stat"><div class="n" data-stat="issued">—</div><div class="l">Passports issued</div></div>
+    <div class="card stat"><div class="n" data-stat="verifications">—</div><div class="l">Verifications</div></div>
+  </section>
+
+  <section class="grid grid-3" style="margin-top:24px">
+    <div class="card"><h3>1 · Register</h3><p class="muted">Students, apprentices, skilled workers and professionals complete a six-step application: identity, contact, education (ISCED), skills (ISCO-08 / NVQF-EQF), languages (CEFR), experience and consent.</p></div>
+    <div class="card"><h3>2 · Verify & Issue</h3><p class="muted">Registry officers check documents, confirm skills evidence and issue the passport. Every record gets an NSP ID with an ISO 7064 check character; cards carry an ICAO-style machine-readable zone.</p></div>
+    <div class="card"><h3>3 · Verify anywhere</h3><p class="muted">Employers scan the QR on the card or certificate. The Ed25519 signature is checked against the registry's published key, and live status (valid, suspended, expired, revoked) is returned.</p></div>
+  </section>
+
+  <section class="card" style="margin-top:24px">
+    <h3>Standards this registry is built on</h3>
+    <div class="standards">
+      <span>ISO/IEC 7810 ID-1 card (85.60 × 53.98 mm)</span><span>ISO/IEC 7064 MOD 37,36 check character</span><span>ICAO Doc 9303 MRZ (TD1)</span>
+      <span>ISO 3166-1 countries</span><span>ILO ISCO-08 occupations</span><span>UNESCO ISCED 2011 / ISCED-F 2013</span><span>NVQF ↔ EQF levels</span>
+      <span>CEFR language levels</span><span>ITU-T E.164 phone numbers</span><span>W3C Verifiable Credentials 2.0</span><span>Ed25519 (RFC 8032) signatures</span><span>ILO C138 minimum age</span>
+    </div>
+  </section>
+</main>
+<footer><div class="container">National Skill Passport Registry · Operated by the issuing authority named in <a href="/.well-known/did.json">the issuer document</a> · Public verification API: <code>/api/v1/verify/{NSP-ID}</code></div></footer>
+<script src="/assets/js/api.js"></script>
+<script>
+NSP.call('/health').then(async () => {
+  // stats need a registry key; fall back to public counts if not available
+  try { const s = await NSP.call('/stats', { auth: true });
+    document.querySelector('[data-stat=total]').textContent = s.total.toLocaleString();
+    document.querySelector('[data-stat=issued]').textContent = ((s.byStatus.ISSUED || 0) + (s.byStatus.SUSPENDED || 0) + (s.byStatus.EXPIRED || 0)).toLocaleString();
+    document.querySelector('[data-stat=verifications]').textContent = s.verifications.toLocaleString();
+  } catch { document.getElementById('stats').hidden = true; }
+}).catch(() => {});
+</script>
+</body>
+</html>

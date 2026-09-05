@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Track application — National Skill Passport</title>
+<link rel="stylesheet" href="/assets/css/fonts.css">
+<link rel="stylesheet" href="/assets/css/nsp.css">
+</head>
+<body>
+<header class="nsp-header"><div class="container">
+  <a class="brand" href="/"><span class="emblem">NSP</span><span>National Skill Passport<small>Application tracking</small></span></a>
+  <nav class="nav"><a href="/">Home</a><a href="/register">Register</a><a href="/verify">Verify</a><a href="/track" class="active">Track</a><a href="/desk">Registry Desk</a></nav>
+</div></header>
+<main class="container">
+  <div class="grid grid-2">
+    <div class="card"><h2>Track my application</h2>
+      <form id="tf">
+        <div class="field"><label>NSP ID</label><input type="text" id="id" class="mono" placeholder="NSP-PK-26-0000123-Y" required></div>
+        <div class="field"><label>Date of birth</label><input type="date" id="dob" required></div>
+        <button class="btn btn-primary" type="submit">Check status</button>
+      </form></div>
+    <div class="card" id="out" hidden></div>
+  </div>
+</main>
+<script src="/assets/js/api.js"></script>
+<script>
+const STAGES = ['SUBMITTED', 'UNDER_REVIEW', 'VERIFIED', 'ISSUED'];
+const m = location.pathname.match(/\/track\/([^/]+)/); if (m) document.getElementById('id').value = decodeURIComponent(m[1]);
+document.getElementById('tf').addEventListener('submit', async e => {
+  e.preventDefault(); const out = document.getElementById('out'); out.hidden = false; out.innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    const r = await NSP.call(`/registrations/${encodeURIComponent(document.getElementById('id').value.trim())}/status?dob=${document.getElementById('dob').value}`);
+    const idx = STAGES.indexOf(r.status);
+    out.innerHTML = `<h3>${r.nspId}</h3><p><span class="pill ${r.status}">${r.status.replace('_', ' ')}</span> <span class="pill">${r.type}</span></p>
+      <div class="stepper">${STAGES.map((s, i) => `<div class="step ${i < idx ? 'done' : i === idx ? 'active' : ''}"><b>${i + 1}</b>${s.replace('_', ' ')}</div>`).join('')}</div>
+      <dl class="kv"><dt>Submitted</dt><dd>${NSP.fmtDate(r.submittedAt)}</dd><dt>Verified</dt><dd>${NSP.fmtDate(r.verifiedAt)}</dd><dt>Issued</dt><dd>${NSP.fmtDate(r.issuedAt)}</dd><dt>Valid until</dt><dd>${NSP.fmtDate(r.expiresAt)}</dd>
+      ${r.rejectedReason ? `<dt>Reason</dt><dd>${NSP.esc(r.rejectedReason)}</dd>` : ''}
+      ${r.credentials.length ? `<dt>Credentials</dt><dd>${r.credentials.map(c => `${c.kind} <span class="mono">${c.serial}</span>`).join('<br>')}</dd>` : ''}</dl>`;
+  } catch (err) { out.innerHTML = `<div class="notice err">${NSP.esc(err.message)}</div>`; }
+});
+</script>
+</body>
+</html>

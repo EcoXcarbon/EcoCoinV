@@ -1,0 +1,22 @@
+{
+  "name": "nsp-registry",
+  "version": "1.0.0",
+  "description": "National Skill Passport (NSP) — Registry service: registration, verification, PVC card and certificate issuance",
+  "private": true,
+  "type": "commonjs",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node --no-warnings=ExperimentalWarning server/index.js",
+    "dev": "node --no-warnings=ExperimentalWarning --watch server/index.js",
+    "test": "node --no-warnings=ExperimentalWarning --test \"tests/**/*.test.js\"",
+    "seed": "node --no-warnings=ExperimentalWarning server/seed.js",
+    "render": "node scripts/render-previews.js"
+  },
+  "engines": { "node": ">=22.5.0" },
+  "keywords": ["skills-passport", "registry", "credentials", "verifiable-credentials", "iso-7810"],
+  "author": "PPMC / EcoXcarbon",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

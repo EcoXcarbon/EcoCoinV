@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registry Desk — National Skill Passport</title>
+<link rel="stylesheet" href="/assets/css/fonts.css">
+<link rel="stylesheet" href="/assets/css/nsp.css">
+<style>
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 14px; }
+.toolbar .field { margin: 0; min-width: 160px; }
+.actions-bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+.photo-sm { width: 72px; height: 92px; border-radius: 6px; background: #E8EDF5 center/cover; border: 1px solid var(--nsp-line); float: right; margin-left: 12px; }
+.audit li { font-size: .8rem; color: var(--nsp-muted); }
+.statgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.statgrid .card { padding: 12px; }
+</style>
+</head>
+<body>
+<header class="nsp-header"><div class="container">
+  <a class="brand" href="/"><span class="emblem">NSP</span><span>National Skill Passport<small>Registry Desk</small></span></a>
+  <nav class="nav"><a href="/">Home</a><a href="/register">Register</a><a href="/verify">Verify</a><a href="/track">Track</a><a href="/desk" class="active">Registry Desk</a><a href="#" id="logout" hidden>Sign out</a></nav>
+</div></header>
+<main class="container">
+  <div class="card" id="login" style="max-width:460px">
+    <h2>Registry officer sign-in</h2>
+    <p class="muted small">Enter your registry key. It is held only in this browser session and sent as <code>X-Registry-Key</code>.</p>
+    <form id="lf"><div class="field"><label>Registry key</label><input type="password" id="key" required autocomplete="off"></div><button class="btn btn-primary" type="submit">Sign in</button></form>
+    <div id="loginErr" class="notice err" style="margin-top:12px" hidden></div>
+  </div>
+
+  <div id="desk" hidden>
+    <div class="statgrid" id="stats"></div>
+    <div class="card">
+      <div class="toolbar">
+        <div class="field"><label>Search</label><input type="text" id="q" placeholder="NSP ID, name, email, ID number"></div>
+        <div class="field"><label>Status</label><select id="status"><option value="">All</option><option>SUBMITTED</option><option>UNDER_REVIEW</option><option>VERIFIED</option><option>ISSUED</option><option>SUSPENDED</option><option>EXPIRED</option><option>REVOKED</option><option>REJECTED</option></select></div>
+        <div class="field"><label>Type</label><select id="type"><option value="">All</option><option>STUDENT</option><option>APPRENTICE</option><option>WORKER</option><option>PROFESSIONAL</option></select></div>
+        <button class="btn btn-secondary" id="refresh">Refresh</button>
+        <span class="muted small" id="count" style="margin-left:auto"></span>
+      </div>
+      <div style="overflow-x:auto"><table class="table" id="list"><thead><tr><th>NSP ID</th><th>Name</th><th>Type</th><th>Primary skill</th><th>Nat.</th><th>Status</th><th>Submitted</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+  <div class="drawer" id="drawer"><button class="btn btn-sm btn-secondary close" id="closeDrawer">✕</button><div id="detail"></div></div>
+</main>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/desk.js"></script>
+</body>
+</html>
