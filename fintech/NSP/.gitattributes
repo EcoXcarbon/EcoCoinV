@@ -1,0 +1,23 @@
+# The NSP registry is deployed to a Linux VPS (/opt/nsp) and its shell script,
+# systemd unit and nginx config are executed there directly. A CR at the end of
+# each line breaks them: bash reads `set -euo pipefail\r` as an invalid option
+# name and aborts the installer.
+#
+# Store and check out this subtree with LF regardless of the machine's
+# core.autocrlf setting. Scoped to fintech/NSP so the rest of the repository,
+# which is currently CRLF throughout, is left untouched.
+
+* text=auto eol=lf
+
+# Files that must never be line-ending converted, should any be added later.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+*.eot  binary
