@@ -101,6 +101,7 @@ Card artwork rules: [docs/CARD-SPEC.md](docs/CARD-SPEC.md). Certificate: [docs/C
   file name, size and SHA-256 so uploads can be matched to object storage.
 
 ## Previews
-| PVC card (ISO ID-1) | Certificate (A4) |
-|---|---|
-| ![card](docs/previews/card-demo.png) | ![certificate](docs/previews/certificate-demo.png) |
+
+Start the server and run `npm run render` (headless Chromium) to produce PNGs of the card,
+certificate and portal pages under `previews/`. The demo print views also work without the
+registry: `/card/demo?demo=1` and `/certificate/demo?demo=1`.

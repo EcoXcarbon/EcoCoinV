@@ -33,4 +33,4 @@ intact. Re-issue after renewal or skill changes; the previous certificate is mar
 `REPLACED` and its QR reports `CREDENTIAL_REPLACED`.
 
 ## Preview
-![Certificate](previews/certificate-demo.png)
+Run `npm start` then `npm run render` to produce PNG previews under `previews/`, or open the `?demo=1` print view in a browser.

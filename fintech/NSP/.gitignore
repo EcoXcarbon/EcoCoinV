@@ -4,3 +4,5 @@ data/*.db-*
 data/*.pem
 .env
 /previews/
+/docs/previews/
+/public/assets/fonts/

@@ -1,7 +1,7 @@
 {
   "name": "nsp-registry",
   "version": "1.0.0",
-  "description": "National Skill Passport (NSP) — Registry service: registration, verification, PVC card and certificate issuance",
+  "description": "National Skill Passport (NSP) \u2014 Registry service: registration, verification, PVC card and certificate issuance",
   "private": true,
   "type": "commonjs",
   "main": "server/index.js",
@@ -10,13 +10,29 @@
     "dev": "node --no-warnings=ExperimentalWarning --watch server/index.js",
     "test": "node --no-warnings=ExperimentalWarning --test \"tests/**/*.test.js\"",
     "seed": "node --no-warnings=ExperimentalWarning server/seed.js",
-    "render": "node scripts/render-previews.js"
+    "render": "node scripts/render-previews.js",
+    "postinstall": "node scripts/copy-fonts.js"
   },
-  "engines": { "node": ">=22.5.0" },
-  "keywords": ["skills-passport", "registry", "credentials", "verifiable-credentials", "iso-7810"],
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "keywords": [
+    "skills-passport",
+    "registry",
+    "credentials",
+    "verifiable-credentials",
+    "iso-7810"
+  ],
   "author": "PPMC / EcoXcarbon",
   "license": "MIT",
   "dependencies": {
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@fontsource/b612-mono": "^5.2.5",
+    "@fontsource/ibm-plex-sans": "^5.2.5",
+    "@fontsource/ibm-plex-sans-condensed": "^5.2.5",
+    "@fontsource/inter": "^5.2.5",
+    "@fontsource/spectral": "^5.2.5"
   }
 }

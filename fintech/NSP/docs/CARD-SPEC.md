@@ -59,6 +59,5 @@ at 100 % with `@page` sized to the card. `?side=front|back` prints one face.
 3. Name on face = line 3 of MRZ; expiry on face = line 2 expiry.
 4. Serial on back = `s` field of the QR token.
 
-## Previews
-![Card front and back](previews/card-demo.png)
-![Card with 3 mm bleed, trim line and chip footprint](previews/card-demo-bleed.png)
+## Preview
+Run `npm start` then `npm run render` to produce PNG previews under `previews/`, or open the `?demo=1` print view in a browser.
