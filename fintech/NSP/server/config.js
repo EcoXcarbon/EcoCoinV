@@ -17,6 +17,19 @@ require('dotenv').config({ path: path.join(root, '.env'), quiet: true });
 // which `Number(x) || default` would silently discard.
 function num(v, d) { const n = Number(v); return Number.isFinite(n) && String(v ?? '').trim() !== '' ? n : d; }
 
+/** NSP_SMS_HEADERS='{"apikey":"..."}' or 'apikey: x, x-token: y' */
+function parseHeaders(v) {
+  const raw = String(v || '').trim();
+  if (!raw) return {};
+  if (raw.startsWith('{')) { try { return JSON.parse(raw); } catch { return {}; } }
+  const out = {};
+  for (const part of raw.split(',')) {
+    const i = part.indexOf(':');
+    if (i > 0) out[part.slice(0, i).trim()] = part.slice(i + 1).trim();
+  }
+  return out;
+}
+
 function parseKeys(s) {
   // "registrar:abc123,printer:def456"  ->  Map(key -> actor)
   const m = new Map();
@@ -74,13 +87,49 @@ const config = {
     maxAttempts: num(process.env.NSP_OTP_MAX_ATTEMPTS, 5),
     resendCooldownMs: num(process.env.NSP_OTP_RESEND_COOLDOWN_SEC, 60) * 1000,
     perPhoneHour: num(process.env.NSP_OTP_PER_PHONE_HOUR, 3),
-    provider: process.env.NSP_SMS_PROVIDER || 'log',
-    webhookUrl: process.env.NSP_SMS_WEBHOOK_URL || '',
-    webhookAuth: process.env.NSP_SMS_WEBHOOK_AUTH || '',
-    // Returns the OTP in the API response. Development only; refuses to take
-    // effect when a real gateway is configured.
+    // Returns the OTP in the API response. Development only, and it refuses to
+    // take effect once a real gateway is configured — see below.
     devEcho: process.env.NSP_OTP_DEV_ECHO === '1' && (process.env.NSP_SMS_PROVIDER || 'log') === 'log'
+  },
+
+  // ── SMS gateway ──────────────────────────────────────────────────
+  // provider: log | twilio | http | webhook.  "http" is the declarative
+  // driver for Pakistani aggregators (Veevo Tech, BulkSMS.pk, Telenor and
+  // Jazz corporate gateways): give it the URL, method, body and a pattern
+  // that identifies a successful response. See .env.example.
+  sms: {
+    provider: process.env.NSP_SMS_PROVIDER || 'log',
+    fallbackProvider: process.env.NSP_SMS_FALLBACK_PROVIDER || '',
+    sender: process.env.NSP_SMS_SENDER || '',
+    // Gateways vary: some want +923001234567, some 923001234567, some 03001234567.
+    numberFormat: (process.env.NSP_SMS_NUMBER_FORMAT || 'e164').toLowerCase(),
+    template: process.env.NSP_SMS_TEMPLATE || '',
+    ttlMinutes: num(process.env.NSP_OTP_TTL_MIN, 10),
+    attempts: num(process.env.NSP_SMS_ATTEMPTS, 3),
+    timeoutMs: num(process.env.NSP_SMS_TIMEOUT_MS, 15_000),
+    retryDelayMs: num(process.env.NSP_SMS_RETRY_DELAY_MS, 750),
+    // http driver
+    url: process.env.NSP_SMS_URL || '',
+    method: process.env.NSP_SMS_METHOD || 'GET',
+    body: process.env.NSP_SMS_BODY || '',
+    contentType: process.env.NSP_SMS_CONTENT_TYPE || '',
+    successPattern: process.env.NSP_SMS_SUCCESS_PATTERN || '',
+    headers: parseHeaders(process.env.NSP_SMS_HEADERS),
+    // twilio driver
+    twilioSid: process.env.NSP_SMS_TWILIO_SID || '',
+    twilioToken: process.env.NSP_SMS_TWILIO_TOKEN || '',
+    // webhook driver
+    webhookUrl: process.env.NSP_SMS_WEBHOOK_URL || '',
+    webhookAuth: process.env.NSP_SMS_WEBHOOK_AUTH || ''
   }
 };
+
+// A live gateway and a code echoed back in the API response are mutually
+// exclusive: echoing would hand every caller the OTP and reduce the gate to
+// decoration. The refusal is loud rather than silent, because someone who set
+// NSP_OTP_DEV_ECHO=1 in production needs to know it did not take effect.
+if (process.env.NSP_OTP_DEV_ECHO === '1' && config.sms.provider !== 'log') {
+  console.warn(`[config] NSP_OTP_DEV_ECHO=1 ignored: a live SMS provider (${config.sms.provider}) is configured. Codes will only be sent by SMS.`);
+}
 
 module.exports = config;

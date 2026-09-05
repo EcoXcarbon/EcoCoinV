@@ -11,7 +11,8 @@
     "test": "node --no-warnings=ExperimentalWarning --test \"tests/**/*.test.js\"",
     "seed": "node --no-warnings=ExperimentalWarning server/seed.js",
     "render": "node scripts/render-previews.js",
-    "postinstall": "node scripts/copy-fonts.js"
+    "postinstall": "node scripts/copy-fonts.js",
+    "sms:test": "node --no-warnings=ExperimentalWarning scripts/sms-test.js"
   },
   "engines": {
     "node": ">=22.5.0"

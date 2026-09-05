@@ -65,7 +65,17 @@ class Otp {
       ip: ip || null
     });
 
-    await this.sms.send(phone, code);
+    try {
+      await this.sms.send(phone, code);
+    } catch (err) {
+      // The carrier refused it, so the applicant never got a code. Drop the
+      // challenge rather than leave it standing: otherwise a gateway outage
+      // silently burns their hourly allowance and the resend cooldown, and
+      // they are locked out of registering for an hour through no fault of
+      // their own.
+      this.store.discardOtp(id);
+      throw new OtpError('We could not send the verification code just now. Please try again in a moment.', 502);
+    }
 
     return {
       challengeId: id,
@@ -127,39 +137,8 @@ function hashCode(code, salt, secret) {
   return crypto.createHmac('sha256', secret).update(`${salt}.${code}`).digest('hex');
 }
 
-/**
- * SMS delivery. No Pakistani gateway is wired up: pick one (Telenor, Jazz or
- * an aggregator) and implement send() against it, then set NSP_SMS_PROVIDER.
- * The log provider writes the code to the service journal so the flow is
- * usable end to end in development and at a supervised desk.
- */
-function createSmsProvider(name, config = {}) {
-  switch ((name || 'log').toLowerCase()) {
-    case 'log':
-      return {
-        name: 'log',
-        async send(phone, code) {
-          console.log(`[otp] ${phone} -> ${code}  (log provider; no SMS sent)`);
-        }
-      };
-    case 'webhook':
-      // Generic outbound POST, so any local aggregator can be adapted without
-      // a code change: { to, message } to NSP_SMS_WEBHOOK_URL.
-      return {
-        name: 'webhook',
-        async send(phone, code) {
-          if (!config.webhookUrl) throw new OtpError('NSP_SMS_WEBHOOK_URL is not configured', 500);
-          const res = await fetch(config.webhookUrl, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', ...(config.webhookAuth ? { authorization: config.webhookAuth } : {}) },
-            body: JSON.stringify({ to: phone, message: `${code} is your National Skill Passport verification code. It expires in 10 minutes.` })
-          });
-          if (!res.ok) throw new OtpError(`SMS gateway returned ${res.status}`, 502);
-        }
-      };
-    default:
-      throw new Error(`unknown SMS provider "${name}"`);
-  }
-}
+// Re-exported so existing callers keep working; the gateway itself lives in
+// lib/sms.js, which adds retries, failover and delivery logging.
+const { createSmsProvider } = require('./sms');
 
 module.exports = { Otp, OtpError, createSmsProvider };

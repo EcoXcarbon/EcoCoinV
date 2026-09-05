@@ -94,6 +94,44 @@ A record carries the level of proof actually behind it, so a verifier can judge 
 
 Only `NSP-2` and above may be issued a card.
 
+### SMS gateway
+
+The OTP is only a control if a code actually reaches a handset. `server/lib/sms.js`
+has four drivers:
+
+| Provider | Use |
+|----------|-----|
+| `log` | Writes the code to the service journal. Development, or a supervised desk. |
+| `http` | **The one to use in Pakistan.** A declarative driver: give it the URL, method, body, headers and a pattern that identifies success, and it drives any aggregator — Veevo Tech, BulkSMS.pk, an operator's corporate gateway, a reseller. Worked shapes are in `.env.example`. |
+| `twilio` | International fallback. A2P delivery into Pakistan is restricted and priced per message. |
+| `webhook` | `POST {to, message}` to something you already run. |
+
+Around whichever driver is configured: a timeout, bounded retries with backoff
+(4xx is *not* retried — the gateway will refuse it again), optional failover to
+`NSP_SMS_FALLBACK_PROVIDER`, and a delivery record. Two details that matter in
+the field:
+
+- **Numbers.** `NSP_SMS_NUMBER_FORMAT` reshapes `+923001234567` to `923001234567`
+  or `03001234567`. Gateways disagree, and the wrong shape is a common silent failure.
+- **Sender mask.** `NSP_SMS_SENDER` must be registered with the aggregator and
+  approved by the PTA. An unregistered mask is accepted by the API and then
+  dropped by the carrier — which looks like success in every log you own.
+
+Prove it before a rollout:
+
+```bash
+npm run sms:test -- +923001234567          # sends one real message, prints what the carrier said
+curl -H "X-Registry-Key: $KEY" .../api/v1/sms/status   # success rate, latency, recent failures
+```
+
+The delivery log holds the masked number, provider, outcome, latency and error —
+never the code and never the full number. `GET /api/v1/sms/status` is how you tell
+a gateway outage from a quiet day; without it the two look identical.
+
+`NSP_OTP_DEV_ECHO=1` returns the code in the API response, and is **ignored** once
+a live provider is configured — the service says so at startup rather than
+quietly handing every caller the OTP.
+
 ### Applicant flow
 
 ```
@@ -126,6 +164,7 @@ Registry desk (`X-Registry-Key`)
 - `GET  /api/v1/registrations/{nspId}/credential.json` (Verifiable Credential)
 - `GET  /api/v1/credentials/{serial}`
 - `GET  /api/v1/audit?limit=&offset=&actor=&action=` (registry-wide trail, newest first)
+- `GET  /api/v1/sms/status` · `POST /api/v1/sms/test { phone }` (gateway health and a live send)
 
 Full field list and lifecycle: [docs/REGISTRY-SPEC.md](docs/REGISTRY-SPEC.md).
 Card artwork rules: [docs/CARD-SPEC.md](docs/CARD-SPEC.md). Certificate: [docs/CERTIFICATE-SPEC.md](docs/CERTIFICATE-SPEC.md).
@@ -141,8 +180,9 @@ Card artwork rules: [docs/CARD-SPEC.md](docs/CARD-SPEC.md). Certificate: [docs/C
 - Set `NSP_GATE_SECRET` explicitly. It signs OTP hashes, mobile-verification tokens and
   proof-of-work challenges; without it each process generates its own, and a second
   instance rejects the first one's tokens.
-- Wire a real SMS gateway (`NSP_SMS_PROVIDER=webhook`) before going live. The default
-  `log` provider only writes codes to the service journal.
+- Wire a real SMS gateway before going live (`NSP_SMS_PROVIDER=http` plus the aggregator's
+  URL, or `twilio`). The default `log` provider only writes codes to the service journal,
+  so nobody outside the box could complete a registration. Confirm with `npm run sms:test`.
 - Document binaries are **not** stored by this service; the registration keeps type,
   file name, size and SHA-256 so uploads can be matched to object storage.
 

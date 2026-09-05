@@ -7,6 +7,7 @@
 const { DatabaseSync } = require('node:sqlite');
 const path = require('node:path');
 const fs = require('node:fs');
+const { maskPhone } = require('./sms');
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS sequences (
@@ -73,6 +74,17 @@ CREATE TABLE IF NOT EXISTS registration_events (
 CREATE INDEX IF NOT EXISTS ix_regevents_ip ON registration_events (ip, at);
 CREATE INDEX IF NOT EXISTS ix_regevents_phone ON registration_events (phone, at);
 CREATE INDEX IF NOT EXISTS ix_regevents_district ON registration_events (district, at);
+-- Whether the carrier accepted each verification message. Deliberately holds
+-- no message body and no code: this answers "is the gateway working", not
+-- "what did we send".
+CREATE TABLE IF NOT EXISTS sms_deliveries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at TEXT NOT NULL, phone_masked TEXT NOT NULL, provider TEXT NOT NULL,
+  status TEXT NOT NULL,            -- SENT | FAILED
+  attempt INTEGER NOT NULL DEFAULT 1, latency_ms INTEGER,
+  message_id TEXT, error TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_sms_at ON sms_deliveries (at);
 `;
 
 // Columns added after the first release. SQLite has no "ADD COLUMN IF NOT
@@ -260,6 +272,31 @@ class Store {
     return { total, items: rows.map(r => ({ at: r.at, actor: r.actor, action: r.action, nspId: r.nsp_id, detail: r.detail ? JSON.parse(r.detail) : null })) };
   }
 
+  // ── SMS delivery ─────────────────────────────────────────────────
+  recordSmsDelivery({ phone, provider, status, attempt = 1, ms = null, messageId = null, error = null }) {
+    this.db.prepare(`INSERT INTO sms_deliveries (at, phone_masked, provider, status, attempt, latency_ms, message_id, error)
+      VALUES (?,?,?,?,?,?,?,?)`)
+      .run(new Date().toISOString(), maskPhone(phone), provider, status, attempt, ms, messageId, error);
+  }
+
+  /** Rolling health of the gateway, for the registry desk and for alerting. */
+  smsHealth({ windowMs = 24 * 60 * 60 * 1000, limit = 20 } = {}) {
+    const since = new Date(Date.now() - windowMs).toISOString();
+    const rows = this.db.prepare('SELECT status, COUNT(*) AS n, AVG(latency_ms) AS ms FROM sms_deliveries WHERE at >= ? GROUP BY status').all(since);
+    const by = Object.fromEntries(rows.map(r => [r.status, r.n]));
+    const sent = by.SENT || 0, failed = by.FAILED || 0;
+    return {
+      windowHours: Math.round(windowMs / 3_600_000),
+      sent, failed,
+      successRate: sent + failed ? Number((sent / (sent + failed)).toFixed(3)) : null,
+      averageLatencyMs: Math.round((rows.find(r => r.status === 'SENT') || {}).ms || 0) || null,
+      lastFailures: this.db.prepare('SELECT at, provider, attempt, error FROM sms_deliveries WHERE status = ? ORDER BY id DESC LIMIT ?')
+        .all('FAILED', Math.min(Number(limit) || 20, 100)),
+      recent: this.db.prepare('SELECT at, phone_masked AS phone, provider, status, attempt, latency_ms AS latencyMs FROM sms_deliveries ORDER BY id DESC LIMIT ?')
+        .all(Math.min(Number(limit) || 20, 100))
+    };
+  }
+
   // ── OTP ──────────────────────────────────────────────────────────
   insertOtp({ id, phone, salt, codeHash, expiresAt, ip }) {
     this.db.prepare('INSERT INTO otp_challenges (id, phone, salt, code_hash, created_at, expires_at, ip) VALUES (?,?,?,?,?,?,?)')
@@ -269,6 +306,8 @@ class Store {
     const r = this.db.prepare('SELECT * FROM otp_challenges WHERE id = ?').get(id);
     return r ? { id: r.id, phone: r.phone, salt: r.salt, codeHash: r.code_hash, expiresAt: r.expires_at, attempts: r.attempts, consumed: !!r.consumed } : null;
   }
+  /** Remove a challenge whose code never reached the applicant. */
+  discardOtp(id) { this.db.prepare('DELETE FROM otp_challenges WHERE id = ?').run(id); }
   bumpOtpAttempts(id) { this.db.prepare('UPDATE otp_challenges SET attempts = attempts + 1 WHERE id = ?').run(id); }
   consumeOtp(id) { this.db.prepare('UPDATE otp_challenges SET consumed = 1 WHERE id = ?').run(id); }
   countOtpRequests(phone, sinceMs) {

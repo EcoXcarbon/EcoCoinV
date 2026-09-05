@@ -4,7 +4,8 @@ const crypto = require('node:crypto');
 const { RegistryError, TRANSITIONS } = require('../lib/registry');
 const { normaliseNspId } = require('../lib/nspId');
 const { Gate, GateError } = require('../lib/gate');
-const { Otp, OtpError, createSmsProvider } = require('../lib/otp');
+const { Otp, OtpError } = require('../lib/otp');
+const { SmsGateway, SmsError } = require('../lib/sms');
 
 function timingSafeEqual(a, b) {
   const ab = Buffer.from(String(a)); const bb = Buffer.from(String(b));
@@ -43,10 +44,8 @@ function buildApi(registry, config) {
     ...config.pow, ...config.velocity,
     enabled: config.gateEnabled, secret: config.gateSecret
   });
-  const otp = new Otp(store, {
-    ...config.otp, secret: config.gateSecret,
-    sms: createSmsProvider(config.otp.provider, config.otp)
-  });
+  const sms = new SmsGateway(config.sms, store);
+  const otp = new Otp(store, { ...config.otp, secret: config.gateSecret, sms });
   const clientIp = req => (req.ip || req.socket.remoteAddress || '').replace(/^::ffff:/, '') || null;
 
   const wrap = fn => (req, res, next) => { try { fn(req, res, next); } catch (e) { next(e); } };
@@ -155,6 +154,25 @@ function buildApi(registry, config) {
   // Full audit trail across the registry, newest first. Every state change,
   // registration, OTP event and gate rejection is here.
   router.get('/audit', wrap((req, res) => res.json(store.auditRecent(req.query))));
+  // Is the SMS gateway actually delivering? Without this, an outage looks
+  // identical to "nobody registered today".
+  router.get('/sms/status', wrap((req, res) => res.json({
+    provider: sms.name,
+    live: sms.live,
+    numberFormat: sms.numberFormat,
+    devEcho: !!config.otp.devEcho,
+    ...store.smsHealth({ limit: Number(req.query.limit) || 20 })
+  })));
+  // Send a real message to a real handset, to prove the gateway before a
+  // rollout. Registrar-only, and it never returns the code.
+  router.post('/sms/test', wrapAsync(async (req, res) => {
+    const phone = String((req.body || {}).phone || '').replace(/[\s()-]/g, '');
+    if (!/^\+\d{8,15}$/.test(phone)) return res.status(400).json({ error: 'phone must be in E.164 form, e.g. +923001234567' });
+    const code = String(crypto.randomInt(0, 1e6)).padStart(6, '0');
+    const out = await sms.send(phone, code);
+    store.audit(req.actor, 'SMS_TEST', null, { provider: out.provider, attempts: out.attempts });
+    res.json({ ok: true, provider: out.provider, messageId: out.messageId, attempts: out.attempts });
+  }));
   router.get('/registrations/:nspId', idParam, wrap((req, res) => {
     const reg = registry.getFresh(req.nspId);
     res.json({ ...reg, credentials: store.listCredentials(req.nspId), audit: store.auditFor(req.nspId) });
@@ -179,6 +197,7 @@ function buildApi(registry, config) {
   router.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     if (err instanceof RegistryError) return res.status(err.status).json({ error: err.message, details: err.details || null });
     if (err instanceof GateError || err instanceof OtpError) return res.status(err.status || 400).json({ error: err.message });
+    if (err instanceof SmsError) return res.status(err.status || 502).json({ error: err.message });
     if (err.type === 'entity.too.large') return res.status(413).json({ error: 'payload too large' });
     if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'invalid JSON' });
     console.error(err);
