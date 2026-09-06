@@ -222,3 +222,14 @@ footer { border-top: 1px solid var(--nsp-line); padding: 24px 0; font-size: .8re
 /* Occupation picker: 108 ISCO codes need a search box, not a scroll. */
 .occ-search { margin-bottom: 6px; font-size: .85rem; padding: 7px 10px; }
 .occ-search::-webkit-search-cancel-button { cursor: pointer; }
+
+/* The gate stands in front of the form, so it should look like a doorway. */
+.gate-first { max-width: 720px; margin: 0 auto 28px; border-top: 4px solid var(--nsp-emerald); }
+.gate-first h2 { margin-top: 0; }
+.gate-first .row { align-items: end; }
+/* A lone button in a .row grid would stretch the full width of the card. */
+.gate-first .row .field:has(> .btn) { display: block; }
+.gate-first .btn { width: auto; }
+.gate-first .row:last-of-type { grid-template-columns: auto auto auto; justify-content: start; align-items: end; }
+.linkish { background: none; border: none; padding: 0; font: inherit; color: var(--nsp-navy-2); text-decoration: underline; cursor: pointer; }
+#phoneVerifiedHint { color: var(--nsp-emerald-2); font-weight: 600; }

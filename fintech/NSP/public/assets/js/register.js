@@ -257,7 +257,7 @@
   // biometric CNIC check by the operator, which is the strongest identity
   // signal available without a NADRA integration. Proof of work makes bulk
   // scripted submission expensive without depending on a hosted CAPTCHA.
-  const gate = { token: null, phone: null };
+  const gate = { token: null, phone: null, pow: null };
   const otpMsg = document.getElementById('otpMsg');
   const otpCodeField = document.getElementById('otpCodeField');
   const otpVerifyField = document.getElementById('otpVerifyField');
@@ -271,16 +271,51 @@
     otpMsg.className = 'hint' + (cls ? ' ' + cls : '');
   }
 
+  const gatePanel = document.getElementById('gatePanel');
+  const stepper = document.getElementById('stepper');
+  const powMsg = document.getElementById('powMsg');
+
+  /**
+   * Open the form. Called only after a code has been confirmed, so the phone
+   * and email that were proved are the ones the application carries — they
+   * are filled in and made read-only rather than asked for a second time.
+   */
+  function openForm(phone, email) {
+    form.elements['contact.phone'].value = phone;
+    form.elements['contact.email'].value = email;
+    gatePanel.hidden = true;
+    stepper.hidden = false;
+    form.hidden = false;
+    show(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Sending them back to the gate must also drop the token: the verification
+  // is bound to the number, so a new number means a new verification.
+  document.getElementById('changeContact').addEventListener('click', () => {
+    gate.token = null; gate.challengeId = null; gate.pow = null;
+    document.getElementById('gatePhone').value = form.elements['contact.phone'].value;
+    document.getElementById('gateEmail').value = form.elements['contact.email'].value;
+    document.getElementById('otpSend').hidden = false;
+    document.getElementById('otpSend').textContent = 'Send code';
+    document.getElementById('otpCodeField').hidden = true;
+    document.getElementById('otpVerifyField').hidden = true;
+    otpMsg.hidden = true;
+    form.hidden = true; stepper.hidden = true; gatePanel.hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
   document.getElementById('otpSend').addEventListener('click', async () => {
-    const phone = (form.elements['contact.phone'].value || '').replace(/[\s()-]/g, '');
+    const phone = (document.getElementById('gatePhone').value || '').replace(/[\s()-]/g, '');
+    const email = (document.getElementById('gateEmail').value || '').trim();
     if (!/^\+\d{8,15}$/.test(phone)) { otpSay('Enter your mobile in international format first, e.g. +923001234567.', 'bad'); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { otpSay('Enter a valid email address — it is where the code goes if SMS is unavailable.', 'bad'); return; }
     const btn = document.getElementById('otpSend');
     btn.disabled = true; btn.textContent = 'Sending…';
     try {
       // The email goes with the request so the server can fall back to it when
       // no SMS carrier is reachable, rather than leaving the applicant waiting
       // for a message that is never going to arrive.
-      const email = (document.querySelector('[name="contact.email"]') || {}).value || '';
       const r = await NSP.call('/otp/request', { method: 'POST', body: { phone, email } });
       gate.challengeId = r.challengeId; gate.phone = phone; gate.token = null;
       otpCodeField.hidden = false; otpVerifyField.hidden = false;
@@ -304,23 +339,14 @@
     try {
       const r = await NSP.call('/otp/verify', { method: 'POST', body: { challengeId: gate.challengeId, code } });
       gate.token = r.registrationToken; gate.phone = r.phone;
-      otpSay('Mobile number verified.', 'ok');
+      otpSay('Verified.', 'ok');
       otpCodeField.hidden = true; otpVerifyField.hidden = true;
       document.getElementById('otpSend').hidden = true;
+      openForm(r.phone, (document.getElementById('gateEmail').value || '').trim());
+      // Solve the anti-automation puzzle now, while the applicant is filling
+      // the form, instead of making them wait for it at the end.
+      prewarmPow();
     } catch (err) { otpSay(err.message, 'bad'); }
-  });
-
-  // Any edit to the number invalidates the verification: the token is bound
-  // to the phone the server sent the code to.
-  form.elements['contact.phone'].addEventListener('input', () => {
-    if (!gate.token) return;
-    const now = (form.elements['contact.phone'].value || '').replace(/[\s()-]/g, '');
-    if (now !== gate.phone) {
-      gate.token = null; gate.challengeId = null;
-      document.getElementById('otpSend').hidden = false;
-      document.getElementById('otpSend').textContent = 'Send code';
-      otpSay('The number changed — verify it again.', 'bad');
-    }
   });
 
   /**
@@ -353,20 +379,32 @@
     throw new Error('Could not complete the security check. Please try again.');
   }
 
+  /** Solve the proof of work in the background so submitting is instant. */
+  async function prewarmPow() {
+    gate.pow = null;
+    powMsg.hidden = true;
+    try { gate.pow = await solvePow(); } catch { /* retried at submit */ }
+  }
+
   form.addEventListener('submit', async e => {
     e.preventDefault();
     if (!validatePanel(panels.length)) return;
     if (!gate.token) {
-      showError('Your mobile number has not been verified. Go back to the Contact step and verify it.');
-      show(2); return;
+      showError('Your mobile number has not been verified. Start again and verify it.');
+      document.getElementById('changeContact').click(); return;
     }
     submitBtn.disabled = true; submitBtn.textContent = 'Security check…';
     try {
-      const pow = await solvePow(() => { submitBtn.textContent = 'Security check…'; });
+      // Usually already solved, back when the code was verified.
+      const pow = gate.pow || await solvePow(() => { submitBtn.textContent = 'Security check…'; });
+      gate.pow = null;   // single use: the server refuses a replayed challenge
       submitBtn.textContent = 'Submitting…';
       const body = Object.assign(payload(), pow, {
         registrationToken: gate.token,
-        website: form.elements['website'] ? form.elements['website'].value : ''
+        // The honeypot lives on the gate panel, outside <form>, so it cannot be
+        // read off form.elements — that would send an empty string every time
+        // and quietly turn the check off.
+        website: (document.querySelector('.hp input[name="website"]') || {}).value || ''
       });
       const r = await NSP.call('/registrations', { method: 'POST', body });
       form.hidden = true; document.getElementById('stepper').hidden = true;

@@ -16,7 +16,42 @@
   <h1>Apply for a National Skill Passport</h1>
   <p class="muted">For students, apprentices, skilled workers and professionals. Fields marked <span style="color:var(--nsp-red)">*</span> are required. Enter names exactly as they appear on your identity document (Latin script).</p>
 
-  <div class="stepper" id="stepper">
+  <!-- ── the gate ────────────────────────────────────────────────────────
+       Nothing of the form is reachable until a code has been verified. It
+       stands here, ahead of the wizard, rather than inside the contact step:
+       a check that runs after someone has typed a CNIC, a date of birth and
+       uploaded a photograph has already let them do the expensive part, and
+       has already collected personal data from someone who was never
+       verified at all. -->
+  <section class="card gate-first" id="gatePanel">
+    <h2>First, verify your mobile number</h2>
+    <p class="muted">Every application is tied to a verified mobile number. We will send you a six-digit
+      code — by SMS, or by email if SMS is unavailable, in which case a registrar will confirm the number
+      in person when you bring your CNIC. The form opens once the code is confirmed.</p>
+
+    <div class="row">
+      <div class="field"><label>Mobile (international format) <span class="req">*</span></label>
+        <input id="gatePhone" type="tel" required placeholder="+92 300 1234567" autocomplete="tel">
+        <span class="hint">E.164: country code first, e.g. +923001234567</span></div>
+      <div class="field"><label>Email <span class="req">*</span></label>
+        <input id="gateEmail" type="email" required placeholder="you@example.com" autocomplete="email">
+        <span class="hint">Where the code goes if SMS is unavailable</span></div>
+    </div>
+
+    <div class="row">
+      <div class="field"><button type="button" class="btn btn-primary" id="otpSend">Send code</button></div>
+      <div class="field" id="otpCodeField" hidden><label>Six-digit code</label>
+        <input id="otpCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></div>
+      <div class="field" id="otpVerifyField" hidden><button type="button" class="btn btn-primary" id="otpVerify">Verify &amp; continue</button></div>
+    </div>
+    <p class="hint" id="otpMsg" hidden></p>
+
+    <!-- Anti-automation: hidden from people, filled in by naive bots. -->
+    <div class="hp" aria-hidden="true"><label>Leave this field empty<input name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
+    <p class="hint" id="powMsg" hidden></p>
+  </section>
+
+  <div class="stepper" id="stepper" hidden>
     <div class="step" data-step="1"><b>1</b>Type &amp; identity</div>
     <div class="step" data-step="2"><b>2</b>Contact</div>
     <div class="step" data-step="3"><b>3</b>Education</div>
@@ -25,7 +60,7 @@
     <div class="step" data-step="6"><b>6</b>Consent &amp; review</div>
   </div>
 
-  <form id="regForm" class="card" novalidate>
+  <form id="regForm" class="card" novalidate hidden>
     <div id="formError" class="notice err" hidden></div>
 
     <!-- STEP 1 -->
@@ -70,23 +105,11 @@
     <section class="step-panel" data-panel="2" hidden>
       <fieldset><legend>Contact</legend>
         <div class="row">
-          <div class="field"><label>Email <span class="req">*</span></label><input name="contact.email" type="email" required autocomplete="email"></div>
-          <div class="field"><label>Mobile (international format) <span class="req">*</span></label><input name="contact.phone" type="tel" required placeholder="+92 300 1234567"><span class="hint">E.164: country code first</span></div>
+          <div class="field"><label>Email <span class="req">*</span></label><input name="contact.email" type="email" required autocomplete="email" readonly></div>
+          <div class="field"><label>Mobile (international format) <span class="req">*</span></label><input name="contact.phone" type="tel" required readonly><span class="hint" id="phoneVerifiedHint">✓ Verified</span></div>
           <div class="field"><label>Alternative phone</label><input name="contact.altPhone" type="tel"></div>
         </div>
-
-        <div class="otp-box" id="otpBox">
-          <p class="hint" id="otpIntro">Your mobile number must be verified before the application can be submitted. We will send a six-digit code by SMS — or by email if SMS is unavailable, in which case a registrar will confirm the number in person.</p>
-          <div class="row">
-            <div class="field"><button type="button" class="btn" id="otpSend">Send code</button></div>
-            <div class="field" id="otpCodeField" hidden><label>Six-digit code</label><input id="otpCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></div>
-            <div class="field" id="otpVerifyField" hidden><button type="button" class="btn" id="otpVerify">Verify</button></div>
-          </div>
-          <p class="hint" id="otpMsg" hidden></p>
-        </div>
-
-        <!-- Anti-automation: hidden from people, filled in by naive bots. -->
-        <div class="hp" aria-hidden="true"><label>Leave this field empty<input name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
+        <p class="hint">These are the details you verified. <button type="button" class="linkish" id="changeContact">Use a different number or email</button> — you will be asked to verify again.</p>
       </fieldset>
       <fieldset><legend>Residential address</legend>
         <div class="field"><label>Address line 1 <span class="req">*</span></label><input name="contact.address.line1" type="text" required autocomplete="address-line1"></div>
