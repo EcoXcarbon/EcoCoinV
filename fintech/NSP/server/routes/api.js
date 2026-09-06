@@ -248,7 +248,7 @@ function buildApi(registry, config) {
     res.type('application/vc+ld+json').send(JSON.stringify(registry.verifiableCredential(req.nspId), null, 2));
   }));
   router.get('/credentials/:serial', wrap((req, res) => {
-    const cred = store.getCredential(String(req.params.serial).toUpperCase());
+    const cred = registry.credentialForPrint(String(req.params.serial).toUpperCase());
     if (!cred) return res.status(404).json({ error: 'credential not found' });
     res.json(cred);
   }));

@@ -153,7 +153,8 @@ td .sub { color: var(--slate); font-size: 2.6mm; }
         <div class="certify">
           <div class="lead">This is to certify that</div>
           <div class="name">${e(h.fullName)}</div>
-          ${h.nameNative ? `<div class="native">${e(h.nameNative)}</div>` : ''}
+          ${h.nameNative && h.nameNative.replace(/\s+/g, ' ').trim().toLowerCase() !== String(h.fullName || '').replace(/\s+/g, ' ').trim().toLowerCase()
+            ? `<div class="native">${e(h.nameNative)}</div>` : ''}
           <div class="bio">born <b>${d(h.dateOfBirth)}</b>, national of <b>${e(h.nationalityName)}</b>, holder of ${e(idName(h.idDocumentType))} <b>${e(h.idDocumentMasked)}</b>, is registered as ${typeWord} in the National Skill Passport Registry, and that the skills listed below have been verified against the evidence held on record.</div>
           <div class="id">${e(p.nspId)}</div>
         </div>
@@ -172,7 +173,7 @@ td .sub { color: var(--slate); font-size: 2.6mm; }
             <dt>Verified</dt><dd>${d(p.verifiedAt)}${p.verifiedBy ? ` <span style="color:var(--slate);font-weight:400">· ${e(p.verifiedBy)}</span>` : ''}</dd>
             <dt>Certificate issued</dt><dd>${d(p.issuedAt)}</dd>
             <dt>Valid until</dt><dd>${d(p.expiresAt)}</dd>
-            <dt>Card serial</dt><dd class="mono">${e(p.cardSerial || '—')}</dd>
+            ${p.cardSerial ? `<dt>Card serial</dt><dd class="mono">${e(p.cardSerial)}</dd>` : ''}
           </dl>
           <div class="sign">
             <div class="block"><div class="line"></div><div class="who">Registrar</div><div class="role">${e(p.issuer.registrar || 'National Skill Passport Registry')}</div></div>

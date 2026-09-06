@@ -178,6 +178,24 @@ class Registry {
     return reg;
   }
 
+  /**
+   * A credential as it should be printed now.
+   *
+   * The payload is a snapshot taken at issue, which is right for everything
+   * the certificate asserts. The card serial is the exception: it points at a
+   * sibling credential, and the desk lets an officer issue the certificate
+   * first — in which case the snapshot captured "no card" and the certificate
+   * prints a dangling reference for the rest of its life. It is resolved
+   * against the live record instead, so a card issued a minute later, or a
+   * reprint that supersedes the original, is reflected.
+   */
+  credentialForPrint(serial) {
+    const cred = this.store.getCredential(serial);
+    if (!cred || cred.kind !== 'CERTIFICATE') return cred;
+    const card = this.store.activeCredential(cred.nspId, 'CARD');
+    return { ...cred, payload: { ...cred.payload, cardSerial: card ? card.serial : null } };
+  }
+
   /** Applies clock-based expiry lazily on read. */
   getFresh(nspId) {
     const reg = this.mustGet(nspId);

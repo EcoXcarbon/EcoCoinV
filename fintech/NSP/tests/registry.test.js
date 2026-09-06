@@ -115,3 +115,28 @@ test('issuer document exposes the Ed25519 key', async () => {
   assert.equal(r.verificationMethod[0].type, 'Multikey');
   assert.match(r.verificationMethod[0].publicKeyMultibase, /^z6Mk/);
 });
+
+test('a certificate issued before the card still prints the card serial', async () => {
+  // The desk has separate buttons and no enforced order, so this happens: the
+  // certificate snapshot captures "no card", and without a live lookup it
+  // would print a dangling cross-reference for the rest of its life.
+  const [, r] = await j('/api/v1/registrations', { method: 'POST', headers: H, body: JSON.stringify(sample({
+    identity: { givenNames: 'Sana', familyName: 'Iqbal', dateOfBirth: '1994-02-02', sex: 'F', nationality: 'PK', idDocumentType: 'CNIC', idDocumentNumber: '17301-5550001-3', photo: PNG }
+  })) });
+  const id = r.nspId;
+  await j(`/api/v1/registrations/${id}/transition`, { method: 'POST', headers: H, body: JSON.stringify({ action: 'VERIFY' }) });
+
+  const [cs, cert] = await j(`/api/v1/registrations/${id}/credentials/certificate`, { method: 'POST', headers: H });
+  assert.equal(cs, 201);
+  assert.equal(cert.payload.cardSerial, null, 'nothing to reference at the moment it was issued');
+
+  const [, card] = await j(`/api/v1/registrations/${id}/credentials/card`, { method: 'POST', headers: H });
+  const [, printed] = await j(`/api/v1/credentials/${cert.serial}`, { headers: H });
+  assert.equal(printed.payload.cardSerial, card.serial, 'the print view resolves it against the live record');
+
+  // A reprint supersedes the old card, so the certificate must follow it.
+  const [, reprint] = await j(`/api/v1/registrations/${id}/credentials/card`, { method: 'POST', headers: H });
+  assert.notEqual(reprint.serial, card.serial);
+  const [, printed2] = await j(`/api/v1/credentials/${cert.serial}`, { headers: H });
+  assert.equal(printed2.payload.cardSerial, reprint.serial);
+});
