@@ -97,7 +97,10 @@ const ADDED_COLUMNS = [
   ['registrants', 'father_key', 'TEXT'],
   ['registrants', 'dedup_flags', 'TEXT'],
   ['registrants', 'registered_ip', 'TEXT'],
-  ['registrants', 'district', 'TEXT']
+  ['registrants', 'district', 'TEXT'],
+  ['registrants', 'email_verified', 'INTEGER NOT NULL DEFAULT 0'],
+  ['otp_challenges', 'channel', "TEXT NOT NULL DEFAULT 'sms'"],
+  ['otp_challenges', 'sent_to', 'TEXT']
 ];
 
 class Store {
@@ -201,6 +204,7 @@ class Store {
       assurance: {
         tier: row.assurance_tier || 'NSP-1',
         phoneVerified: !!row.phone_verified,
+        emailVerified: !!row.email_verified,
         dedupFlags: row.dedup_flags ? JSON.parse(row.dedup_flags) : []
       }
     };
@@ -254,7 +258,7 @@ class Store {
     const order = ORDER[queue] || 'created_at DESC';
     const sql = `SELECT nsp_id, status, type, given_names, family_name, nationality, primary_isco, primary_skill, sector,
       email, phone, district, created_at, updated_at, submitted_at, verified_at, issued_at, expires_at,
-      assurance_tier, phone_verified, verified_by, issued_by, dedup_flags
+      assurance_tier, phone_verified, email_verified, verified_by, issued_by, dedup_flags
       FROM registrants ${w} ORDER BY ${order} LIMIT ? OFFSET ?`;
     const rows = this.db.prepare(sql).all(...vals, Math.min(Number(limit) || 50, 200), Number(offset) || 0);
     const total = this.db.prepare(`SELECT COUNT(*) AS n FROM registrants ${w}`).get(...vals).n;
@@ -264,7 +268,7 @@ class Store {
       email: r.email, phone: r.phone, district: r.district,
       createdAt: r.created_at, updatedAt: r.updated_at, submittedAt: r.submitted_at, verifiedAt: r.verified_at,
       issuedAt: r.issued_at, expiresAt: r.expires_at,
-      assuranceTier: r.assurance_tier || 'NSP-1', phoneVerified: !!r.phone_verified,
+      assuranceTier: r.assurance_tier || 'NSP-1', phoneVerified: !!r.phone_verified, emailVerified: !!r.email_verified,
       verifiedBy: r.verified_by, issuedBy: r.issued_by,
       flags: r.dedup_flags ? JSON.parse(r.dedup_flags).length : 0 })) };
   }
@@ -480,7 +484,10 @@ class Store {
   }
   getOtp(id) {
     const r = this.db.prepare('SELECT * FROM otp_challenges WHERE id = ?').get(id);
-    return r ? { id: r.id, phone: r.phone, salt: r.salt, codeHash: r.code_hash, expiresAt: r.expires_at, attempts: r.attempts, consumed: !!r.consumed } : null;
+    return r ? { id: r.id, phone: r.phone, salt: r.salt, codeHash: r.code_hash, expiresAt: r.expires_at, attempts: r.attempts, consumed: !!r.consumed, channel: r.channel || 'sms', sentTo: r.sent_to } : null;
+  }
+  setOtpChannel(id, channel, sentTo) {
+    this.db.prepare('UPDATE otp_challenges SET channel = ?, sent_to = ? WHERE id = ?').run(channel, sentTo || null, id);
   }
   /** Remove a challenge whose code never reached the applicant. */
   discardOtp(id) { this.db.prepare('DELETE FROM otp_challenges WHERE id = ?').run(id); }
@@ -547,10 +554,10 @@ class Store {
     }));
   }
 
-  setGateColumns(nspId, { nameKey, fatherKey, assuranceTier, phoneVerified, dedupFlags, registeredIp }) {
+  setGateColumns(nspId, { nameKey, fatherKey, assuranceTier, phoneVerified, emailVerified, dedupFlags, registeredIp }) {
     this.db.prepare(`UPDATE registrants SET name_key = ?, father_key = ?, assurance_tier = ?, phone_verified = ?,
-      dedup_flags = ?, registered_ip = ? WHERE nsp_id = ?`).run(
-      nameKey || null, fatherKey || null, assuranceTier || 'NSP-1', phoneVerified ? 1 : 0,
+      email_verified = ?, dedup_flags = ?, registered_ip = ? WHERE nsp_id = ?`).run(
+      nameKey || null, fatherKey || null, assuranceTier || 'NSP-1', phoneVerified ? 1 : 0, emailVerified ? 1 : 0,
       dedupFlags ? JSON.stringify(dedupFlags) : null, registeredIp || null, nspId);
   }
 

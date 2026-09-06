@@ -117,6 +117,16 @@ the field:
   approved by the PTA. An unregistered mask is accepted by the API and then
   dropped by the carrier — which looks like success in every log you own.
 
+**Email fallback.** With no carrier connected, the code goes to the applicant's
+email instead of nowhere (`NSP_OTP_EMAIL_FALLBACK=1` plus the `NSP_SMTP_*`
+settings). It is never offered as a choice — the server uses it only when SMS
+cannot carry the message — because an emailed code proves the applicant reads
+that inbox and nothing about who holds the SIM. Such records are stored with
+`phoneVerified: false`, `emailVerified: true`, and land in the desk's **No
+verified mobile** queue for a registrar to confirm in person. The channel is
+signed into the verification token, so an email-channel token cannot be passed
+off as an SMS one.
+
 Prove it before a rollout:
 
 ```bash

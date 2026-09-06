@@ -66,28 +66,83 @@
 
   // ── repeatable lists ─────────────────────────────────────────────
   const selectHtml = (name, src, value, optional) => { const s = document.createElement('select'); s.name = name; fillSelect(s, src, { optional, value }); return s.outerHTML; };
-  const occOptions = ref.occupations.unitGroups.map(u => `<option value="${u.code}" data-sector="${u.sector}">${u.code} — ${NSP.esc(u.title)}</option>`).join('');
+  /**
+   * ISCO-08 occupations, grouped by major group so 108 entries are navigable,
+   * and always re-marking the current selection — the list is rebuilt whenever
+   * a skill row re-renders, and an <option> with no `selected` attribute makes
+   * the field snap back to "Select…" even though the code is held in state.
+   */
+  const OCC_BY_MAJOR = ref.occupations.majorGroups.map(g => ({
+    ...g, units: ref.occupations.unitGroups.filter(u => u.code[0] === g.code)
+  })).filter(g => g.units.length);
+
+  function occOptions(current, filter) {
+    const q = (filter || '').trim().toLowerCase();
+    const match = u => !q || u.code.startsWith(q) || u.title.toLowerCase().includes(q) || (u.sector || '').includes(q);
+    let html = `<option value="">Select…</option>`;
+    for (const g of OCC_BY_MAJOR) {
+      // A filtered-out option is still rendered when it is the current value,
+      // so searching can never silently discard the applicant's choice.
+      const units = g.units.filter(u => match(u) || u.code === current);
+      if (!units.length) continue;
+      html += `<optgroup label="${g.code} — ${NSP.esc(g.title)}">` + units.map(u =>
+        `<option value="${u.code}" data-sector="${u.sector}"${u.code === current ? ' selected' : ''}>${u.code} — ${NSP.esc(u.title)}</option>`
+      ).join('') + '</optgroup>';
+    }
+    return html;
+  }
+  const occCount = ref.occupations.unitGroups.length;
+
+  /** Evidence types that cannot stand up without a body that issued them. */
+  const BODY_REQUIRED = ['CERTIFICATE', 'LICENCE', 'ASSESSMENT'];
   function renderList(id, items, tpl) {
     const box = document.getElementById(id);
     box.innerHTML = items.map((it, i) => `<div class="item" data-i="${i}">${tpl(it, i)}<button type="button" class="btn btn-sm btn-secondary remove" data-remove="${i}">✕</button></div>`).join('');
     box.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => { items.splice(Number(b.dataset.remove), 1); renderList(id, items, tpl); }));
+    box.querySelectorAll('.occ-search').forEach(inp => inp.addEventListener('input', () => {
+      const row = inp.closest('.item');
+      const sel = row.querySelector('[data-k="iscoCode"]');
+      const keep = sel.value;
+      sel.innerHTML = occOptions(keep, inp.value);
+      sel.value = keep;
+    }));
     box.querySelectorAll('input,select').forEach(el => el.addEventListener('change', () => {
       const i = Number(el.closest('.item').dataset.i); const k = el.dataset.k;
       if (el.type === 'checkbox') { if (k === 'primary') items.forEach((x, j) => x.primary = j === i); else items[i][k] = el.checked; if (k === 'primary' || k === 'current') renderList(id, items, tpl); }
       else items[i][k] = el.value;
-      if (k === 'iscoCode') { const o = el.selectedOptions[0]; if (o) { items[i].title = o.textContent.split(' — ')[1]; items[i].sector = o.dataset.sector; renderList(id, items, tpl); } }
+      if (k === 'iscoCode') {
+        // Update the two fields this choice drives, in place. Re-rendering the
+        // row here would rebuild the <select> and throw away the selection.
+        const o = el.selectedOptions[0];
+        const row = el.closest('.item');
+        if (o && o.value) {
+          items[i].title = o.textContent.split(' — ').slice(1).join(' — ');
+          items[i].sector = o.dataset.sector;
+          const t = row.querySelector('[data-k="title"]'); if (t) t.value = items[i].title;
+          const sc = row.querySelector('[data-k="sector"]'); if (sc) sc.value = items[i].sector;
+        }
+      }
+      if (k === 'evidenceType') markRequiredBody(el.closest('.item'), el.value);
     }));
   }
+  /** Show or hide the certifying-body asterisk for the chosen evidence type. */
+  function markRequiredBody(row, evidenceType) {
+    const star = row.querySelector('.body-req');
+    if (star) star.hidden = !BODY_REQUIRED.includes(evidenceType);
+  }
+
   const skillTpl = (s) => `
     <div class="row">
-      <div class="field"><label>Occupation (ISCO-08) <span class="req">*</span></label><select data-k="iscoCode"><option value="">Select…</option>${occOptions}</select></div>
+      <div class="field"><label>Occupation (ISCO-08) <span class="req">*</span></label>
+        <input type="search" class="occ-search" placeholder="Search ${occCount} occupations — e.g. teacher, welder, 7126" aria-label="Filter occupations">
+        <select data-k="iscoCode">${occOptions(s.iscoCode)}</select></div>
       <div class="field"><label>Skill title <span class="req">*</span></label><input type="text" data-k="title" value="${NSP.esc(s.title || '')}"></div>
       <div class="field"><label>Sector</label><select data-k="sector">${sources.sectors().map(([v, t]) => `<option value="${v}" ${s.sector === v ? 'selected' : ''}>${NSP.esc(t)}</option>`).join('')}</select></div>
     </div>
     <div class="row">
       <div class="field"><label>Level</label><select data-k="nvqfLevel"><option value="">Not assessed</option>${sources.nvqf().map(([v, t]) => `<option value="${v}" ${String(s.nvqfLevel) === String(v) ? 'selected' : ''}>${NSP.esc(t)}</option>`).join('')}</select></div>
       <div class="field"><label>Evidence <span class="req">*</span></label><select data-k="evidenceType">${sources.evidenceTypes().map(([v, t]) => `<option value="${v}" ${s.evidenceType === v ? 'selected' : ''}>${NSP.esc(t)}</option>`).join('')}</select></div>
-      <div class="field"><label>Certifying / assessing body</label><input type="text" data-k="certifyingBody" value="${NSP.esc(s.certifyingBody || '')}" placeholder="e.g. NAVTTC, TEVTA, City & Guilds"></div>
+      <div class="field"><label>Certifying / assessing body <span class="req body-req"${BODY_REQUIRED.includes(s.evidenceType) ? '' : ' hidden'}>*</span></label><input type="text" data-k="certifyingBody" value="${NSP.esc(s.certifyingBody || '')}" placeholder="e.g. NAVTTC, TEVTA, City & Guilds"></div>
     </div>
     <div class="row">
       <div class="field"><label>Certificate number</label><input type="text" data-k="certificateNumber" value="${NSP.esc(s.certificateNumber || '')}"></div>
@@ -164,6 +219,14 @@
     });
     if (n === 1 && !state.photo) { ok = false; showError('A passport-style photograph is required.'); }
     if (n === 4 && !state.skills.some(s => s.iscoCode)) { ok = false; showError('Add at least one skill with an ISCO-08 occupation.'); }
+    if (n === 4 && ok) {
+      // The server refuses these, so say so here rather than after the last
+      // panel, where the applicant has to work out which skill it meant.
+      const i = state.skills.findIndex(s => BODY_REQUIRED.includes(s.evidenceType) && !(s.certifyingBody || '').trim());
+      if (i >= 0) { ok = false; showError(`Skill ${i + 1}: name the body that issued the ${state.skills[i].evidenceType.toLowerCase()} (e.g. NAVTTC, TEVTA).`); }
+      const j = state.skills.findIndex(s => !s.iscoCode);
+      if (ok && j >= 0) { ok = false; showError(`Skill ${j + 1}: choose an ISCO-08 occupation, or remove the row.`); }
+    }
     if (!ok && formError.hidden) showError('Please complete the highlighted fields.');
     return ok;
   }
@@ -203,6 +266,10 @@
     otpMsg.hidden = false; otpMsg.textContent = msg;
     otpMsg.className = 'hint' + (cls ? ' ' + cls : '');
   }
+  function otpSayHtml(html, cls) {
+    otpMsg.hidden = false; otpMsg.innerHTML = html;
+    otpMsg.className = 'hint' + (cls ? ' ' + cls : '');
+  }
 
   document.getElementById('otpSend').addEventListener('click', async () => {
     const phone = (form.elements['contact.phone'].value || '').replace(/[\s()-]/g, '');
@@ -210,12 +277,22 @@
     const btn = document.getElementById('otpSend');
     btn.disabled = true; btn.textContent = 'Sending…';
     try {
-      const r = await NSP.call('/otp/request', { method: 'POST', body: { phone } });
+      // The email goes with the request so the server can fall back to it when
+      // no SMS carrier is reachable, rather than leaving the applicant waiting
+      // for a message that is never going to arrive.
+      const email = (document.querySelector('[name="contact.email"]') || {}).value || '';
+      const r = await NSP.call('/otp/request', { method: 'POST', body: { phone, email } });
       gate.challengeId = r.challengeId; gate.phone = phone; gate.token = null;
       otpCodeField.hidden = false; otpVerifyField.hidden = false;
-      otpSay(r.devCode
-        ? `Development mode — your code is ${r.devCode}`
-        : `Code sent to ${phone}. It expires in ${Math.round(r.expiresIn / 60)} minutes.`);
+      if (r.devCode) {
+        otpSayHtml(`Development mode — your code is <b style="font-size:1.25em;letter-spacing:.12em">${NSP.esc(r.devCode)}</b>`, 'ok');
+        document.getElementById('otpCode').value = r.devCode;
+      } else if (r.channel === 'email') {
+        otpSayHtml(`SMS is unavailable, so we emailed the code to <b>${NSP.esc(r.sentTo)}</b>. Check your inbox and spam folder. ` +
+          `A registrar will confirm your mobile number in person when you bring your CNIC.`, 'ok');
+      } else {
+        otpSay(`Code sent by SMS to ${r.sentTo || phone}. It expires in ${Math.round((r.expiresIn || 600) / 60)} minutes.`, 'ok');
+      }
       btn.textContent = 'Resend code';
     } catch (err) { otpSay(err.message, 'bad'); btn.textContent = 'Send code'; }
     finally { btn.disabled = false; }

@@ -6,6 +6,7 @@ const { normaliseNspId } = require('../lib/nspId');
 const { Gate, GateError } = require('../lib/gate');
 const { Otp, OtpError } = require('../lib/otp');
 const { SmsGateway, SmsError } = require('../lib/sms');
+const { SmtpMailer, EmailError } = require('../lib/email');
 
 function timingSafeEqual(a, b) {
   const ab = Buffer.from(String(a)); const bb = Buffer.from(String(b));
@@ -45,7 +46,11 @@ function buildApi(registry, config) {
     enabled: config.gateEnabled, secret: config.gateSecret
   });
   const sms = new SmsGateway(config.sms, store);
-  const otp = new Otp(store, { ...config.otp, secret: config.gateSecret, sms });
+  const mailer = new SmtpMailer(config.email);
+  const otp = new Otp(store, {
+    ...config.otp, secret: config.gateSecret, sms, mailer,
+    emailFallback: config.email.fallback
+  });
   const clientIp = req => (req.ip || req.socket.remoteAddress || '').replace(/^::ffff:/, '') || null;
 
   /** The fields an officer actually compares when judging a possible duplicate. */
@@ -89,15 +94,20 @@ function buildApi(registry, config) {
 
   // ── gate: mobile OTP ─────────────────────────────────────────────
   router.post('/otp/request', rateLimit, wrapAsync(async (req, res) => {
-    const out = await otp.request(String((req.body || {}).phone || '').replace(/[\s()-]/g, ''), { ip: clientIp(req) });
-    store.audit('applicant', 'OTP_REQUEST', null, { challengeId: out.challengeId, ip: clientIp(req) });
+    const body = req.body || {};
+    const out = await otp.request(String(body.phone || '').replace(/[\s()-]/g, ''), {
+      ip: clientIp(req),
+      // Only consulted if the SMS carrier cannot take the message.
+      email: String(body.email || '').trim()
+    });
+    store.audit('applicant', 'OTP_REQUEST', null, { challengeId: out.challengeId, channel: out.channel, ip: clientIp(req) });
     res.status(201).json(out);
   }));
 
   router.post('/otp/verify', rateLimit, wrap((req, res) => {
     const { challengeId, code } = req.body || {};
     const out = otp.verify(String(challengeId || ''), String(code || ''));
-    store.audit('applicant', 'OTP_VERIFIED', null, { phone: out.phone, ip: clientIp(req) });
+    store.audit('applicant', 'OTP_VERIFIED', null, { phone: out.phone, channel: out.channel, ip: clientIp(req) });
     res.json(out);
   }));
 
@@ -105,6 +115,7 @@ function buildApi(registry, config) {
     const body = req.body || {};
     const ip = clientIp(req);
     let phoneVerified = false;
+    let emailVerified = false;
     let tokenSignature = null;
 
     if (config.gateEnabled) {
@@ -121,7 +132,10 @@ function buildApi(registry, config) {
       if (opened.phone !== submitted) {
         throw new OtpError('the mobile number on the form does not match the number you verified', 400);
       }
-      phoneVerified = true;
+      // A code delivered to an inbox proves the applicant reads that inbox. It
+      // does not prove they hold this SIM, so phoneVerified stays false and the
+      // record surfaces in the desk's "no verified mobile" queue.
+      if (opened.channel === 'email') emailVerified = true; else phoneVerified = true;
       tokenSignature = opened.signature;
 
       gate.checkVelocity({
@@ -130,7 +144,7 @@ function buildApi(registry, config) {
       });
     }
 
-    const reg = registry.register(body, 'applicant', { ip, phoneVerified });
+    const reg = registry.register(body, 'applicant', { ip, phoneVerified, emailVerified });
     if (tokenSignature) otp.consumeToken(tokenSignature);
     store.pruneGate();
     res.status(201).json({
@@ -175,6 +189,7 @@ function buildApi(registry, config) {
   router.get('/dashboard', wrap((req, res) => {
     const d = store.dashboard({ actor: req.actor, days: Math.min(Math.max(Number(req.query.days) || 30, 7), 180) });
     d.sms.provider = sms.name; d.sms.live = sms.live; d.sms.devEcho = !!config.otp.devEcho;
+    d.sms.emailFallback = config.email.fallback && mailer.configured ? mailer.name : null;
     res.json(d);
   }));
   router.get('/registrations', wrap((req, res) => res.json(
@@ -202,6 +217,7 @@ function buildApi(registry, config) {
   router.get('/sms/status', wrap((req, res) => res.json({
     provider: sms.name,
     live: sms.live,
+    emailFallback: config.email.fallback && mailer.configured ? mailer.name : null,
     numberFormat: sms.numberFormat,
     devEcho: !!config.otp.devEcho,
     ...store.smsHealth({ limit: Number(req.query.limit) || 20 })
@@ -240,7 +256,7 @@ function buildApi(registry, config) {
   router.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     if (err instanceof RegistryError) return res.status(err.status).json({ error: err.message, details: err.details || null });
     if (err instanceof GateError || err instanceof OtpError) return res.status(err.status || 400).json({ error: err.message });
-    if (err instanceof SmsError) return res.status(err.status || 502).json({ error: err.message });
+    if (err instanceof SmsError || err instanceof EmailError) return res.status(err.status || 502).json({ error: err.message });
     if (err.type === 'entity.too.large') return res.status(413).json({ error: 'payload too large' });
     if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'invalid JSON' });
     console.error(err);

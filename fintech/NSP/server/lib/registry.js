@@ -82,6 +82,7 @@ class Registry {
       fatherKey: applicant.fatherKey,
       assuranceTier: 'NSP-1',
       phoneVerified: !!context.phoneVerified,
+      emailVerified: !!context.emailVerified,
       dedupFlags: flags,
       registeredIp: context.ip
     });
@@ -90,7 +91,7 @@ class Registry {
     });
     this.store.audit(actor, 'REGISTER', nspId, {
       type: value.type, channel: value.channel,
-      phoneVerified: !!context.phoneVerified, ip: context.ip || null,
+      phoneVerified: !!context.phoneVerified, emailVerified: !!context.emailVerified, ip: context.ip || null,
       duplicateFlags: flags.length || undefined
     });
     if (flags.length) this.store.audit('system', 'DEDUP_FLAG', nspId, { candidates: flags });

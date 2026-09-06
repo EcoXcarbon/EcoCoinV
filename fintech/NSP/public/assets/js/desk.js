@@ -28,6 +28,10 @@
     return h < 48 ? `${h} h` : `${(h / 24).toFixed(1)} days`;
   }
   const tierPill = t => `<span class="tier sm tier-${String(t || 'NSP-1').slice(-1)}">${esc(t || 'NSP-1')}</span>`;
+  /** How the applicant's contact details were proved — the two are not equal. */
+  const contactMark = i => (i.phoneVerified ? ''
+    : i.emailVerified ? ' <span class="novrf" title="A code was emailed because SMS was unavailable; the mobile number is unproven">email only</span>'
+    : ' <span class="novrf">no mobile</span>');
 
   /**
    * Bar chart as inline SVG — one or two series over the same dates. Small
@@ -117,7 +121,7 @@
     { key: 'secondOfficer', label: 'Needs another officer', tone: 'warn', help: 'You verified these records yourself, so under the four-eyes control a different registry officer must issue them.' },
     { key: 'flagged', label: 'Possible duplicates', tone: 'warn', help: 'These resemble an existing person on name, date of birth and father’s name. Judge each one: genuine namesakes sharing a birthday do exist, so a flag is a question, not a verdict.' },
     { key: 'expiringSoon', label: 'Expiring in 90 days', tone: 'warn', help: 'Issued passports approaching their expiry date. Re-issue before they lapse.' },
-    { key: 'unverifiedPhone', label: 'No verified mobile', tone: 'stop', help: 'Registered without passing the mobile check — either before the gate existed, or entered at the desk on the applicant’s behalf. Treat the contact number as unproven.' }
+    { key: 'unverifiedPhone', label: 'No verified mobile', tone: 'stop', help: 'The mobile number was never proved. Usually because SMS was unavailable and the code went to the applicant’s email instead, which shows they read that inbox and nothing about who holds the SIM. Confirm the number in person before issuing.' }
   ];
 
   async function loadDashboard(quiet) {
@@ -176,8 +180,10 @@
     const s = dash.sms;
     if (!s.provider || s.provider === 'log') {
       a.push(['err', '📵', 'No SMS gateway is connected',
-        'Verification codes are only written to the server journal, so nobody outside this server can complete a registration on their own.' +
-        (dash.gate && s.devEcho ? ' The code is currently returned in the API response to keep the form usable, which means <b>the mobile check is not yet a real control</b>.' : '')]);
+        (s.emailFallback
+          ? `Verification codes are going out by email (${esc(s.emailFallback)}) instead. Applicants can register, but an emailed code proves only that they read that inbox — <b>the mobile number is not being verified</b>, and those records are queued under “No verified mobile” for a registrar to confirm in person.`
+          : 'Verification codes are only written to the server journal, so nobody outside this server can complete a registration on their own.') +
+        (s.devEcho ? ' The code is also returned in the API response, which means <b>the check is not a real control at all</b>.' : '')]);
     } else if (s.successRate !== null && s.successRate < 0.9) {
       a.push(['err', '📵', `SMS delivery is failing (${Math.round(s.successRate * 100)}% success)`,
         `${s.failed} of ${s.sent + s.failed} messages failed in the last ${s.windowHours} hours. Applicants cannot register while this is broken — see the Gate &amp; SMS tab.`]);
@@ -242,7 +248,7 @@
     $('#queueList tbody').innerHTML = r.items.map(i => `<tr>
       <td class="mono small">${i.nspId}</td>
       <td><b>${esc(i.familyName)}</b>, ${esc(i.givenNames)}${i.flags ? ` <span class="flagmark">${i.flags} possible duplicate${i.flags > 1 ? 's' : ''}</span>` : ''}</td>
-      <td>${tierPill(i.assuranceTier)}${i.phoneVerified ? '' : ' <span class="novrf">no mobile</span>'}</td>
+      <td>${tierPill(i.assuranceTier)}${contactMark(i)}</td>
       <td class="small">${esc(i.district || '—')}</td>
       <td><span class="pill ${i.status}">${i.status.replace('_', ' ')}</span></td>
       <td class="small">${currentQueue === 'expiringSoon' ? 'expires ' + NSP.fmtDate(i.expiresAt) : since(waitFrom(i))}</td>
@@ -277,7 +283,7 @@
       <td class="small">${i.type}</td>
       <td class="small">${esc(i.primarySkill || '')} <span class="muted">${i.primaryIsco || ''}</span></td>
       <td class="small">${esc(i.district || '—')}</td>
-      <td>${tierPill(i.assuranceTier)}${i.phoneVerified ? '' : ' <span class="novrf">no mobile</span>'}</td>
+      <td>${tierPill(i.assuranceTier)}${contactMark(i)}</td>
       <td><span class="pill ${i.status}">${i.status.replace('_', ' ')}</span></td>
       <td class="small">${NSP.fmtDate(i.submittedAt || i.createdAt)}</td>
       <td><button class="btn btn-sm btn-secondary" data-open="${i.nspId}">Open</button></td></tr>`).join('')
@@ -338,7 +344,10 @@
         <span class="ico">${live ? '📶' : '📵'}</span>
         <span><b>${live ? `Connected via ${esc(s.provider)}` : 'No carrier connected — provider is “log”'}</b>
         ${live ? 'Codes are being sent by SMS.'
-               : 'Codes are written to the server journal only. ' + (s.devEcho ? 'They are also returned in the API response so the public form still works, which means the mobile check is <b>not yet a real control</b>.' : 'Nobody outside this server can complete a registration.')}</span></div>
+               : (s.emailFallback
+                  ? `Codes are falling back to email via <b>${esc(s.emailFallback)}</b>, so registration still works — but an emailed code does not prove the applicant holds the SIM, and those records are flagged for the desk.`
+                  : 'Codes are written to the server journal only. Nobody outside this server can complete a registration.')
+                 + (s.devEcho ? ' The code is also returned in the API response, which means the check is <b>not a real control at all</b>.' : '')}</span></div>
       <dl class="kv">
         <dt>Number format</dt><dd class="mono">${esc(s.numberFormat)}</dd>
         <dt>Last ${s.windowHours} hours</dt><dd>${s.sent} sent · ${s.failed} failed${s.successRate !== null ? ` · ${Math.round(s.successRate * 100)}% success` : ''}</dd>
@@ -428,7 +437,10 @@
 
       ${!r.assurance.phoneVerified ? `<div class="alert warn"><span class="ico">📵</span><span>
         <b>Mobile number not verified</b>
-        This record did not pass the mobile check, so the contact number is unproven. Confirm it in person before issuing.</span></div>` : ''}
+        ${r.assurance.emailVerified
+          ? 'The code went to this applicant&rsquo;s email because SMS was unavailable. That proves they read the inbox, not that they hold this SIM.'
+          : 'This record did not pass the mobile check at all.'}
+        Confirm the number in person before issuing.</span></div>` : ''}
 
       <div class="actions-bar" id="actions">${(ACTIONS[r.status] || []).map(a => {
         const stop = blockedByFourEyes && ISSUING.includes(a);
@@ -446,7 +458,7 @@
         ${r.identity.passportNumber ? `<dt>Passport</dt><dd><span class="mono">${esc(r.identity.passportNumber)}</span> · exp ${NSP.fmtDate(r.identity.passportExpiry)}</dd>` : ''}
         ${r.identity.fatherOrGuardianName ? `<dt>Father / guardian</dt><dd>${esc(r.identity.fatherOrGuardianName)}</dd>` : ''}</dl></fieldset>
       <fieldset><legend>Contact</legend><dl class="kv">
-        <dt>Email / phone</dt><dd>${esc(r.contact.email)} · ${esc(r.contact.phone)} ${r.assurance.phoneVerified ? '<span class="pill ACTIVE">verified</span>' : '<span class="novrf">unverified</span>'}${r.contact.altPhone ? ' / ' + esc(r.contact.altPhone) : ''}</dd>
+        <dt>Email / phone</dt><dd>${esc(r.contact.email)} ${r.assurance.emailVerified ? '<span class="pill ACTIVE">verified</span>' : ''} · ${esc(r.contact.phone)} ${r.assurance.phoneVerified ? '<span class="pill ACTIVE">verified</span>' : '<span class="novrf">unverified</span>'}${r.contact.altPhone ? ' / ' + esc(r.contact.altPhone) : ''}</dd>
         <dt>Address</dt><dd>${[r.contact.address.line1, r.contact.address.line2, r.contact.address.city, r.contact.address.region, r.contact.address.postalCode, country(r.contact.address.country)].filter(Boolean).map(esc).join(', ')}</dd>
         ${r.contact.emergencyContact.name ? `<dt>Emergency</dt><dd>${esc(r.contact.emergencyContact.name)} (${esc(r.contact.emergencyContact.relationship)}) ${esc(r.contact.emergencyContact.phone)}</dd>` : ''}</dl></fieldset>
       <fieldset><legend>Education</legend><dl class="kv">

@@ -121,6 +121,23 @@ const config = {
     // webhook driver
     webhookUrl: process.env.NSP_SMS_WEBHOOK_URL || '',
     webhookAuth: process.env.NSP_SMS_WEBHOOK_AUTH || ''
+  },
+
+  // ── email ────────────────────────────────────────────────────────
+  // Used only as a fallback for the verification code, when no SMS carrier is
+  // connected or the carrier refuses. Never offered to the applicant as a
+  // choice: reading a code out of an inbox says nothing about who holds the
+  // SIM, and a record verified this way is marked as such.
+  email: {
+    fallback: process.env.NSP_OTP_EMAIL_FALLBACK === '1',
+    host: process.env.NSP_SMTP_HOST || '',
+    port: num(process.env.NSP_SMTP_PORT, 465),
+    secure: process.env.NSP_SMTP_SECURE !== '0',
+    user: process.env.NSP_SMTP_USER || '',
+    pass: process.env.NSP_SMTP_PASS || '',
+    from: process.env.NSP_SMTP_FROM || '',
+    helo: process.env.NSP_SMTP_HELO || 'nsp.ppmc.pk',
+    timeoutMs: num(process.env.NSP_SMTP_TIMEOUT_MS, 20_000)
   }
 };
 

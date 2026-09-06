@@ -153,3 +153,88 @@ test('OTP requires E.164 format', async () => {
   await assert.rejects(() => otp.request('03001234567'), /E.164/);
   store.close();
 });
+
+// ── email fallback for the verification code ─────────────────────────
+// No SMS account exists yet, so a code that only ever reaches the service
+// journal strands every applicant. Email carries it instead — but proves
+// something weaker, and the code says so.
+function fakeMailer(sink, { fail = false } = {}) {
+  return { configured: true, name: 'smtp:test', async send(m) { if (fail) throw new Error('smtp down'); sink.push(m); return { messageId: '<x@test>' }; } };
+}
+const deadSms = { live: false, async send() { throw new Error('no carrier'); } };
+const liveSms = sink => ({ live: true, async send(phone, code) { sink.push({ phone, code }); } });
+
+test('with no carrier connected the code goes by email, and says so', async () => {
+  const store = new Store(':memory:');
+  const mail = [];
+  const otp = new Otp(store, { secret: 's', sms: deadSms, mailer: fakeMailer(mail), emailFallback: true, devEcho: true });
+
+  const req = await otp.request('+923001234567', { email: 'ali@example.com' });
+  assert.strictEqual(req.channel, 'email');
+  assert.strictEqual(req.sentTo, 'a*i@example.com', 'the address is masked back to the caller');
+  assert.strictEqual(mail.length, 1);
+  assert.match(mail[0].subject, new RegExp(req.devCode));
+  assert.match(mail[0].text, /expires in 10 minutes/);
+  store.close();
+});
+
+test('a live carrier is used and email is never touched', async () => {
+  const store = new Store(':memory:');
+  const sent = [], mail = [];
+  const otp = new Otp(store, { secret: 's', sms: liveSms(sent), mailer: fakeMailer(mail), emailFallback: true });
+
+  const req = await otp.request('+923001234567', { email: 'ali@example.com' });
+  assert.strictEqual(req.channel, 'sms');
+  assert.strictEqual(sent.length, 1);
+  assert.strictEqual(mail.length, 0, 'the weaker channel must not be used when the stronger one works');
+  store.close();
+});
+
+test('the token records which channel carried the code', async () => {
+  const store = new Store(':memory:');
+  const otp = new Otp(store, { secret: 's', sms: deadSms, mailer: fakeMailer([]), emailFallback: true, devEcho: true });
+  const req = await otp.request('+923001234567', { email: 'ali@example.com' });
+  const v = otp.verify(req.challengeId, req.devCode);
+
+  assert.strictEqual(v.channel, 'email');
+  assert.strictEqual(otp.openToken(v.registrationToken).channel, 'email');
+  assert.strictEqual(otp.openToken(v.registrationToken).phone, '+923001234567',
+    'the phone is still bound, so it must still match the form');
+  store.close();
+});
+
+test('an email-channel token cannot be passed off as an SMS one', async () => {
+  const store = new Store(':memory:');
+  const otp = new Otp(store, { secret: 's', sms: deadSms, mailer: fakeMailer([]), emailFallback: true, devEcho: true });
+  const req = await otp.request('+923001234567', { email: 'ali@example.com' });
+  const { registrationToken } = otp.verify(req.challengeId, req.devCode);
+
+  // Rewrite the channel in the payload and keep the original signature.
+  const [payload, sig] = registrationToken.split('.');
+  const forged = Buffer.from(Buffer.from(payload, 'base64url').toString('utf8').replace('email.', 'sms...')).toString('base64url') + '.' + sig;
+  assert.throws(() => otp.openToken(forged), /invalid/);
+  store.close();
+});
+
+test('when the fallback is off, a dead carrier fails cleanly and frees the applicant to retry', async () => {
+  const store = new Store(':memory:');
+  const otp = new Otp(store, { secret: 's', sms: deadSms, mailer: fakeMailer([]), emailFallback: false, resendCooldownMs: 60_000 });
+  await assert.rejects(() => otp.request('+923001234567', { email: 'ali@example.com' }), /could not send/i);
+  assert.strictEqual(store.countOtpRequests('+923001234567', 3600_000), 0);
+  store.close();
+});
+
+test('a broken mail server is not reported as a delivered code', async () => {
+  const store = new Store(':memory:');
+  const otp = new Otp(store, { secret: 's', sms: deadSms, mailer: fakeMailer([], { fail: true }), emailFallback: true });
+  await assert.rejects(() => otp.request('+923001234567', { email: 'ali@example.com' }), /could not send/i);
+  assert.strictEqual(store.countOtpRequests('+923001234567', 3600_000), 0);
+  store.close();
+});
+
+test('without an address there is nothing to fall back to', async () => {
+  const store = new Store(':memory:');
+  const otp = new Otp(store, { secret: 's', sms: deadSms, mailer: fakeMailer([]), emailFallback: true });
+  await assert.rejects(() => otp.request('+923001234567', { email: 'not-an-address' }), /could not send/i);
+  store.close();
+});
