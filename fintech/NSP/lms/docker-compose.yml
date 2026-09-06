@@ -1,0 +1,80 @@
+# NSP Learning — the TalentLedger LMS running as a separate tool inside NSP.
+#
+# It keeps TalentLedger's own stack (MongoDB, Express, React) rather than being
+# rewritten onto the registry's SQLite core: the point of copying it was to
+# carry the code and the format across unchanged, and a rewrite would be
+# neither. It therefore runs as its own service with its own database and its
+# own containers, and shares nothing with the registry except the hostname.
+#
+# Public surface: https://nsp.ppmc.pk/lms/  (see deploy/nsp.ppmc.pk.conf)
+# Ports are bound to localhost only; the registry's nginx reverse-proxies them.
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: nsp_lms
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-nsp_lms}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/27017' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./server/.env
+    environment:
+      NODE_ENV: production
+      PORT: 5010
+      # Its own database. Nothing is shared with the TalentLedger instance.
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-nsp_lms}:${MONGO_ROOT_PASSWORD}@mongo:27017/nsp_lms?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      CLIENT_URL: ${CLIENT_URL:-https://nsp.ppmc.pk/lms}
+    expose:
+      - "5010"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - server_uploads:/app/uploads
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /lms/api
+    restart: unless-stopped
+    ports:
+      # Localhost only — the registry's nginx proxies /lms/ here.
+      - "127.0.0.1:3010:80"
+    depends_on:
+      - server
+
+volumes:
+  mongo_data:
+  redis_data:
+  server_uploads:

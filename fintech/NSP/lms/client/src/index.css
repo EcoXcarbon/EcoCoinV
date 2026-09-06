@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── ILO brand ── */
+  --color-ilo-dark: #002D72;
+  --color-ilo-blue: #0072BC;
+  --color-ilo-light: #4DA3E0;
+  --color-gold: #A07422;
+  --color-gold-light: #C8952E;
+  --color-gold-accent: #E8B84B;
+  --color-navy: #0A1628;
+  --color-navy-mid: #111D32;
+  --color-navy-light: #162240;
+  --color-surface: #F1F5F9;
+  --color-surface-2: #E8EDF3;
+  --color-border: #E2E8F0;
+}
+
+/* ── Design tokens (elevation, radius, motion) — used by the component
+   classes below and available to any component via var(). ── */
+:root {
+  --tl-radius: 14px;
+  --tl-radius-sm: 10px;
+  --tl-radius-lg: 20px;
+  --tl-shadow-sm: 0 1px 2px rgba(2, 20, 43, .06), 0 1px 3px rgba(2, 20, 43, .05);
+  --tl-shadow: 0 2px 6px rgba(2, 20, 43, .06), 0 8px 24px -12px rgba(2, 20, 43, .12);
+  --tl-shadow-lg: 0 12px 40px -12px rgba(2, 20, 43, .22);
+  --tl-ring: 0 0 0 3px rgba(0, 114, 188, .28);
+  --tl-ease: cubic-bezier(.22, .61, .36, 1);
+  --tl-card-bg: #ffffff;
+  --tl-card-border: var(--color-border);
+  --tl-page-bg: var(--color-surface);
+  --tl-text: #1e293b;
+  --tl-muted: #64748b;
+}
+.dark {
+  --tl-card-bg: #111D32;
+  --tl-card-border: #1e2f4d;
+  --tl-page-bg: #0A1628;
+  --tl-text: #e2e8f0;
+  --tl-muted: #94a3b8;
+  --tl-shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --tl-shadow: 0 2px 8px rgba(0, 0, 0, .35), 0 12px 32px -14px rgba(0, 0, 0, .6);
+  --tl-shadow-lg: 0 16px 48px -12px rgba(0, 0, 0, .7);
+}
+
+* { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background-color: var(--tl-page-bg);
+  color: var(--tl-text);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Dark mode base */
+.dark { color-scheme: dark; }
+.dark body, .dark { background-color: #0A1628; color: #E2E8F0; }
+
+/* Headings feel a touch tighter and more confident */
+h1, h2, h3, h4 { letter-spacing: -0.01em; }
+
+/* ── Reusable component classes (opt-in; existing markup is untouched) ── */
+.tl-card {
+  background: var(--tl-card-bg);
+  border: 1px solid var(--tl-card-border);
+  border-radius: var(--tl-radius);
+  box-shadow: var(--tl-shadow-sm);
+}
+.tl-card-hover { transition: box-shadow .25s var(--tl-ease), transform .25s var(--tl-ease), border-color .25s var(--tl-ease); }
+.tl-card-hover:hover { box-shadow: var(--tl-shadow); transform: translateY(-2px); border-color: rgba(0, 114, 188, .35); }
+
+.tl-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  font-weight: 600; font-size: .875rem; line-height: 1; padding: .625rem 1rem;
+  border-radius: var(--tl-radius-sm); border: 1px solid transparent; cursor: pointer;
+  transition: background .18s var(--tl-ease), box-shadow .18s var(--tl-ease), transform .05s ease, opacity .18s;
+  white-space: nowrap;
+}
+.tl-btn:active { transform: translateY(1px); }
+.tl-btn:disabled { opacity: .55; cursor: not-allowed; }
+.tl-btn-primary { background: var(--color-ilo-blue); color: #fff; box-shadow: 0 1px 2px rgba(0,45,114,.25); }
+.tl-btn-primary:hover:not(:disabled) { background: var(--color-ilo-dark); }
+.tl-btn-gold { background: var(--color-gold-light); color: #201400; }
+.tl-btn-gold:hover:not(:disabled) { background: var(--color-gold); color: #fff; }
+.tl-btn-ghost { background: transparent; border-color: var(--tl-card-border); color: var(--tl-text); }
+.tl-btn-ghost:hover:not(:disabled) { background: rgba(0, 114, 188, .07); border-color: rgba(0,114,188,.4); }
+
+.tl-input {
+  width: 100%; padding: .55rem .8rem; font-size: .875rem; color: var(--tl-text);
+  background: var(--tl-card-bg); border: 1px solid var(--tl-card-border); border-radius: var(--tl-radius-sm);
+  transition: border-color .18s, box-shadow .18s;
+}
+.tl-input:focus { outline: none; border-color: var(--color-ilo-blue); box-shadow: var(--tl-ring); }
+
+.tl-badge {
+  display: inline-flex; align-items: center; gap: .3rem; font-size: .7rem; font-weight: 700;
+  padding: .2rem .55rem; border-radius: 999px; letter-spacing: .02em;
+}
+
+/* Horizontally-scrollable tab bar for mobile — prevents the overflow the
+   fixed flex tab rows had on narrow screens. Opt-in via class="tl-tabs". */
+.tl-tabs {
+  display: flex; gap: .25rem; overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
+}
+.tl-tabs::-webkit-scrollbar { display: none; }
+.tl-tabs > * { flex: 0 0 auto; scroll-snap-align: start; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; background-clip: padding-box; }
+.dark ::-webkit-scrollbar-thumb { background: #33415580; background-clip: padding-box; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; background-clip: padding-box; }
+
+/* Skip link */
+.skip-link { position: absolute; top: -100%; left: 16px; padding: 12px 24px; background: var(--color-ilo-blue); color: white; font-weight: 700; border-radius: 0 0 8px 8px; z-index: 10000; transition: .2s; }
+.skip-link:focus { top: 0; }
+
+/* Focus */
+:focus-visible { outline: 3px solid var(--color-ilo-blue); outline-offset: 2px; border-radius: 4px; }
+
+/* RTL */
+[dir="rtl"] { font-family: 'Noto Sans Arabic', 'Segoe UI', Tahoma, sans-serif; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Print */
+@media print {
+  .sidebar, .topbar, .mobile-nav { display: none !important; }
+  .main-content { margin: 0 !important; padding: 0 !important; }
+}
+
+/* Rendered handout / exercise content (from uploaded docx → HTML) */
+.tl-rich { font-size: 0.92rem; line-height: 1.65; color: inherit; font-variant-numeric: tabular-nums; }
+.tl-rich > *:first-child { margin-top: 0; }
+.tl-rich h1, .tl-rich h2, .tl-rich h3 { font-weight: 700; margin: 1em 0 0.4em; line-height: 1.3; color: var(--color-ilo-dark); }
+.dark .tl-rich h1, .dark .tl-rich h2, .dark .tl-rich h3 { color: #7fb2e6; }
+.tl-rich h1 { font-size: 1.3rem; } .tl-rich h2 { font-size: 1.12rem; } .tl-rich h3 { font-size: 1rem; }
+.tl-rich p { margin: 0.55em 0; }
+/* A lone bold paragraph (docx headings come through as <p><strong>) reads as a heading */
+.tl-rich p > strong:only-child { display: inline-block; font-size: 1.02rem; color: var(--color-ilo-dark); }
+.dark .tl-rich p > strong:only-child { color: #7fb2e6; }
+.tl-rich ul, .tl-rich ol { margin: 0.55em 0; padding-left: 1.4em; }
+.tl-rich ul { list-style: disc; } .tl-rich ol { list-style: decimal; }
+.tl-rich li { margin: 0.25em 0; }
+.tl-rich strong { font-weight: 700; }
+.tl-rich a { color: var(--color-ilo-blue); text-decoration: underline; }
+/* Information entries (schedules / tables) — structured, readable, with a header row */
+.tl-rich table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 1em 0; font-size: 0.86rem;
+  border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
+.dark .tl-rich table { border-color: var(--color-navy-light); }
+.tl-rich th, .tl-rich td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.dark .tl-rich th, .dark .tl-rich td { border-color: var(--color-navy-light); }
+.tl-rich tr:last-child td { border-bottom: 0; }
+.tl-rich th { background: rgba(0,114,188,0.10); font-weight: 700; color: var(--color-ilo-dark); }
+/* docx tables have no <th>; treat the first row as the header */
+.tl-rich table tr:first-child td { background: rgba(0,114,188,0.10); font-weight: 700; color: var(--color-ilo-dark); }
+.tl-rich table tr:nth-child(even):not(:first-child) td { background: rgba(0,45,114,0.03); }
+.dark .tl-rich th, .dark .tl-rich table tr:first-child td { background: rgba(0,114,188,0.18); color: #a9cdf0; }
+.dark .tl-rich table tr:nth-child(even):not(:first-child) td { background: rgba(255,255,255,0.03); }
+.tl-rich img { max-width: 100%; height: auto; border-radius: 8px; }

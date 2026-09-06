@@ -1,0 +1,50 @@
+{
+  "name": "talentledger-server",
+  "version": "1.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "seed": "node src/seed.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.77.0",
+    "@google/generative-ai": "^0.24.1",
+    "adm-zip": "^0.5.16",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "did-jwt": "^8.0.18",
+    "did-jwt-vc": "^4.0.16",
+    "dotenv": "^16.4.7",
+    "ethr-did-resolver": "^11.0.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
+    "express-validator": "^7.3.1",
+    "fast-xml-parser": "^5.3.7",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.12.0",
+    "mongoose": "^8.9.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^8.0.1",
+    "otplib": "^12.0.1",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "pdf-parse": "^2.4.5",
+    "pdfkit": "^0.16.0",
+    "qrcode": "^1.5.4",
+    "serverless-http": "^4.0.0",
+    "talentledger-server": "file:",
+    "uuid": "^11.0.3",
+    "validator": "^13.12.0"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.1.0",
+    "supertest": "^7.2.2",
+    "vitest": "^4.0.18"
+  }
+}

@@ -1,0 +1,594 @@
+{
+  "quizzes": [],
+  "scenarios": [],
+  "errors": [
+    {
+      "prog": "City & Guilds Level 3 Diploma in AC Technician",
+      "mod": "Practical: Inverter AC Technology & Effi",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in AC Technician",
+      "mod": "Practical: Electrical Controls for AC Sy",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Cook / Chef (Indu",
+      "mod": "Practical: Gulf Cultural Dietary Require",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Cook / Chef (Indu",
+      "mod": "Practical: Basic Cooking Methods \u2014 Gulf ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 3 in Safety Offi",
+      "mod": "Practical: HSE Auditing \u2014 Gulf Contracto",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 2 in Safety Offi",
+      "mod": "Practical: Construction Site Safety Mana",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Aluminium Fabrica",
+      "mod": "Practical: Facade Performance Testing \u2014 ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Aluminium Fabrica",
+      "mod": "Practical: Curtain Wall Assembly \u2014 BS EN",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 3 in Heavy Equip",
+      "mod": "Practical: Piling Rig Operation \u2014 CFA & ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 2 in Heavy Equip",
+      "mod": "Practical: Dump Truck/ADT Operation",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Insulation Worker",
+      "mod": "Practical: Fire-Stop & Passive Fire Prot",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Insulation Worker",
+      "mod": "Practical: Duct Insulation & Vapour Barr",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Steel Fabricator",
+      "mod": "Practical: Quality Management \u2014 BS EN 10",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Steel Fabricator",
+      "mod": "Practical: Drilling, Punching & Shearing",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Diesel Mechanic",
+      "mod": "Practical: Emissions Compliance \u2014 Tier 4",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Diesel Mechanic",
+      "mod": "Practical: Cooling & Lubrication Systems",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Auto Mechanic",
+      "mod": "Practical: Hybrid & Electric Vehicle Tec",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Auto Mechanic",
+      "mod": "Practical: Suspension & Steering Systems",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Duct Fabricator",
+      "mod": "Practical: Kitchen Extract & Grease Duct",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Duct Fabricator",
+      "mod": "Practical: Circular Duct Fabrication & S",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Tile Fixer / Maso",
+      "mod": "Practical: Swimming Pool & Wet Area Tili",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Tile Fixer / Maso",
+      "mod": "Practical: Adhesive & Grout Selection \u2014 ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Shuttering Carpen",
+      "mod": "Practical: Slip Forming for Cores & Towe",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Shuttering Carpen",
+      "mod": "Practical: Formwork Striking Times \u2014 BS ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 3 in Heavy Vehic",
+      "mod": "Practical: Fleet Management & Telematics",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 2 in Heavy Vehic",
+      "mod": "Practical: Drivers Hours & Tachograph Re",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 3 in Crane Opera",
+      "mod": "Practical: Critical Lift Execution & Mon",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 2 in Crane Opera",
+      "mod": "Practical: Site Setup & Ground Bearing P",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 3 in Rigger",
+      "mod": "Practical: Engineered Lift Plan Preparat",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 2 in Rigger",
+      "mod": "Practical: Hand Signals & Communication ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Scaffolder",
+      "mod": "Practical: Scaffold Design Calculations ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Scaffolder",
+      "mod": "Practical: Scaffold Inspection \u2014 TG20 Co",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 3 in Pipe Fitter",
+      "mod": "Practical: Piping Isometric Drawing Inte",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "Gulf Competency Certificate Level 2 in Pipe Fitter",
+      "mod": "Practical: Carbon Steel Piping Installat",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in HVACR Technician",
+      "mod": "Practical: BMS Integration for HVAC \u2014 BA",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in HVACR Technician",
+      "mod": "Practical: Ductwork Fabrication & Instal",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Building Painter",
+      "mod": "Practical: Specialist Decorative Finishe",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Building Painter",
+      "mod": "Practical: Brush, Roller & Spray Applica",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Steel Fixer / Reb",
+      "mod": "Practical: Mechanical Splice & Coupler S",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Steel Fixer / Reb",
+      "mod": "Practical: Foundation & Slab Reinforceme",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Diploma in Carpenter",
+      "mod": "Practical: Staircase Design & Installati",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Carpenter",
+      "mod": "Practical: First Fix Carpentry \u2014 Studwor",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Advanced Diploma in Plumbing",
+      "mod": "Rainwater Harvesting & Greywater Recycli",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Plumbing (6219)",
+      "mod": "Install Domestic Hot Water Systems",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "NCCER Welding Level 3 \u2014 Gulf Advanced Competency C",
+      "mod": "All-Position Pipe Welding (5G/6G)",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "NCCER Welding Level 2 \u2014 Gulf Competency Certificat",
+      "mod": "SMAW Flat & Horizontal Position Welding ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Advanced Diploma in Electric",
+      "mod": "Install Fire Alarm & Emergency Lighting ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Electrical Instal",
+      "mod": "Install Wiring Systems \u2014 Trunking, Tray ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 3 Advanced Diploma in Bricklay",
+      "mod": "Structural Repair & Conservation Masonry",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "City & Guilds Level 2 Diploma in Bricklaying (6705",
+      "mod": "Construct Brick & Block Walls to BS EN 1",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in AC Tech",
+      "mod": "Practical: Refrigerant Recovery & Recycl",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in AC Tech",
+      "mod": "Practical: Refrigerant Charging Procedur",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Cook / ",
+      "mod": "Practical: International Cuisine Basics",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Cook / ",
+      "mod": "Practical: Basic Cooking Methods",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Safety ",
+      "mod": "Practical: Emergency Response Planning",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Safety ",
+      "mod": "Practical: Incident Reporting & Investig",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Alumini",
+      "mod": "Practical: Thermal Break Profile Systems",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Alumini",
+      "mod": "Practical: Drilling & Fastening Methods",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Heavy E",
+      "mod": "Practical: GPS Machine Control Awareness",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Heavy E",
+      "mod": "Practical: Basic Excavator Operation",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Insulat",
+      "mod": "Practical: Fire-Rated Insulation Systems",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Insulat",
+      "mod": "Practical: Vessel & Tank Insulation",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Steel F",
+      "mod": "Practical: Surface Treatment & Coatings",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Steel F",
+      "mod": "Practical: Cutting Methods (Manual & Mac",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Diesel ",
+      "mod": "Practical: Hydraulic System Maintenance",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Diesel ",
+      "mod": "Practical: Cooling & Lubrication Systems",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Auto Me",
+      "mod": "Practical: Automotive AC Servicing",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Auto Me",
+      "mod": "Practical: Brake System Basics",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Duct Fa",
+      "mod": "Practical: SMACNA Standards Compliance",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Duct Fa",
+      "mod": "Practical: Bending & Forming Techniques",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Tile Fi",
+      "mod": "Practical: Waterproof Membrane Systems",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Tile Fi",
+      "mod": "Practical: Wall Tile Installation",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Shutter",
+      "mod": "Practical: Shoring Design & Calculations",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Shutter",
+      "mod": "Practical: Beam & Slab Formwork",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Heavy V",
+      "mod": "Practical: Defensive & Eco-Driving",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Heavy V",
+      "mod": "Practical: Load Securing & Weight Distri",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Crane O",
+      "mod": "Practical: Blind Lift Procedures",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Crane O",
+      "mod": "Practical: Basic Load Chart Reading",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Rigger",
+      "mod": "Practical: Engineered Lift Plans",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Rigger",
+      "mod": "Practical: Hand Signals for Crane Operat",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Scaffol",
+      "mod": "Practical: Scaffold Inspection & Tagging",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Scaffol",
+      "mod": "Practical: Safety Harness & Fall Protect",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Pipe Fi",
+      "mod": "Practical: ASME B31.3 Process Piping",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Pipe Fi",
+      "mod": "Practical: Flange Connections & Gaskets",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in HVACR T",
+      "mod": "Practical: Chiller System Basics",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in HVACR T",
+      "mod": "Practical: Copper Pipe Cutting & Brazing",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Buildin",
+      "mod": "Practical: Waterproofing & Protective Co",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Buildin",
+      "mod": "Practical: Brush & Roller Techniques",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Steel F",
+      "mod": "Practical: Bar Scheduling (BS 8666)",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Steel F",
+      "mod": "Practical: Reinforcement Tying Methods",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Carpent",
+      "mod": "Practical: Staircase Building",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Carpent",
+      "mod": "Practical: Basic Joinery & Joints",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Plumber",
+      "mod": "Install Commercial Drainage & Rainwater ",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Plumber",
+      "mod": "Cut, Join & Install Pipes",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in Welding",
+      "mod": "Perform GMAW (MIG/MAG) Welding",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in Welding",
+      "mod": "Prepare Weld Joints & Base Metal",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-3 in General",
+      "mod": "Install & Commission Motor Starter Circu",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    },
+    {
+      "prog": "National Vocational Certificate Level-2 in General",
+      "mod": "Perform Measurements for Wiring Installa",
+      "type": "ADMIN_COMPLETE",
+      "detail": "400: Your submission must be approved to complete this module"
+    }
+  ]
+}

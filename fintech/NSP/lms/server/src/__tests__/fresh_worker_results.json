@@ -1,0 +1,25 @@
+{
+  "stats": {
+    "programs": 100,
+    "fully_completed": 100,
+    "video_ok": 300,
+    "reading_ok": 200,
+    "practical_submit": 0,
+    "practical_approve": 0,
+    "practical_complete": 200,
+    "practical_fail": 0,
+    "assignment_submit": 0,
+    "assignment_approve": 0,
+    "assignment_complete": 100,
+    "assignment_fail": 0,
+    "quiz_pass": 100,
+    "quiz_fail": 0,
+    "quiz_error": 0,
+    "scenario_pass": 100,
+    "scenario_fail": 0,
+    "scenario_error": 0,
+    "certificates": 98
+  },
+  "errors": [],
+  "quiz_details": []
+}

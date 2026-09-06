@@ -16,7 +16,10 @@ if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
 # crash loop on "Cannot find module '../data/countries.json'". Exclude the
 # runtime directories by full path so only the top-level ones are skipped;
 # node_modules and .git stay bare because those should go at any depth.
-robocopy $src $tmp /E /XD node_modules .git (Join-Path $src "data") (Join-Path $src "previews") /XF *.db *.db-* *.pem .env | Out-Null
+# lms/ is a separate tool with its own compose file and its own target
+# directory (/opt/nsp-lms) — deploy it with deploy-lms-from-windows.ps1, not by
+# dragging 7 MB of someone else's application into the registry's folder.
+robocopy $src $tmp /E /XD node_modules .git (Join-Path $src "data") (Join-Path $src "previews") (Join-Path $src "lms") /XF *.db *.db-* *.pem .env | Out-Null
 # robocopy exits 0-7 on success and >=8 on failure; anything else means the
 # staged copy is incomplete and must not be uploaded.
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE - upload aborted" }

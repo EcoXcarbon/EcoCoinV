@@ -6,3 +6,11 @@ data/*.pem
 /previews/
 /docs/previews/
 /public/assets/fonts/
+
+# ── NSP Learning (lms/) ──────────────────────────────────────────────────────
+# Secrets are generated on the VPS and must never travel through the repo.
+lms/.env
+lms/server/.env
+lms/**/node_modules/
+lms/client/dist/
+lms/server/uploads/
