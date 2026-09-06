@@ -48,6 +48,20 @@ function buildApi(registry, config) {
   const otp = new Otp(store, { ...config.otp, secret: config.gateSecret, sms });
   const clientIp = req => (req.ip || req.socket.remoteAddress || '').replace(/^::ffff:/, '') || null;
 
+  /** The fields an officer actually compares when judging a possible duplicate. */
+  const compareView = r => ({
+    nspId: r.nspId, status: r.status, type: r.type,
+    givenNames: r.identity.givenNames, familyName: r.identity.familyName,
+    dateOfBirth: r.identity.dateOfBirth, sex: r.identity.sex,
+    fatherOrGuardianName: r.identity.fatherOrGuardianName || null,
+    idDocumentType: r.identity.idDocumentType, idDocumentNumber: r.identity.idDocumentNumber,
+    photo: r.identity.photo || null,
+    phone: r.contact.phone, email: r.contact.email,
+    district: r.district || (r.contact.address || {}).region || null,
+    primarySkill: (r.skills.find(k => k.primary) || r.skills[0] || {}).title || null,
+    assurance: r.assurance, registry: r.registry
+  });
+
   const wrap = fn => (req, res, next) => { try { fn(req, res, next); } catch (e) { next(e); } };
   const wrapAsync = fn => (req, res, next) => { Promise.resolve(fn(req, res, next)).catch(next); };
   const idParam = (req, res, next) => {
@@ -148,9 +162,38 @@ function buildApi(registry, config) {
   // ── registry desk (authenticated) ─────────────────────────────────
   router.use(registrarAuth);
 
-  router.get('/me', (req, res) => res.json({ actor: req.actor }));
+  router.get('/me', (req, res) => res.json({
+    actor: req.actor,
+    // The desk needs to know which controls are live: four-eyes changes what
+    // this officer is allowed to do to a record they verified themselves.
+    controls: { fourEyes: !!config.fourEyes, gate: !!config.gateEnabled },
+    issuer: { name: config.issuer.name, shortName: config.issuer.shortName, country: config.issuer.country }
+  }));
   router.get('/stats', wrap((req, res) => res.json(store.stats())));
-  router.get('/registrations', wrap((req, res) => res.json(store.listRegistrants(req.query))));
+  // One round trip for the whole overview: queues, throughput, service levels,
+  // gate and SMS health. Scoped to the caller so the four-eyes queue is theirs.
+  router.get('/dashboard', wrap((req, res) => {
+    const d = store.dashboard({ actor: req.actor, days: Math.min(Math.max(Number(req.query.days) || 30, 7), 180) });
+    d.sms.provider = sms.name; d.sms.live = sms.live; d.sms.devEcho = !!config.otp.devEcho;
+    res.json(d);
+  }));
+  router.get('/registrations', wrap((req, res) => res.json(
+    store.listRegistrants({ ...req.query, actor: req.actor })
+  )));
+  // The possible duplicates recorded for a record, resolved into enough of
+  // each candidate to judge them side by side without opening six tabs.
+  router.get('/registrations/:nspId/duplicates', idParam, wrap((req, res) => {
+    const reg = registry.mustGet(req.nspId);
+    const flags = reg.assurance.dedupFlags || [];
+    res.json({
+      nspId: reg.nspId,
+      subject: compareView(reg),
+      candidates: flags.map(f => {
+        const other = store.getRegistrant(f.nspId);
+        return { score: f.score, reasons: f.reasons, status: f.status, ...(other ? compareView(other) : { nspId: f.nspId, missing: true }) };
+      })
+    });
+  }));
   // Full audit trail across the registry, newest first. Every state change,
   // registration, OTP event and gate rejection is here.
   router.get('/audit', wrap((req, res) => res.json(store.auditRecent(req.query))));

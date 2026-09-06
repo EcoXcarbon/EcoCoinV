@@ -144,6 +144,38 @@ POST /api/v1/registrations { ...application, registrationToken, gateChallenge, g
 Each challenge and each token is single use, and the phone on the form must be
 the number that was verified.
 
+## The registry desk
+
+`/desk` — sign in with a registry key (held in `sessionStorage`, sent as
+`X-Registry-Key`). Five tabs, built around what an officer has to *do* rather
+than what the database happens to contain:
+
+- **Overview** — alerts first: a dead SMS gateway, four-eyes switched off,
+  duplicates nobody has judged, applicants who asked for a code and never
+  entered one. Then the counts, activity over 30 days, desk turnaround
+  (median and 90th percentile, with the sample size), the assurance mix, and
+  who verified versus who issued.
+- **Work queues** — the six lists an officer can act on: awaiting verification,
+  verified but not issued, *needs another officer* (four-eyes: records you
+  verified yourself), possible duplicates, expiring within 90 days, and records
+  with no verified mobile. Queues are ordered **oldest first**, so the longest
+  wait is served next.
+- **Records** — search and filter by status, type, assurance tier and district;
+  CSV export of everything the filters select, not just the visible page.
+- **Gate & SMS** — the registration funnel (codes requested → verified →
+  registered, with where people drop out), gateway health, and a live test send.
+- **Audit trail** — every entry, filterable by action and officer.
+
+Two things the desk shows that the API alone does not make obvious:
+
+- **Four-eyes is announced, not discovered.** Open a record you verified and the
+  issue buttons are disabled with the reason, instead of failing with a 409
+  after the click.
+- **Duplicate flags are comparable.** “Compare side by side” puts the record and
+  each candidate in one table with matching fields highlighted, so an officer can
+  answer the only question that matters — same person, or two people who share a
+  name and a birthday?
+
 ## API v1 (summary)
 
 Public
@@ -156,7 +188,11 @@ Public
 - `GET  /api/v1/issuer` · `GET /.well-known/did.json`
 
 Registry desk (`X-Registry-Key`)
-- `GET  /api/v1/registrations?q=&status=&type=&limit=&offset=` · `GET /api/v1/stats`
+- `GET  /api/v1/dashboard?days=30` (queues, trends, service levels, gate and SMS health — scoped to the caller)
+- `GET  /api/v1/registrations?q=&status=&type=&assurance=&district=&sector=&queue=&limit=&offset=`
+  `queue` = `needsVerification|awaitingIssue|secondOfficer|flagged|expiringSoon|unverifiedPhone`
+- `GET  /api/v1/registrations/{nspId}/duplicates` (candidates resolved for side-by-side comparison)
+- `GET  /api/v1/me` (actor + which controls are live) · `GET /api/v1/stats`
 - `GET  /api/v1/registrations/{nspId}` (full record + credentials + audit)
 - `PUT  /api/v1/registrations/{nspId}`
 - `POST /api/v1/registrations/{nspId}/transition { action: REVIEW|VERIFY|REJECT|ISSUE|SUSPEND|REINSTATE|REVOKE, reason? }`

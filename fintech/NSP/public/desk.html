@@ -7,21 +7,22 @@
 <link rel="stylesheet" href="/assets/css/fonts.css">
 <link rel="stylesheet" href="/assets/css/nsp.css">
 <style>
-.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 14px; }
-.toolbar .field { margin: 0; min-width: 160px; }
-.actions-bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
-.photo-sm { width: 72px; height: 92px; border-radius: 6px; background: #E8EDF5 center/cover; border: 1px solid var(--nsp-line); float: right; margin-left: 12px; }
-.audit li { font-size: .8rem; color: var(--nsp-muted); }
-.statgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 18px; }
-.statgrid .card { padding: 12px; }
+  .container { max-width: 1280px; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 14px; }
+  .toolbar .field { margin: 0; min-width: 150px; }
+  .actions-bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+  .photo-sm { width: 72px; height: 92px; border-radius: 6px; background: #E8EDF5 center/cover; border: 1px solid var(--nsp-line); float: right; margin-left: 12px; }
+  .audit li { font-size: .8rem; color: var(--nsp-muted); }
 </style>
 </head>
 <body>
 <header class="nsp-header"><div class="container">
   <a class="brand" href="/"><span class="emblem">NSP</span><span>National Skill Passport<small>Registry Desk</small></span></a>
-  <nav class="nav"><a href="/">Home</a><a href="/register">Register</a><a href="/verify">Verify</a><a href="/track">Track</a><a href="/desk" class="active">Registry Desk</a><a href="#" id="logout" hidden>Sign out</a></nav>
+  <nav class="nav"><a href="/">Home</a><a href="/register">Register</a><a href="/verify">Verify</a><a href="/track">Track</a><a href="/desk" class="active">Registry Desk</a></nav>
 </div></header>
+
 <main class="container">
+  <!-- ── sign in ─────────────────────────────────────────────────── -->
   <div class="card" id="login" style="max-width:460px">
     <h2>Registry officer sign-in</h2>
     <p class="muted small">Enter your registry key. It is held only in this browser session and sent as <code>X-Registry-Key</code>.</p>
@@ -30,20 +31,129 @@
   </div>
 
   <div id="desk" hidden>
-    <div class="statgrid" id="stats"></div>
-    <div class="card">
-      <div class="toolbar">
-        <div class="field"><label>Search</label><input type="text" id="q" placeholder="NSP ID, name, email, ID number"></div>
-        <div class="field"><label>Status</label><select id="status"><option value="">All</option><option>SUBMITTED</option><option>UNDER_REVIEW</option><option>VERIFIED</option><option>ISSUED</option><option>SUSPENDED</option><option>EXPIRED</option><option>REVOKED</option><option>REJECTED</option></select></div>
-        <div class="field"><label>Type</label><select id="type"><option value="">All</option><option>STUDENT</option><option>APPRENTICE</option><option>WORKER</option><option>PROFESSIONAL</option></select></div>
-        <button class="btn btn-secondary" id="refresh">Refresh</button>
-        <span class="muted small" id="count" style="margin-left:auto"></span>
-      </div>
-      <div style="overflow-x:auto"><table class="table" id="list"><thead><tr><th>NSP ID</th><th>Name</th><th>Type</th><th>Primary skill</th><th>Nat.</th><th>Status</th><th>Submitted</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="deskbar">
+      <div class="who"><span class="avatar" id="avatar"></span><span><b id="whoName"></b><br><span class="muted small" id="whoRole"></span></span></div>
+      <div class="spacer"></div>
+      <span class="muted small" id="freshness"></span>
+      <button class="btn btn-sm btn-secondary" id="refresh">Refresh</button>
+      <button class="btn btn-sm btn-secondary" id="logout">Sign out</button>
     </div>
+
+    <div class="tabs" id="tabs">
+      <button data-tab="overview" class="active">Overview</button>
+      <button data-tab="queues">Work queues<span class="badge" id="tabQueueCount">0</span></button>
+      <button data-tab="records">Records</button>
+      <button data-tab="gate">Gate &amp; SMS</button>
+      <button data-tab="audit">Audit trail</button>
+    </div>
+
+    <!-- ── overview ──────────────────────────────────────────────── -->
+    <section data-panel="overview">
+      <div class="alerts" id="alerts"></div>
+      <div class="kpis" id="kpis"></div>
+
+      <h3>Work queues</h3>
+      <div class="qcards" id="queueCards"></div>
+
+      <div class="grid grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <h3>Activity <span class="muted small" id="trendWindow"></span></h3>
+          <div id="trendChart"></div>
+          <div class="legend">
+            <span><i style="background:var(--nsp-emerald)"></i>New registrations</span>
+            <span><i style="background:var(--nsp-navy-2)"></i>Passports issued</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Public verifications</h3>
+          <div id="checkChart"></div>
+          <p class="muted small" style="margin:8px 0 0">Employers and others scanning a card's QR or looking up an NSP ID. This is the registry being used, as opposed to being filled.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-3" style="margin-bottom:20px">
+        <div class="card"><h3>Desk turnaround</h3><div id="sla"></div></div>
+        <div class="card"><h3>Assurance</h3><div id="assuranceBreakdown"></div></div>
+        <div class="card"><h3>Officers</h3><div id="officers"></div></div>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card"><h3>Districts</h3><div class="hbars" id="districts"></div></div>
+        <div class="card"><h3>Sectors</h3><div class="hbars" id="sectors"></div></div>
+        <div class="card"><h3>Occupations</h3><div class="hbars" id="occupations"></div></div>
+      </div>
+    </section>
+
+    <!-- ── queues ────────────────────────────────────────────────── -->
+    <section data-panel="queues" hidden>
+      <div class="tabs" id="queueTabs" style="border-bottom:none"></div>
+      <div class="card">
+        <p class="muted small" id="queueHelp" style="margin-top:0"></p>
+        <div style="overflow-x:auto"><table class="table" id="queueList"><thead><tr><th>NSP ID</th><th>Name</th><th>Assurance</th><th>District</th><th>Status</th><th>Waiting</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- ── records ───────────────────────────────────────────────── -->
+    <section data-panel="records" hidden>
+      <div class="card">
+        <div class="toolbar">
+          <div class="field"><label>Search</label><input type="text" id="q" placeholder="NSP ID, name, email, CNIC, phone"></div>
+          <div class="field"><label>Status</label><select id="status"><option value="">All</option><option>SUBMITTED</option><option>UNDER_REVIEW</option><option>VERIFIED</option><option>ISSUED</option><option>SUSPENDED</option><option>EXPIRED</option><option>REVOKED</option><option>REJECTED</option></select></div>
+          <div class="field"><label>Type</label><select id="type"><option value="">All</option><option>STUDENT</option><option>APPRENTICE</option><option>WORKER</option><option>PROFESSIONAL</option></select></div>
+          <div class="field"><label>Assurance</label><select id="assurance"><option value="">All</option><option value="NSP-1">NSP-1 mobile</option><option value="NSP-2">NSP-2 document</option></select></div>
+          <div class="field"><label>District</label><select id="district"><option value="">All</option></select></div>
+          <button class="btn btn-secondary" id="exportCsv">Export CSV</button>
+          <span class="muted small" id="count" style="margin-left:auto"></span>
+        </div>
+        <div style="overflow-x:auto"><table class="table" id="list"><thead><tr><th>NSP ID</th><th>Name</th><th>Type</th><th>Primary skill</th><th>District</th><th>Assurance</th><th>Status</th><th>Submitted</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div class="pager"><button class="btn btn-sm btn-secondary" id="prevPage">← Previous</button><span id="pageInfo" class="muted"></span><button class="btn btn-sm btn-secondary" id="nextPage">Next →</button></div>
+      </div>
+    </section>
+
+    <!-- ── gate & SMS ────────────────────────────────────────────── -->
+    <section data-panel="gate" hidden>
+      <div class="grid grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <h3>Registration funnel <span class="muted small">last 24 hours</span></h3>
+          <div class="funnel" id="funnel"></div>
+          <p class="muted small" style="margin:12px 0 0">Where applicants stop tells you which thing is broken: drop-off at the code points at SMS delivery, drop-off at the form points at the form.</p>
+        </div>
+        <div class="card">
+          <h3>SMS gateway</h3>
+          <div id="smsStatus"></div>
+          <fieldset style="margin-top:14px"><legend>Send a test message</legend>
+            <div class="row" style="align-items:end">
+              <div class="field" style="margin:0"><label>Mobile (E.164)</label><input type="tel" id="smsPhone" placeholder="+923001234567"></div>
+              <div><button class="btn btn-sm btn-primary" id="smsSend">Send test</button></div>
+            </div>
+            <div id="smsMsg" style="margin-top:10px"></div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Recent delivery attempts</h3>
+        <div style="overflow-x:auto"><table class="table" id="smsLog"><thead><tr><th>When</th><th>Number</th><th>Provider</th><th>Attempt</th><th>Latency</th><th>Result</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- ── audit ─────────────────────────────────────────────────── -->
+    <section data-panel="audit" hidden>
+      <div class="card">
+        <div class="toolbar">
+          <div class="field"><label>Action</label><select id="auditAction"><option value="">All</option></select></div>
+          <div class="field"><label>Officer</label><input type="text" id="auditActor" placeholder="e.g. registrar"></div>
+          <button class="btn btn-secondary" id="auditRefresh">Apply</button>
+          <span class="muted small" id="auditCount" style="margin-left:auto"></span>
+        </div>
+        <div style="overflow-x:auto"><table class="table" id="auditList"><thead><tr><th>When</th><th>Officer</th><th>Action</th><th>Record</th><th>Detail</th></tr></thead><tbody></tbody></table></div>
+        <div class="pager"><button class="btn btn-sm btn-secondary" id="auditPrev">← Previous</button><span id="auditPage" class="muted"></span><button class="btn btn-sm btn-secondary" id="auditNext">Next →</button></div>
+      </div>
+    </section>
   </div>
+
   <div class="drawer" id="drawer"><button class="btn btn-sm btn-secondary close" id="closeDrawer">✕</button><div id="detail"></div></div>
 </main>
+
 <script src="/assets/js/api.js"></script>
 <script src="/assets/js/desk.js"></script>
 </body>

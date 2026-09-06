@@ -96,7 +96,8 @@ const ADDED_COLUMNS = [
   ['registrants', 'name_key', 'TEXT'],
   ['registrants', 'father_key', 'TEXT'],
   ['registrants', 'dedup_flags', 'TEXT'],
-  ['registrants', 'registered_ip', 'TEXT']
+  ['registrants', 'registered_ip', 'TEXT'],
+  ['registrants', 'district', 'TEXT']
 ];
 
 class Store {
@@ -116,6 +117,18 @@ class Store {
     }
     this.db.exec('CREATE INDEX IF NOT EXISTS ix_registrants_namekey ON registrants (name_key, date_of_birth)');
     this.db.exec('CREATE INDEX IF NOT EXISTS ix_registrants_phone ON registrants (phone)');
+    this.db.exec('CREATE INDEX IF NOT EXISTS ix_registrants_district ON registrants (district)');
+    // District lives in the payload; lift it into a column so the desk can
+    // group by it without unpacking every record. Backfilled once.
+    const stale = this.db.prepare('SELECT nsp_id, payload FROM registrants WHERE district IS NULL').all();
+    if (stale.length) {
+      const set = this.db.prepare('UPDATE registrants SET district = ? WHERE nsp_id = ?');
+      for (const r of stale) {
+        let d = null;
+        try { d = (JSON.parse(r.payload).contact || {}).address.region || null; } catch { /* leave null */ }
+        set.run(d, r.nsp_id);
+      }
+    }
   }
 
   nextSequence(country, year) {
@@ -140,12 +153,12 @@ class Store {
     const now = new Date().toISOString();
     const primary = reg.skills.find(s => s.primary) || reg.skills[0];
     this.db.prepare(`INSERT INTO registrants (nsp_id, status, type, given_names, family_name, date_of_birth, sex, nationality,
-      id_document_type, id_document_number, email, phone, primary_isco, primary_skill, sector, payload, created_at, updated_at, submitted_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      id_document_type, id_document_number, email, phone, primary_isco, primary_skill, sector, payload, created_at, updated_at, submitted_at, district)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       nspId, status, reg.type, reg.identity.givenNames, reg.identity.familyName, reg.identity.dateOfBirth, reg.identity.sex,
       reg.identity.nationality, reg.identity.idDocumentType, reg.identity.idDocumentNumber, reg.contact.email, reg.contact.phone,
       primary ? primary.iscoCode : null, primary ? primary.title : null, primary ? primary.sector : null,
-      JSON.stringify(reg), now, now, status === 'SUBMITTED' ? now : null);
+      JSON.stringify(reg), now, now, status === 'SUBMITTED' ? now : null, reg.contact.address.region || null);
     return this.getRegistrant(nspId);
   }
 
@@ -156,6 +169,7 @@ class Store {
       JSON.stringify(reg), reg.identity.givenNames, reg.identity.familyName, reg.identity.dateOfBirth, reg.identity.sex,
       reg.identity.nationality, reg.contact.email, reg.contact.phone, primary ? primary.iscoCode : null,
       primary ? primary.title : null, primary ? primary.sector : null, reg.type, new Date().toISOString(), nspId);
+    this.db.prepare('UPDATE registrants SET district = ? WHERE nsp_id = ?').run(reg.contact.address.region || null, nspId);
     return this.getRegistrant(nspId);
   }
 
@@ -177,6 +191,7 @@ class Store {
     const reg = JSON.parse(row.payload);
     return {
       nspId: row.nsp_id, status: row.status, ...reg,
+      district: row.district || null,
       registry: {
         createdAt: row.created_at, updatedAt: row.updated_at, submittedAt: row.submitted_at,
         verifiedAt: row.verified_at, verifiedBy: row.verified_by, issuedAt: row.issued_at, issuedBy: row.issued_by,
@@ -191,22 +206,174 @@ class Store {
     };
   }
 
-  listRegistrants({ status, q, type, limit = 50, offset = 0 } = {}) {
+  /**
+   * The desk list. Beyond the plain filters it understands the work queues, so
+   * the dashboard cards and the records table run through one code path.
+   *
+   * queue: needsVerification | awaitingIssue | secondOfficer | flagged |
+   *        expiringSoon | unverifiedPhone
+   * actor: required by 'secondOfficer' — the records this officer verified and
+   *        therefore may not issue.
+   */
+  listRegistrants({ status, q, type, sector, district, assurance, queue, actor, limit = 50, offset = 0 } = {}) {
     const where = []; const vals = [];
     if (status) { where.push('status = ?'); vals.push(status); }
     if (type) { where.push('type = ?'); vals.push(type); }
+    if (sector) { where.push('sector = ?'); vals.push(sector); }
+    if (district) { where.push('district = ?'); vals.push(district); }
+    if (assurance) { where.push('assurance_tier = ?'); vals.push(assurance); }
     if (q) {
-      where.push('(nsp_id LIKE ? OR family_name LIKE ? OR given_names LIKE ? OR email LIKE ? OR id_document_number LIKE ?)');
-      const like = `%${q}%`; vals.push(like, like, like, like, like);
+      where.push('(nsp_id LIKE ? OR family_name LIKE ? OR given_names LIKE ? OR email LIKE ? OR id_document_number LIKE ? OR phone LIKE ?)');
+      const like = `%${q}%`; vals.push(like, like, like, like, like, like);
     }
-    const sql = `SELECT nsp_id, status, type, given_names, family_name, nationality, primary_isco, primary_skill, sector, email, created_at, updated_at, issued_at, expires_at
-      FROM registrants ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+    switch (queue) {
+      case 'needsVerification': where.push("status IN ('SUBMITTED','UNDER_REVIEW')"); break;
+      case 'awaitingIssue': where.push("status = 'VERIFIED'"); break;
+      case 'secondOfficer':
+        // Four eyes: this officer verified these, so somebody else must issue.
+        where.push("status = 'VERIFIED' AND verified_by = ?"); vals.push(actor || '\u0000'); break;
+      case 'flagged':
+        where.push("dedup_flags IS NOT NULL AND dedup_flags NOT IN ('', '[]') AND status NOT IN ('REVOKED','REJECTED')"); break;
+      case 'expiringSoon':
+        where.push("status = 'ISSUED' AND expires_at IS NOT NULL AND expires_at <= ?");
+        vals.push(new Date(Date.now() + 90 * 86400_000).toISOString().slice(0, 10)); break;
+      case 'unverifiedPhone': where.push('phone_verified = 0'); break;
+      default: break;
+    }
+    const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    // A queue is worked oldest first — whoever has waited longest is served
+    // next — while the plain records list reads newest first.
+    const ORDER = {
+      needsVerification: 'COALESCE(submitted_at, created_at) ASC',
+      awaitingIssue: 'verified_at ASC',
+      secondOfficer: 'verified_at ASC',
+      flagged: 'created_at ASC',
+      expiringSoon: 'expires_at ASC',
+      unverifiedPhone: 'created_at ASC'
+    };
+    const order = ORDER[queue] || 'created_at DESC';
+    const sql = `SELECT nsp_id, status, type, given_names, family_name, nationality, primary_isco, primary_skill, sector,
+      email, phone, district, created_at, updated_at, submitted_at, verified_at, issued_at, expires_at,
+      assurance_tier, phone_verified, verified_by, issued_by, dedup_flags
+      FROM registrants ${w} ORDER BY ${order} LIMIT ? OFFSET ?`;
     const rows = this.db.prepare(sql).all(...vals, Math.min(Number(limit) || 50, 200), Number(offset) || 0);
-    const total = this.db.prepare(`SELECT COUNT(*) AS n FROM registrants ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`).get(...vals).n;
+    const total = this.db.prepare(`SELECT COUNT(*) AS n FROM registrants ${w}`).get(...vals).n;
     return { total, items: rows.map(r => ({
       nspId: r.nsp_id, status: r.status, type: r.type, givenNames: r.given_names, familyName: r.family_name,
       nationality: r.nationality, primaryIsco: r.primary_isco, primarySkill: r.primary_skill, sector: r.sector,
-      email: r.email, createdAt: r.created_at, updatedAt: r.updated_at, issuedAt: r.issued_at, expiresAt: r.expires_at })) };
+      email: r.email, phone: r.phone, district: r.district,
+      createdAt: r.created_at, updatedAt: r.updated_at, submittedAt: r.submitted_at, verifiedAt: r.verified_at,
+      issuedAt: r.issued_at, expiresAt: r.expires_at,
+      assuranceTier: r.assurance_tier || 'NSP-1', phoneVerified: !!r.phone_verified,
+      verifiedBy: r.verified_by, issuedBy: r.issued_by,
+      flags: r.dedup_flags ? JSON.parse(r.dedup_flags).length : 0 })) };
+  }
+
+  /**
+   * Everything the desk overview needs in one round trip: the queues an
+   * officer can act on, throughput, how long the desk is taking, and the
+   * health of the registration gate.
+   *
+   * @param {string} actor  the signed-in officer, for the four-eyes queue
+   */
+  dashboard({ actor, days = 30 } = {}) {
+    const db = this.db;
+    const now = Date.now();
+    const sinceIso = new Date(now - days * 86400_000).toISOString();
+    const one = (sql, ...v) => db.prepare(sql).get(...v).n;
+    const cutoff90 = new Date(now + 90 * 86400_000).toISOString().slice(0, 10);
+    const FLAGGED = "dedup_flags IS NOT NULL AND dedup_flags NOT IN ('', '[]') AND status NOT IN ('REVOKED','REJECTED')";
+
+    const queues = {
+      needsVerification: one("SELECT COUNT(*) AS n FROM registrants WHERE status IN ('SUBMITTED','UNDER_REVIEW')"),
+      awaitingIssue: one("SELECT COUNT(*) AS n FROM registrants WHERE status = 'VERIFIED'"),
+      // Blocked on *this* officer: they verified it, so it needs someone else.
+      secondOfficer: actor ? one("SELECT COUNT(*) AS n FROM registrants WHERE status = 'VERIFIED' AND verified_by = ?", actor) : 0,
+      flagged: one(`SELECT COUNT(*) AS n FROM registrants WHERE ${FLAGGED}`),
+      expiringSoon: one("SELECT COUNT(*) AS n FROM registrants WHERE status = 'ISSUED' AND expires_at IS NOT NULL AND expires_at <= ?", cutoff90),
+      unverifiedPhone: one('SELECT COUNT(*) AS n FROM registrants WHERE phone_verified = 0')
+    };
+
+    const group = (sql, key, ...v) => db.prepare(sql).all(...v).map(r => ({ [key]: r.k, count: r.n }));
+    const series = (sql, ...v) => db.prepare(sql).all(...v).map(r => ({ date: r.d, count: r.n }));
+
+    // Days with no activity are simply absent from a GROUP BY, which draws a
+    // misleading chart; fill them so the shape of the week is honest.
+    const fill = rows => {
+      const byDate = Object.fromEntries(rows.map(r => [r.date, r.count]));
+      const out = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(now - i * 86400_000).toISOString().slice(0, 10);
+        out.push({ date: d, count: byDate[d] || 0 });
+      }
+      return out;
+    };
+
+    return {
+      generatedAt: new Date().toISOString(),
+      actor: actor || null,
+      windowDays: days,
+      totals: {
+        registrants: one('SELECT COUNT(*) AS n FROM registrants'),
+        issued: one("SELECT COUNT(*) AS n FROM registrants WHERE status = 'ISSUED'"),
+        cards: one("SELECT COUNT(*) AS n FROM credentials WHERE kind = 'CARD' AND status = 'ACTIVE'"),
+        certificates: one("SELECT COUNT(*) AS n FROM credentials WHERE kind = 'CERTIFICATE' AND status = 'ACTIVE'"),
+        publicChecks: one('SELECT COUNT(*) AS n FROM verification_log'),
+        newInWindow: one('SELECT COUNT(*) AS n FROM registrants WHERE created_at >= ?', sinceIso)
+      },
+      queues,
+      byStatus: Object.fromEntries(db.prepare('SELECT status AS k, COUNT(*) AS n FROM registrants GROUP BY status').all().map(r => [r.k, r.n])),
+      byType: Object.fromEntries(db.prepare('SELECT type AS k, COUNT(*) AS n FROM registrants GROUP BY type').all().map(r => [r.k, r.n])),
+      byAssurance: Object.fromEntries(db.prepare('SELECT assurance_tier AS k, COUNT(*) AS n FROM registrants GROUP BY assurance_tier').all().map(r => [r.k || 'NSP-1', r.n])),
+      topDistricts: group("SELECT district AS k, COUNT(*) AS n FROM registrants WHERE district IS NOT NULL AND district != '' GROUP BY district ORDER BY n DESC LIMIT 8", 'district'),
+      topSectors: group("SELECT sector AS k, COUNT(*) AS n FROM registrants WHERE sector IS NOT NULL GROUP BY sector ORDER BY n DESC LIMIT 8", 'sector'),
+      topOccupations: group("SELECT primary_skill AS k, COUNT(*) AS n FROM registrants WHERE primary_skill IS NOT NULL GROUP BY primary_skill ORDER BY n DESC LIMIT 8", 'occupation'),
+      trend: {
+        registrations: fill(series('SELECT substr(created_at,1,10) AS d, COUNT(*) AS n FROM registrants WHERE created_at >= ? GROUP BY d', sinceIso)),
+        issuances: fill(series('SELECT substr(issued_at,1,10) AS d, COUNT(*) AS n FROM registrants WHERE issued_at >= ? GROUP BY d', sinceIso)),
+        publicChecks: fill(series('SELECT substr(at,1,10) AS d, COUNT(*) AS n FROM verification_log WHERE at >= ? GROUP BY d', sinceIso))
+      },
+      serviceLevel: {
+        submittedToVerified: this.durationStats('submitted_at', 'verified_at'),
+        verifiedToIssued: this.durationStats('verified_at', 'issued_at')
+      },
+      officers: db.prepare(`SELECT verified_by AS actor, COUNT(*) AS verified,
+          (SELECT COUNT(*) FROM registrants b WHERE b.issued_by = a.verified_by) AS issued
+        FROM registrants a WHERE verified_by IS NOT NULL GROUP BY verified_by ORDER BY verified DESC LIMIT 10`).all(),
+      gate: this.gateActivity(24 * 3600_000),
+      sms: this.smsHealth({ limit: 5 })
+    };
+  }
+
+  /** Median and 90th percentile hours between two timestamp columns. */
+  durationStats(fromCol, toCol) {
+    const rows = this.db.prepare(
+      `SELECT ${fromCol} AS a, ${toCol} AS b FROM registrants WHERE ${fromCol} IS NOT NULL AND ${toCol} IS NOT NULL ORDER BY ${toCol} DESC LIMIT 500`
+    ).all();
+    const hrs = rows.map(r => (Date.parse(r.b) - Date.parse(r.a)) / 3600_000).filter(h => h >= 0).sort((x, y) => x - y);
+    if (!hrs.length) return { n: 0, medianHours: null, p90Hours: null };
+    const at = p => hrs[Math.min(hrs.length - 1, Math.floor(p * hrs.length))];
+    return { n: hrs.length, medianHours: Number(at(0.5).toFixed(1)), p90Hours: Number(at(0.9).toFixed(1)) };
+  }
+
+  /**
+   * Registration-gate activity, read off the audit trail. The two abandonment
+   * numbers are the useful ones: they separate "the SMS never arrived" from
+   * "the form is too long".
+   */
+  gateActivity(windowMs = 24 * 3600_000) {
+    const since = new Date(Date.now() - windowMs).toISOString();
+    const rows = this.db.prepare('SELECT action, COUNT(*) AS n FROM audit_log WHERE at >= ? GROUP BY action').all(since);
+    const by = Object.fromEntries(rows.map(r => [r.action, r.n]));
+    const requested = by.OTP_REQUEST || 0, verified = by.OTP_VERIFIED || 0, registered = by.REGISTER || 0;
+    return {
+      windowHours: Math.round(windowMs / 3600_000),
+      otpRequested: requested, otpVerified: verified, registered,
+      abandonedAtCode: Math.max(0, requested - verified),
+      abandonedAtForm: Math.max(0, verified - registered),
+      rejectedByGate: by.GATE_REJECT || 0,
+      duplicateFlags: by.DEDUP_FLAG || 0
+    };
   }
 
   stats() {

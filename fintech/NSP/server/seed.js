@@ -47,8 +47,12 @@ const made = [];
 for (const p of people) {
   try { made.push(registry.register(p, 'seed')); } catch (e) { console.log('skip:', e.message); }
 }
-if (made[0]) { registry.transition(made[0].nspId, 'VERIFY', 'seed-registrar'); registry.issueCard(made[0].nspId, 'seed-registrar'); registry.issueCertificate(made[0].nspId, 'seed-registrar'); }
-if (made[1]) registry.transition(made[1].nspId, 'REVIEW', 'seed-registrar');
-if (made[2]) { registry.transition(made[2].nspId, 'VERIFY', 'seed-registrar'); registry.issueCard(made[2].nspId, 'seed-registrar'); registry.transition(made[2].nspId, 'SUSPEND', 'seed-registrar', { reason: 'Employer complaint under investigation' }); }
+// Two officers, because the four-eyes control forbids the person who verified
+// a record from issuing it. Seeding with one actor would fail, and would also
+// paint a picture of the desk that the control does not allow.
+const VERIFIER = 'seed-registrar', ISSUER = 'seed-issuer';
+if (made[0]) { registry.transition(made[0].nspId, 'VERIFY', VERIFIER); registry.issueCard(made[0].nspId, ISSUER); registry.issueCertificate(made[0].nspId, ISSUER); }
+if (made[1]) registry.transition(made[1].nspId, 'REVIEW', VERIFIER);
+if (made[2]) { registry.transition(made[2].nspId, 'VERIFY', VERIFIER); registry.issueCard(made[2].nspId, ISSUER); registry.transition(made[2].nspId, 'SUSPEND', VERIFIER, { reason: 'Employer complaint under investigation' }); }
 for (const r of made) console.log(`${store.getRegistrant(r.nspId).status.padEnd(12)} ${r.nspId}  ${r.identity.givenNames} ${r.identity.familyName}`);
 store.close();
