@@ -337,9 +337,18 @@ class Store {
         submittedToVerified: this.durationStats('submitted_at', 'verified_at'),
         verifiedToIssued: this.durationStats('verified_at', 'issued_at')
       },
-      officers: db.prepare(`SELECT verified_by AS actor, COUNT(*) AS verified,
-          (SELECT COUNT(*) FROM registrants b WHERE b.issued_by = a.verified_by) AS issued
-        FROM registrants a WHERE verified_by IS NOT NULL GROUP BY verified_by ORDER BY verified DESC LIMIT 10`).all(),
+      // Built from the union of both columns: an officer who only ever issues
+      // — which four-eyes makes a perfectly ordinary role — would otherwise
+      // never appear in the desk's own record of who did what.
+      officers: db.prepare(`
+        WITH actors AS (
+          SELECT verified_by AS actor FROM registrants WHERE verified_by IS NOT NULL
+          UNION SELECT issued_by FROM registrants WHERE issued_by IS NOT NULL
+        )
+        SELECT a.actor,
+          (SELECT COUNT(*) FROM registrants r WHERE r.verified_by = a.actor) AS verified,
+          (SELECT COUNT(*) FROM registrants r WHERE r.issued_by = a.actor) AS issued
+        FROM actors a ORDER BY verified + issued DESC LIMIT 10`).all(),
       gate: this.gateActivity(24 * 3600_000),
       sms: this.smsHealth({ limit: 5 })
     };

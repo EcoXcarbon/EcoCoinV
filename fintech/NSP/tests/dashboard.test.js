@@ -216,3 +216,19 @@ test('/me tells the desk which controls are live', async () => {
   assert.equal(m.controls.gate, false);
   assert.ok(m.issuer.shortName);
 });
+
+// Defined last on purpose: this test adds a record, and the assertions above
+// are written against the exact fixture built in before().
+test('an officer who has only ever issued still appears', async () => {
+  // Four eyes makes "issues but never verifies" an ordinary role, so grouping
+  // by verifier alone would hide that person from the desk's own record.
+  const id = await add();
+  await move(id, 'VERIFY', alice);
+  await move(id, 'ISSUE', bob);
+
+  const d = await dashboard(alice);
+  const carol = d.officers.find(o => o.actor === 'bob');
+  assert.ok(carol, 'bob must be listed');
+  assert.equal(carol.issued, 2);
+  assert.equal(carol.verified, 1, 'bob verified exactly one record');
+});
