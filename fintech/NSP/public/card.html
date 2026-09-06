@@ -71,20 +71,29 @@ body.opt-bleed .cut-marks { display: block; }
 .front .ghost { right: 3mm; top: 12.8mm; width: 9mm; height: 11.5mm; }
 
 /* ── BACK ── */
-.back .top { position: absolute; left: 4mm; right: 4mm; top: 3.2mm; display: flex; justify-content: space-between; align-items: flex-start; gap: 3mm; }
-.back .terms { font-size: 1.75mm; line-height: 1.3; color: var(--slate); max-width: 50mm; }
+/* The back is a two-column flow, not a set of fixed offsets. The terms
+   paragraph ends with the issuing authority's name, whose length varies by
+   deployment — pinning the skills block to a fixed top made a long authority
+   line run straight through the "Registered skills" heading. */
+.back .cols { position: absolute; left: 4mm; right: 4mm; top: 3.2mm; bottom: 16.2mm; display: flex; gap: 3mm; align-items: stretch; }
+.back .col-left { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1.4mm; }
+.back .col-right { flex: 0 0 24mm; display: flex; flex-direction: column; gap: 1.2mm; }
+.back .terms { font-size: 1.75mm; line-height: 1.3; color: var(--slate); }
 .back .terms b { color: var(--navy); }
 .back .verify { text-align: right; font-size: 1.7mm; color: var(--slate); line-height: 1.3; }
-.back .verify .url { font-family: var(--ocr); color: var(--navy); font-weight: 700; font-size: 2mm; }
-.back .skills { position: absolute; left: 4mm; top: 15.5mm; width: 50mm; }
+.back .verify .url { color: var(--navy); font-weight: 700; font-size: 2.1mm; letter-spacing: 0; }
+/* Takes what is left after the terms, and clips rather than pushing the MRZ. */
+.back .skills { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .back .skills .l { font-size: 1.55mm; letter-spacing: .12em; text-transform: uppercase; color: var(--slate); margin-bottom: .6mm; }
-.back .skills .row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2mm; line-height: 1.45; border-top: .12mm solid var(--line); padding: .25mm 0; }
-.back .skills .row span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.back .skills .row span:last-child { color: var(--emerald-2); font-weight: 600; white-space: nowrap; }
-.back .signature { position: absolute; right: 4mm; top: 15mm; width: 24mm; }
+.back .skills .row { display: flex; align-items: baseline; gap: 1.6mm; font-size: 2mm; line-height: 1.45; border-top: .12mm solid var(--line); padding: .25mm 0; }
+.back .skills .row .t { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.back .skills .row .c { flex: none; font-family: var(--ocr); font-size: 1.7mm; color: var(--slate); }
+.back .skills .row .lv { flex: none; color: var(--emerald-2); font-weight: 600; white-space: nowrap; font-size: 1.75mm; }
+.back .skills .row .lv.na { color: var(--slate); font-weight: 400; }
+.back .signature { margin-top: auto; }
 .back .signature .strip { height: 7mm; background: repeating-linear-gradient(135deg, #fff 0 .4mm, #EEF1F5 .4mm .8mm); border: .15mm solid var(--line); border-radius: .5mm; }
 .back .signature .l { font-size: 1.5mm; letter-spacing: .1em; text-transform: uppercase; color: var(--slate); margin-top: .5mm; text-align: center; }
-.back .serial { position: absolute; right: 4mm; top: 26mm; width: 24mm; text-align: center; }
+.back .serial { text-align: center; }
 .back .serial .l { font-size: 1.5mm; letter-spacing: .1em; text-transform: uppercase; color: var(--slate); }
 .back .serial .v { font-family: var(--ocr); font-weight: 700; font-size: 2.6mm; color: var(--navy); }
 .back .magstripe { display: none; position: absolute; left: 0; right: 0; top: 4mm; height: 12.7mm; background: #2B2B2B; } /* ISO 7811 track area, enable with ?mag=1 */
@@ -180,20 +189,29 @@ body.opt-chip .chip { display: block; }
   }
 
   function back(p) {
-    const rows = (p.skillsBack || []).slice(0, 4).map(s => `<div class="row"><span>${e(s.title)} <small>· ${s.iscoCode}</small></span><span>${s.nvqfLevel ? 'L' + s.nvqfLevel : '✓'}</span></div>`).join('');
+    // The ISCO code and the level must survive a long title: only the title
+    // itself is allowed to clip, and an unassessed skill says so rather than
+    // showing a tick, which reads as "verified".
+    const rows = (p.skillsBack || []).slice(0, 4).map(s =>
+      `<div class="row"><span class="t">${e(s.title)}</span><span class="c">${e(s.iscoCode)}</span>` +
+      `<span class="lv${s.nvqfLevel ? '' : ' na'}">${s.nvqfLevel ? 'NVQF ' + s.nvqfLevel : 'n/a'}</span></div>`).join('');
     const host = p.verifyUrl.replace(/^https?:\/\//, '').split('/verify')[0];
     return `<div class="card back">
       <svg class="guilloche" viewBox="0 0 856 540" preserveAspectRatio="none"></svg>
       <div class="safe">
         <div class="magstripe"></div>
-        <div class="top">
-          <div class="terms"><b>${e(p.issuer.name)}</b><br>This card is the property of the issuing registry and must be returned on request. It certifies registration of the holder's skills as recorded on the date of issue; it is not an identity or travel document. If found, return to ${e(p.issuer.authority)}.</div>
-          <div class="verify">Verify online / scan<br><span class="url">${e(host)}/verify</span><br>${e(p.nspId)}</div>
-        </div>
-        <div class="skills"><div class="l">Registered skills</div>${rows || '<div class="row"><span>See registry record</span><span></span></div>'}</div>
         <div class="ghost" style="${p.holder.photo ? `background-image:url(${p.holder.photo})` : ''}"></div>
-        <div class="signature"><div class="strip"></div><div class="l">Holder's signature</div></div>
-        <div class="serial"><div class="l">Card serial</div><div class="v">${e(p.serial)}</div></div>
+        <div class="cols">
+          <div class="col-left">
+            <div class="terms"><b>${e(p.issuer.name)}</b><br>This card is the property of the issuing registry and must be returned on request. It certifies registration of the holder's skills as recorded on the date of issue; it is not an identity or travel document. If found, return to ${e(p.issuer.authority)}.</div>
+            <div class="skills"><div class="l">Registered skills</div>${rows || '<div class="row"><span>See registry record</span><span></span></div>'}</div>
+          </div>
+          <div class="col-right">
+            <div class="verify">Verify online / scan<br><span class="url">${e(host)}/verify</span><br>${e(p.nspId)}</div>
+            <div class="signature"><div class="strip"></div><div class="l">Holder's signature</div></div>
+            <div class="serial"><div class="l">Card serial</div><div class="v">${e(p.serial)}</div></div>
+          </div>
+        </div>
         <div class="mrz"><div>${e(p.mrz.line1)}</div><div>${e(p.mrz.line2)}</div><div>${e(p.mrz.line3)}</div></div>
       </div><div class="cut-marks"></div></div>`;
   }
@@ -203,7 +221,11 @@ body.opt-chip .chip { display: block; }
     const id = 'r' + Math.random().toString(36).slice(2, 7);
     return `<svg class="seal" style="${style || ''}" viewBox="0 0 100 100"><defs><path id="${id}" d="M50,50 m-36,0 a36,36 0 1,1 72,0 a36,36 0 1,1 -72,0"/></defs>
       <circle cx="50" cy="50" r="47" fill="none" stroke="#C9A227" stroke-width="1.6"/><circle cx="50" cy="50" r="27" fill="none" stroke="#C9A227" stroke-width="1"/>
-      <text font-family="IBM Plex Sans Condensed, Arial Narrow, sans-serif" font-size="9.5" font-weight="700" fill="#0B2545" letter-spacing="1.5"><textPath href="#${id}">NATIONAL SKILL PASSPORT · ${cc} · REGISTRY ·</textPath></text>
+      <!-- textLength pins the ring text to one revolution of the path. Without
+           it the string ran past the circumference and wrapped back over its
+           own start, printing "REGISNATIONAL". Country codes vary in width, so
+           fitting it by eye is not enough. -->
+      <text font-family="IBM Plex Sans Condensed, Arial Narrow, sans-serif" font-size="8.6" font-weight="700" fill="#0B2545"><textPath href="#${id}" textLength="216" lengthAdjust="spacing">NATIONAL SKILL PASSPORT · ${cc} · REGISTRY</textPath></text>
       <text x="50" y="56" text-anchor="middle" font-family="IBM Plex Sans Condensed, sans-serif" font-size="17" font-weight="700" fill="#0E9F6E">NSP</text>
       ${Array.from({ length: 24 }, (_, i) => `<line x1="50" y1="8" x2="50" y2="12" stroke="#C9A227" stroke-width="1.2" transform="rotate(${i * 15} 50 50)"/>`).join('')}</svg>`;
   }
